@@ -12,6 +12,7 @@ spec:
       labels:
         app: couchbase
     spec:
+      hostname: couchbase
       tolerations:
         - key: node-role.kubernetes.io/control-plane
           operator: Exists
@@ -20,6 +21,9 @@ spec:
         - name: couchbase
           image: couchbase/server:community-7.6.2
           imagePullPolicy: IfNotPresent
+          env:
+            - name: CB_SERVER_HOSTNAME
+              value: couchbase
           ports:
             - containerPort: 8091
               name: web-ui
@@ -38,6 +42,37 @@ spec:
             initialDelaySeconds: 10
             periodSeconds: 5
             failureThreshold: 12
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - |
+                    sleep 15
+                    # Initialize cluster if not already done
+                    curl -sf http://localhost:8091/pools/default -u Administrator:password > /dev/null 2>&1 && exit 0
+                    curl -s -X POST http://localhost:8091/clusterInit \
+                      -d clusterName=bluetext \
+                      -d services=kv,n1ql,index \
+                      -d username=Administrator \
+                      -d password=password \
+                      -d port=8091 \
+                      -d memoryQuota=256 \
+                      -d indexMemoryQuota=256
+                    # Set index storage mode
+                    curl -s -u Administrator:password -X POST http://localhost:8091/settings/indexes \
+                      -d storageMode=forestdb
+                    # Create sync_gateway user
+                    curl -s -u Administrator:password -X PUT http://localhost:8091/settings/rbac/users/local/sync_gateway \
+                      -d password=password \
+                      -d roles=mobile_sync_gateway[*]
+                    # Create main bucket
+                    curl -s -u Administrator:password -X POST http://localhost:8091/pools/default/buckets \
+                      -d name=main \
+                      -d ramQuota=100 \
+                      -d bucketType=couchbase \
+                      -d flushEnabled=1
           volumeMounts:
             - name: couchbase-data
               mountPath: /opt/couchbase/var

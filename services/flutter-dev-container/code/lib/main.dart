@@ -59,11 +59,8 @@ class _MyHomePageState extends State<MyHomePage> {
   
   Future<void> _startNativeReplication() async {
     try {
-      // Use 10.0.2.2 for Android Emulator to reach host localhost
-      // Use 192.168.86.142 for physical device (Mac IP)
-      String url = 'ws://192.168.86.142:4984/main';
+      String url = 'ws://couchbase-sync-gateway.dev.svc.cluster.local:4984/main';
       if (Platform.isAndroid) {
-        // Assuming Android Emulator
         url = 'ws://10.0.2.2:4984/main';
       }
       

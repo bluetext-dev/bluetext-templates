@@ -17,5 +17,15 @@
       "log_level": "info",
       "log_keys": ["*"]
     }
+  },
+  "databases": {
+    "main": {
+      "bucket": "main",
+      "num_index_replicas": 0,
+      "guest": {
+        "disabled": false,
+        "admin_channels": ["*"]
+      }
+    }
   }
 }

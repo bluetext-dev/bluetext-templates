@@ -1,0 +1,9 @@
+node_modules/
+.dart_tool/
+build/
+target/
+dist/
+*.class
+.gradle/
+local.properties
+.claude/

@@ -1,0 +1,133 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: bluetext-ui
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: bluetext-ui
+rules:
+  - apiGroups: [""]
+    resources: ["nodes", "namespaces", "pods", "services"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["create", "delete"]
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["create", "update", "patch", "delete"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["create", "update", "patch", "delete"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: bluetext-ui
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: bluetext-ui
+subjects:
+  - kind: ServiceAccount
+    name: bluetext-ui
+    namespace: bluetext
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bluetext-ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bluetext-ui
+  template:
+    metadata:
+      labels:
+        app: bluetext-ui
+    spec:
+      serviceAccountName: bluetext-ui
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: app
+          image: oven/bun:latest
+          command: ["sh", "-c", "cd /app && bun install && bun run build && bun run start"]
+          ports:
+            - containerPort: 3100
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: project
+              mountPath: /app
+            - name: node-modules
+              mountPath: /app/node_modules
+            - name: config
+              mountPath: /config
+              readOnly: true
+      volumes:
+        - name: project
+          hostPath:
+            path: /var/mnt/project/code/services/bluetext-ui
+            type: Directory
+        - name: node-modules
+          hostPath:
+            path: /var/mnt/project/.bluetext/cache/bluetext-ui/node_modules
+            type: DirectoryOrCreate
+        - name: config
+          hostPath:
+            path: /var/mnt/project/config
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bluetext-ui
+spec:
+  type: ClusterIP
+  selector:
+    app: bluetext-ui
+  ports:
+    - port: 80
+      targetPort: 3100
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bluetext-ui
+  annotations:
+    traefik.ingress.kubernetes.io/custom-response-headers: "X-Accel-Buffering:no"
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: local.bluetext.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bluetext-ui
+                port:
+                  number: 80

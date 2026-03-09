@@ -1,0 +1,29 @@
+# Flutter/Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+pubspec.lock
+
+# IDE
+*.iml
+.idea/
+*.swp
+
+# macOS
+.DS_Store
+macos/Flutter/ephemeral/
+
+# iOS
+ios/build/
+ios/Pods/
+ios/.symlinks/
+
+# Android
+android/build/
+**/gradle-wrapper.jar
+
+# Generated
+*.g.dart
+*.freezed.dart

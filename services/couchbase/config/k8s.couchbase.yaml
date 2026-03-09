@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: couchbase
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: couchbase
+  template:
+    metadata:
+      labels:
+        app: couchbase
+    spec:
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: couchbase
+          image: couchbase/server:enterprise-7.6.4
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8091
+              name: web-ui
+            - containerPort: 8092
+              name: views
+            - containerPort: 8093
+              name: query
+            - containerPort: 8094
+              name: search
+            - containerPort: 11210
+              name: data
+          readinessProbe:
+            httpGet:
+              path: /ui/index.html
+              port: 8091
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 12
+          volumeMounts:
+            - name: couchbase-data
+              mountPath: /opt/couchbase/var
+      volumes:
+        - name: couchbase-data
+          hostPath:
+            path: /var/mnt/project/.bluetext/cache/couchbase/data
+            type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: couchbase
+spec:
+  type: ClusterIP
+  selector:
+    app: couchbase
+  ports:
+    - name: web-ui
+      port: 80
+      targetPort: 8091
+    - name: views
+      port: 8092
+      targetPort: 8092
+    - name: query
+      port: 8093
+      targetPort: 8093
+    - name: search
+      port: 8094
+      targetPort: 8094
+    - name: data
+      port: 11210
+      targetPort: 11210
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: couchbase
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: couchbase.{{NAMESPACE}}.local.bluetext.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: couchbase
+                port:
+                  number: 80

@@ -1,0 +1,17 @@
+#!/bin/sh
+set -e
+
+. "$(dirname "$0")/init"
+
+# Start file watcher that triggers hot reload on .dart file changes
+echo "Starting hot reload file watcher..."
+"$(dirname "$0")/watch-reload" &
+
+# Create a FIFO for sending hot reload commands to flutter run's stdin
+FLUTTER_FIFO="/tmp/flutter_stdin"
+rm -f "$FLUTTER_FIFO"
+mkfifo "$FLUTTER_FIFO"
+
+# Launch Flutter web dev server
+echo "Launching Flutter web app on port 8080..."
+exec tail -f "$FLUTTER_FIFO" | flutter run -d web-server --web-port 8080 --web-hostname 0.0.0.0

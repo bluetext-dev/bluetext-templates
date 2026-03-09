@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flutter-dev-container
+  annotations:
+    bluetext.io/dev-command: "flutter run -d emulator-5554"
+    bluetext.io/dev-mode: host-forward
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: flutter-dev-container
+  template:
+    metadata:
+      labels:
+        app: flutter-dev-container
+    spec:
+      containers:
+        - name: app
+          image: ghcr.io/cirruslabs/flutter:stable
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: project
+              mountPath: /app
+      volumes:
+        - name: project
+          hostPath:
+            path: /var/mnt/project/code/services/flutter-dev-container
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flutter-dev-container
+spec:
+  type: ClusterIP
+  selector:
+    app: flutter-dev-container
+  ports:
+    - port: 80
+      targetPort: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: flutter-dev-container
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: flutter.{{NAMESPACE}}.local.bluetext.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: flutter-dev-container
+                port:
+                  number: 80

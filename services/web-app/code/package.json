@@ -1,0 +1,10 @@
+{
+  "name": "bluetext-cloud",
+  "private": true,
+  "scripts": {
+    "dev": "vite"
+  },
+  "devDependencies": {
+    "vite": "^6"
+  }
+}

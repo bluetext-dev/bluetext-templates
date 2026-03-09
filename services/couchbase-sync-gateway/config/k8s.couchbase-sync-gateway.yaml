@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: couchbase-sync-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: couchbase-sync-gateway
+  template:
+    metadata:
+      labels:
+        app: couchbase-sync-gateway
+    spec:
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: couchbase-sync-gateway
+          image: couchbase/sync-gateway:3.2.0-community
+          imagePullPolicy: IfNotPresent
+          args:
+            - "-bootstrap.use_tls_server=false"
+            - "/etc/sync_gateway/sync_gateway.json"
+          ports:
+            - containerPort: 4984
+              name: public
+            - containerPort: 4985
+              name: admin
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 4984
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 12
+          volumeMounts:
+            - name: config
+              mountPath: /etc/sync_gateway/sync_gateway.json
+              subPath: sync_gateway.json
+      volumes:
+        - name: config
+          hostPath:
+            path: /var/mnt/project/code/services/couchbase-sync-gateway
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: couchbase-sync-gateway
+spec:
+  type: ClusterIP
+  selector:
+    app: couchbase-sync-gateway
+  ports:
+    - name: public
+      port: 80
+      targetPort: 4984
+    - name: admin
+      port: 4985
+      targetPort: 4985
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: couchbase-sync-gateway
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: couchbase-sync-gateway.{{NAMESPACE}}.local.bluetext.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: couchbase-sync-gateway
+                port:
+                  number: 80

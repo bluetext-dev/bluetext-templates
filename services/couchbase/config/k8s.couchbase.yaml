@@ -18,7 +18,7 @@ spec:
           effect: NoSchedule
       containers:
         - name: couchbase
-          image: couchbase/server:enterprise-7.6.4
+          image: couchbase/server:community-7.6.2
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8091

@@ -141,7 +141,7 @@ async function getStatus() {
 }
 
 // ---------------------------------------------------------------------------
-// Service config discovery (reads /config/k8s.*.yaml)
+// Service config discovery (reads /config/services/k8s.*.yaml)
 // ---------------------------------------------------------------------------
 
 interface ServiceConfigInfo {
@@ -153,7 +153,7 @@ interface ServiceConfigInfo {
 
 function getServiceConfigs(): ServiceConfigInfo[] {
   try {
-    const files = readdirSync("/config");
+    const files = readdirSync("/config/services");
     const configs: ServiceConfigInfo[] = [];
     for (const file of files) {
       const match = file.match(/^k8s\.(.+)\.yaml$/);
@@ -161,7 +161,7 @@ function getServiceConfigs(): ServiceConfigInfo[] {
       const id = match[1];
       if (id === "bluetext-ui") continue;
 
-      const content = readFileSync(`/config/${file}`, "utf-8");
+      const content = readFileSync(`/config/services/${file}`, "utf-8");
       let targetPort = 0;
 
       for (const raw of content.split(/\n---\n/)) {
@@ -218,7 +218,7 @@ function apiPathForResource(
 }
 
 function parseConfigTemplate(id: string, namespace: string): K8sResource[] {
-  const content = readFileSync(`/config/k8s.${id}.yaml`, "utf-8");
+  const content = readFileSync(`/config/services/k8s.${id}.yaml`, "utf-8");
   const templated = content.replaceAll("{{NAMESPACE}}", namespace);
   const docs = parseAllDocuments(templated);
   const resources: K8sResource[] = [];

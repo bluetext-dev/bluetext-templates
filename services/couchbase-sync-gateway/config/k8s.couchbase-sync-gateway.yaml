@@ -22,7 +22,7 @@ spec:
           imagePullPolicy: IfNotPresent
           args:
             - "-bootstrap.use_tls_server=false"
-            - "/etc/sync_gateway/sync_gateway.json"
+            - "/etc/sync_gateway/config.json"
           ports:
             - containerPort: 4984
               name: public
@@ -37,12 +37,12 @@ spec:
             failureThreshold: 12
           volumeMounts:
             - name: config
-              mountPath: /etc/sync_gateway/sync_gateway.json
-              subPath: sync_gateway.json
+              mountPath: /etc/sync_gateway/config.json
+              subPath: config.json
       volumes:
         - name: config
           hostPath:
-            path: /var/mnt/project/code/services/couchbase-sync-gateway
+            path: /var/mnt/project/config/sync-gateway
             type: Directory
 ---
 apiVersion: v1

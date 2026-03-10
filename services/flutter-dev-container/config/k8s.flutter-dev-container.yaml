@@ -5,6 +5,7 @@ metadata:
   annotations:
     bluetext.io/dev-command: "flutter run -d emulator-5554"
     bluetext.io/dev-mode: host-forward
+    bluetext.io/port-forwards: "couchbase-sync-gateway:4984:80"
 spec:
   replicas: 1
   selector:
@@ -17,7 +18,8 @@ spec:
     spec:
       containers:
         - name: app
-          image: ghcr.io/cirruslabs/flutter:stable
+          image: registry.k8s.io/pause:3.9
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
           volumeMounts:

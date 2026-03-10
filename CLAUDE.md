@@ -139,6 +139,15 @@ The CLI reads annotations from `metadata.annotations` on the **Deployment** reso
   - `host-forward` — Instead of mirrord, deploys an `alpine/socat` proxy pod that forwards `TCP-LISTEN:<port>` to `TCP:host.k3d.internal:<port>`. The dev command runs natively on the host without any interception layer. Use this for tools incompatible with mirrord (e.g. Flutter/Gradle).
 - **Omitted (default):** Uses mirrord mode when `dev-command` is present.
 
+### `bluetext.io/port-forwards`
+
+- **Parsed from:** `Deployment.metadata.annotations`
+- **Format:** `<service>:<local-port>:<service-port>` — comma-separated for multiple entries.
+- **Effect:** When the service starts (in host-forward or mirrord mode), the CLI spawns `kubectl port-forward svc/<service> <local-port>:<service-port>` for each entry, making cluster services available on localhost.
+- **Example:** `"couchbase-sync-gateway:4984:80"` — makes Sync Gateway's public API (cluster port 80, which targets container port 4984) available at `localhost:4984` on the host.
+- **PIDs:** Saved to `.bluetext/pids/<service-id>/<target-service>.port-forward.pid` and cleaned up on `b service stop`.
+- **Use case:** Host-forward services (e.g. Flutter on Android emulator) that need to connect to other cluster services. The emulator can reach forwarded ports via `10.0.2.2:<local-port>`.
+
 ### How the CLI Extracts Config
 
 The CLI parses each `k8s.<id>.yaml` and extracts from the Deployment:
@@ -149,6 +158,7 @@ The CLI parses each `k8s.<id>.yaml` and extracts from the Deployment:
 | `dev_command` | `Deployment.metadata.annotations["bluetext.io/dev-command"]` | `dev_command` |
 | `dev_mode` | `Deployment.metadata.annotations["bluetext.io/dev-mode"]` | `dev_mode` |
 | `local_dir` | `Deployment.spec.template.spec.volumes[name=project].hostPath.path` (strips `/var/mnt/project/` prefix) | `local_dir` |
+| `port_forwards` | `Deployment.metadata.annotations["bluetext.io/port-forwards"]` (parsed as comma-separated `service:localPort:servicePort`) | `port_forwards` |
 
 ### Three Deploy Modes
 
@@ -161,9 +171,11 @@ The CLI parses each `k8s.<id>.yaml` and extracts from the Deployment:
 
 **3. host-forward** — Set both `bluetext.io/dev-command` and `bluetext.io/dev-mode: host-forward`. The CLI:
   - Deploys a socat proxy pod forwarding `<port>` to `host.k3d.internal:<port>` + Service + Ingress
+  - Starts any `bluetext.io/port-forwards` entries as `kubectl port-forward` background processes (PIDs in `.bluetext/pids/<id>/`)
   - Runs the dev command natively on the host
   - Requires k3d port mapping for the target port (`-p <port>:<port>@loadbalancer`)
   - Saves PID to `.bluetext/pids/<id>.pid`, logs to `.bluetext/logs/<id>.log`
+  - Use `registry.k8s.io/pause:3.9` as the Deployment image — the CLI replaces it with a socat proxy at deploy time, so the heavy runtime image is unnecessary
 
 ## Existing Template Examples
 

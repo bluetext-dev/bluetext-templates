@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: service-config-manager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: service-config-manager
+  template:
+    metadata:
+      labels:
+        app: service-config-manager
+    spec:
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: service-config-manager
+          image: python:3.11.8-slim-bookworm
+          command: ["./bin/run"]
+          workingDir: /app
+          env:
+            - name: ENVIRONMENT
+              value: development
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: COUCHBASE_HOST
+              value: "couchbase.couchbase-headless.$(POD_NAMESPACE).svc.cluster.local"
+            - name: COUCHBASE_USERNAME
+              value: Administrator
+            - name: COUCHBASE_PASSWORD
+              value: password
+            - name: COUCHBASE_MGMT_PORT
+              value: "8091"
+            - name: COUCHBASE_TLS
+              value: "false"
+            - name: COUCHBASE_TYPE
+              value: server
+            - name: COUCHBASE_SYNC_GATEWAY_HOST
+              value: "couchbase-sync-gateway.$(POD_NAMESPACE).svc.cluster.local"
+            - name: COUCHBASE_SYNC_GATEWAY_ADMIN_PORT
+              value: "4985"
+          volumeMounts:
+            - name: code
+              mountPath: /app
+            - name: config
+              mountPath: /config
+            - name: pip-cache
+              mountPath: /root/.cache
+      volumes:
+        - name: code
+          hostPath:
+            path: /var/mnt/project/code/services/service-config-manager
+            type: Directory
+        - name: config
+          hostPath:
+            path: /var/mnt/project/config
+            type: Directory
+        - name: pip-cache
+          hostPath:
+            path: /var/mnt/project/.bluetext/cache/service-config-manager/pip
+            type: DirectoryOrCreate

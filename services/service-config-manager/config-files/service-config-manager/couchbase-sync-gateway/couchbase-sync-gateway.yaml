@@ -1,0 +1,7 @@
+databases:
+  main:
+    bucket: main
+    num_index_replicas: 0
+    guest:
+      disabled: false
+      admin_channels: ["*"]

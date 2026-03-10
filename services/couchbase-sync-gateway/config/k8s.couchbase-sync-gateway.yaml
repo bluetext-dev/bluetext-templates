@@ -16,6 +16,20 @@ spec:
         - key: node-role.kubernetes.io/control-plane
           operator: Exists
           effect: NoSchedule
+      initContainers:
+        - name: config-templater
+          image: busybox:stable
+          command: ['sh', '-c', 'sed "s/__NAMESPACE__/$POD_NAMESPACE/g" /config-template/config.json > /config/config.json']
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          volumeMounts:
+            - name: config-template
+              mountPath: /config-template
+            - name: config
+              mountPath: /config
       containers:
         - name: couchbase-sync-gateway
           image: couchbase/sync-gateway:3.2.0-community
@@ -40,10 +54,12 @@ spec:
               mountPath: /etc/sync_gateway/config.json
               subPath: config.json
       volumes:
-        - name: config
+        - name: config-template
           hostPath:
-            path: /var/mnt/project/config/sync-gateway
+            path: /var/mnt/project/config/couchbase-sync-gateway
             type: Directory
+        - name: config
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service

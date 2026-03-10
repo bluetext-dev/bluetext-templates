@@ -143,10 +143,10 @@ The CLI reads annotations from `metadata.annotations` on the **Deployment** reso
 
 - **Parsed from:** `Deployment.metadata.annotations`
 - **Format:** `<service>:<local-port>:<service-port>` — comma-separated for multiple entries.
-- **Effect:** When the service starts (in host-forward or mirrord mode), the CLI spawns `kubectl port-forward svc/<service> <local-port>:<service-port>` for each entry, making cluster services available on localhost.
+- **Effect:** When the service starts (in **any deployment mode** — in-cluster, mirrord, or host-forward), the CLI spawns `kubectl port-forward svc/<service> <local-port>:<service-port>` for each entry, making cluster services available on localhost.
 - **Example:** `"couchbase-sync-gateway:4984:80"` — makes Sync Gateway's public API (cluster port 80, which targets container port 4984) available at `localhost:4984` on the host.
 - **PIDs:** Saved to `.bluetext/pids/<service-id>/<target-service>.port-forward.pid` and cleaned up on `b service stop`.
-- **Use case:** Host-forward services (e.g. Flutter on Android emulator) that need to connect to other cluster services. The emulator can reach forwarded ports via `10.0.2.2:<local-port>`.
+- **Use case:** Services (e.g. Flutter on Android emulator) that need to connect to other cluster services from the host. The emulator can reach forwarded ports via `10.0.2.2:<local-port>`.
 
 ### How the CLI Extracts Config
 
@@ -162,10 +162,11 @@ The CLI parses each `k8s.<id>.yaml` and extracts from the Deployment:
 
 ### Three Deploy Modes
 
-**1. In-cluster (default)** — No annotations. The full Deployment manifest is applied as-is. The container runs in k8s with hostPath volume mounts for live code.
+**1. In-cluster (default)** — No annotations. The full Deployment manifest is applied as-is. The container runs in k8s with hostPath volume mounts for live code. Any `bluetext.io/port-forwards` entries are started as background `kubectl port-forward` processes.
 
 **2. mirrord** — Set `bluetext.io/dev-command`. The CLI:
   - Deploys a stub pod (pause container) + Service + Ingress
+  - Starts any `bluetext.io/port-forwards` entries as background port-forward processes
   - Runs `mirrord exec --steal -t deployment/<id>` with the dev command locally
   - Saves PID to `.bluetext/pids/<id>.pid`, logs to `.bluetext/logs/<id>.log`
 
@@ -186,6 +187,37 @@ The CLI parses each `k8s.<id>.yaml` and extracts from the Deployment:
 | `bluetext-ui` | Bun/Vite | 5175 | in-cluster | Control plane UI |
 | `flutter-dev-container` | Flutter | 8080 | host-forward | Mobile app running on host emulator |
 | `couchbase` | Couchbase Server | 8091 | in-cluster | Database with persistent data volume |
+| `couchbase-sync-gateway` | Sync Gateway | 4984 | in-cluster | Couchbase Sync Gateway with namespace-templated config |
+| `service-config-manager` | Python | — | in-cluster | Init service that configures Couchbase buckets and Sync Gateway databases |
+
+## Template Extras
+
+### `config-files/` Directory
+
+Templates can include a `config-files/` directory for non-Kubernetes configuration files. When `b service add` runs, files from `config-files/` are copied directly into the project's `config/` directory (preserving subdirectory structure). This is used for:
+
+- `config-files/couchbase-sync-gateway/config.json` — Sync Gateway bootstrap config
+- `config-files/service-config-manager/managed-services.yaml` — service-config-manager manifest
+- `config-files/service-config-manager/couchbase/couchbase.yaml` — Couchbase bucket definitions
+- `config-files/service-config-manager/couchbase-sync-gateway/couchbase-sync-gateway.yaml` — Sync Gateway database definitions
+
+### Config File Namespace Templating
+
+K8s manifest files use `{{NAMESPACE}}` which the CLI replaces at deploy time. However, config files mounted via hostPath are **not** processed by the CLI. For config files that need the namespace, use the `__NAMESPACE__` placeholder and an initContainer to substitute it at pod startup:
+
+```yaml
+initContainers:
+  - name: config-templater
+    image: busybox:stable
+    command: ['sh', '-c', 'sed "s/__NAMESPACE__/$POD_NAMESPACE/g" /config-template/config.json > /config/config.json']
+    env:
+      - name: POD_NAMESPACE
+        valueFrom:
+          fieldRef:
+            fieldPath: metadata.namespace
+```
+
+Use `__NAMESPACE__` (not `{{NAMESPACE}}`) to avoid conflict with the CLI's manifest-level replacement.
 
 ## Conventions
 

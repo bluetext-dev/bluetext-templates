@@ -1,6 +1,6 @@
 {
   "bootstrap": {
-    "server": "couchbase://couchbase.couchbase-headless.dev.svc.cluster.local",
+    "server": "couchbase://couchbase.couchbase-headless.__NAMESPACE__.svc.cluster.local",
     "username": "Administrator",
     "password": "password",
     "server_tls_skip_verify": true,

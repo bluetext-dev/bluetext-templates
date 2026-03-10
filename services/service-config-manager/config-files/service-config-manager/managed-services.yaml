@@ -1,0 +1,6 @@
+- name: couchbase
+  type: couchbase
+  config_dir: service-config-manager/couchbase
+- name: couchbase-sync-gateway
+  type: couchbase-sync-gateway
+  config_dir: service-config-manager/couchbase-sync-gateway

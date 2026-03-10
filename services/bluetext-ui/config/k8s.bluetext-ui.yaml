@@ -71,9 +71,9 @@ spec:
       containers:
         - name: app
           image: oven/bun:latest
-          command: ["sh", "-c", "cd /app && bun install && bun run build && bun run start"]
+          command: ["sh", "-c", "cd /app && bun install && bun run dev"]
           ports:
-            - containerPort: 3100
+            - containerPort: 5173
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -110,7 +110,7 @@ spec:
     app: bluetext-ui
   ports:
     - port: 80
-      targetPort: 3100
+      targetPort: 5173
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -121,7 +121,7 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: local.bluetext.io
+    - host: bluetext.localhost
       http:
         paths:
           - path: /

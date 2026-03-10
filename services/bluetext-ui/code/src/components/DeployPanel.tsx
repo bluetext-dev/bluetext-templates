@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import type { ServiceConfig, Deployment } from "../types";
 import { rebuildService, startWatch, stopWatch, getWatchStatus } from "../api";
+import { AddServiceOverlay } from "./AddServiceOverlay";
 
 function getRunningInstances(id: string, deployments: Deployment[]) {
   return deployments.filter(
@@ -19,19 +20,29 @@ function ServiceRow({
   cfg: ServiceConfig;
   namespaces: string[];
   deployments: Deployment[];
-  onStart: (id: string, ns: string) => void;
-  onStop: (id: string, ns: string) => void;
+  onStart: (id: string, ns: string) => Promise<boolean>;
+  onStop: (id: string, ns: string) => Promise<boolean>;
   onToast: (msg: string) => void;
 }) {
   const [selectedNs, setSelectedNs] = useState("");
   const [rebuilding, setRebuilding] = useState(false);
   const [watching, setWatching] = useState(false);
+  const [starting, setStarting] = useState<string | null>(null);
+  const [stopping, setStopping] = useState<string | null>(null);
   const running = getRunningInstances(cfg.id, deployments);
   const userNamespaces = namespaces.filter((ns) => ns !== "bluetext");
 
   useEffect(() => {
     getWatchStatus(cfg.id).then((r) => setWatching(r.message === "watching"));
   }, [cfg.id]);
+
+  // Clear spinner once deployments reflect the change
+  useEffect(() => {
+    if (starting && running.some((d) => d.namespace === starting)) setStarting(null);
+  }, [starting, running]);
+  useEffect(() => {
+    if (stopping && !running.some((d) => d.namespace === stopping)) setStopping(null);
+  }, [stopping, running]);
 
   const handleRebuild = async (ns: string) => {
     setRebuilding(true);
@@ -84,9 +95,13 @@ function ServiceRow({
             )}
             <button
               className="btn btn-danger btn-sm"
-              onClick={() => onStop(cfg.id, d.namespace)}
+              onClick={async () => {
+                setStopping(d.namespace);
+                if (!await onStop(cfg.id, d.namespace)) setStopping(null);
+              }}
+              disabled={stopping === d.namespace}
             >
-              Stop
+              {stopping === d.namespace ? <><span className="spinner" /> Stopping</> : "Stop"}
             </button>
           </span>
         ))}
@@ -103,12 +118,15 @@ function ServiceRow({
         </select>
         <button
           className="btn btn-primary btn-sm"
-          onClick={() => {
-            if (selectedNs) onStart(cfg.id, selectedNs);
+          onClick={async () => {
+            if (selectedNs) {
+              setStarting(selectedNs);
+              if (!await onStart(cfg.id, selectedNs)) setStarting(null);
+            }
           }}
-          disabled={!selectedNs}
+          disabled={!selectedNs || !!starting}
         >
-          Start
+          {starting ? <><span className="spinner" /> Starting</> : "Start"}
         </button>
       </div>
     </div>
@@ -126,15 +144,25 @@ export function DeployPanel({
   configs: ServiceConfig[];
   namespaces: string[];
   deployments: Deployment[];
-  onStart: (id: string, ns: string) => void;
-  onStop: (id: string, ns: string) => void;
-  onToast: (msg: string) => void;
+  onStart: (id: string, ns: string) => Promise<boolean>;
+  onStop: (id: string, ns: string) => Promise<boolean>;
+  onToast: (msg: string, type?: "success" | "error") => void;
 }) {
+  const [showAdd, setShowAdd] = useState(false);
   return (
     <div className="card full">
       <div className="card-title">
         Deploy Services <span className="count">{configs.length}</span>
+        <button className="btn btn-primary btn-sm" style={{ marginLeft: "auto" }} onClick={() => setShowAdd(true)}>
+          + Add
+        </button>
       </div>
+      {showAdd && (
+        <AddServiceOverlay
+          onClose={() => setShowAdd(false)}
+          onToast={(msg, type) => onToast(msg, type)}
+        />
+      )}
       {configs.length > 0 ? (
         configs.map((cfg) => (
           <ServiceRow

@@ -2,6 +2,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: couchbase-sync-gateway
+  annotations:
+    bluetext.io/port-forwards: "couchbase-sync-gateway:4984:80"
 spec:
   replicas: 1
   selector:
@@ -86,7 +88,7 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: couchbase-sync-gateway.{{NAMESPACE}}.local.bluetext.io
+    - host: couchbase-sync-gateway.{{NAMESPACE}}.bluetext.localhost
       http:
         paths:
           - path: /

@@ -36,14 +36,14 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   final _couchbaseLiteP2p = CouchbaseLiteP2p();
-  
+
   int _counter = 0;
   String _p2pStatus = 'Stopped';
   String? _p2pError;
   int _connectedPeers = 0;
   String _myPeerID = '';
   bool _isP2PRunning = false;
-  
+
   // Sync Gateway Status
   String _syncGatewayStatus = 'Stopped';
   String? _syncGatewayError;
@@ -56,20 +56,24 @@ class _MyHomePageState extends State<MyHomePage> {
     _requestPermissionsAndStartP2P();
     _startNativeReplication();
   }
-  
+
   Future<void> _startNativeReplication() async {
     try {
+      const namespace = String.fromEnvironment('NAMESPACE');
+      if (namespace.isEmpty) {
+        throw Exception('NAMESPACE not set. Pass --dart-define=NAMESPACE=<namespace> when running the app.');
+      }
+      // Port-forwarded directly to sync gateway (bypasses Traefik ingress).
+      // Port 4984 is forwarded to host via bluetext.io/port-forwards annotation.
       String url;
       if (Platform.isAndroid) {
         // Android emulator uses 10.0.2.2 to reach the host machine's localhost.
-        // Routes through Traefik ingress on port 80 (survives pod restarts).
-        // The native plugin sets the Host header for Traefik routing.
-        url = 'ws://10.0.2.2:80/main';
+        url = 'ws://10.0.2.2:4984/main';
       } else {
-        // iOS simulator / macOS can reach the ingress directly via localhost.
-        url = 'ws://couchbase-sync-gateway.dev.local.bluetext.io/main';
+        // iOS simulator / macOS can reach localhost directly.
+        url = 'ws://localhost:4984/main';
       }
-      
+
       await _couchbaseLiteP2p.startSyncGatewayReplication(url);
       debugPrint("Native Sync Gateway Replication started");
     } catch (e) {

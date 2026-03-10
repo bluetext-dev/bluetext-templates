@@ -50,8 +50,8 @@ class CouchbaseLiteP2p {
     return Map<String, dynamic>.from(result);
   }
 
-  Future<bool> startSyncGatewayReplication(String url) async {
-    final bool result = await _channel.invokeMethod('startSyncGatewayReplication', {'url': url});
+  Future<bool> startSyncGatewayReplication(String url, {String? host}) async {
+    final bool result = await _channel.invokeMethod('startSyncGatewayReplication', {'url': url, if (host != null) 'host': host});
     return result;
   }
   

@@ -50,3 +50,8 @@ export interface ServiceConfig {
   requiresCli: boolean;
   hasImage: boolean;
 }
+
+export interface Stack {
+  id: string;
+  services: string[];
+}

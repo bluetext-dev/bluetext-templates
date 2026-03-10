@@ -99,7 +99,7 @@ spec:
 
 ### Optional: Ingress
 
-Add an Ingress to expose the service via `<service-id>.<namespace>.local.bluetext.io`:
+Add an Ingress to expose the service via `<service-id>.<namespace>.bluetext.localhost`:
 
 ```yaml
 ---
@@ -110,7 +110,7 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: <service-id>.{{NAMESPACE}}.local.bluetext.io
+    - host: <service-id>.{{NAMESPACE}}.bluetext.localhost
       http:
         paths:
           - path: /
@@ -231,4 +231,4 @@ Use `__NAMESPACE__` (not `{{NAMESPACE}}`) to avoid conflict with the CLI's manif
 - Add `tolerations` for control-plane scheduling if appropriate
 - Use hostPath volumes under `/var/mnt/project/` for source code and cache directories
 - Cache mounts go under `/var/mnt/project/.bluetext/cache/<service-id>/`
-- Vite-based services need `allowedHosts: ['.local.bluetext.io']` in vite.config.js
+- Vite-based services need `allowedHosts: ['.bluetext.localhost']` in vite.config.js

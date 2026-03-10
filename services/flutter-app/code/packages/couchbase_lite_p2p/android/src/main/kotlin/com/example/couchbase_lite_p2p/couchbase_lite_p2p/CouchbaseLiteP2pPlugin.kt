@@ -52,15 +52,15 @@ class CouchbaseLiteP2pPlugin : FlutterPlugin, MethodCallHandler {
         setupP2PListeners()
     }
 
-    private fun startSyncGatewayReplication(urlString: String) {
+    private fun startSyncGatewayReplication(urlString: String, host: String?) {
         try {
             val url = URI(urlString)
             val target = URLEndpoint(url)
             val config = ReplicatorConfiguration(target)
             config.isContinuous = true
             // Set Host header so Traefik ingress routes correctly when using 10.0.2.2:80
-            if (url.host == "10.0.2.2") {
-                config.headers = mapOf("Host" to "couchbase-sync-gateway.dev.local.bluetext.io")
+            if (url.host == "10.0.2.2" && host != null) {
+                config.headers = mapOf("Host" to host)
             }
             config.addCollection(database.defaultCollection, null)
 
@@ -180,8 +180,9 @@ class CouchbaseLiteP2pPlugin : FlutterPlugin, MethodCallHandler {
             }
             "startSyncGatewayReplication" -> {
                 val url = call.argument<String>("url")
+                val host = call.argument<String>("host")
                 if (url != null) {
-                    startSyncGatewayReplication(url)
+                    startSyncGatewayReplication(url, host)
                     result.success(true)
                 } else {
                     result.error("INVALID_ARGS", "URL is required", null)

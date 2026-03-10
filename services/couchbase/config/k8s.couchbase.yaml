@@ -46,7 +46,7 @@ spec:
       volumes:
         - name: couchbase-data
           hostPath:
-            path: /var/mnt/project/.bluetext/cache/couchbase/data
+            path: /var/mnt/project/.bluetext/cache/couchbase/{{NAMESPACE}}/data
             type: DirectoryOrCreate
 ---
 apiVersion: v1
@@ -55,6 +55,7 @@ metadata:
   name: couchbase-headless
 spec:
   clusterIP: None
+  publishNotReadyAddresses: true
   selector:
     app: couchbase
   ports:
@@ -108,7 +109,7 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: couchbase.{{NAMESPACE}}.local.bluetext.io
+    - host: couchbase.{{NAMESPACE}}.bluetext.localhost
       http:
         paths:
           - path: /

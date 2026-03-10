@@ -1,4 +1,5 @@
-import type { ClusterStatus, ServiceConfig } from "./types";
+import type { ClusterStatus, ServiceConfig, Stack } from "./types";
+import { send } from "./ws";
 
 export async function fetchStatus(): Promise<ClusterStatus> {
   const r = await fetch("/api/status");
@@ -12,7 +13,7 @@ export async function fetchServiceConfigs(): Promise<ServiceConfig[]> {
   return r.json();
 }
 
-interface MutationResult {
+export interface MutationResult {
   success: boolean;
   message?: string;
   error?: string;
@@ -41,31 +42,58 @@ export async function deleteNamespace(name: string) {
   return mutate("DELETE", `/api/namespaces/${encodeURIComponent(name)}`);
 }
 
+// --- Host-agent operations via WebSocket ---
+
 export async function startService(id: string, namespace: string) {
-  return mutate("POST", "/api/services/start", { id, namespace });
+  return send("services:start", { id, namespace });
 }
 
 export async function stopService(id: string, namespace: string) {
-  return mutate("POST", "/api/services/stop", { id, namespace });
+  return send("services:stop", { id, namespace });
 }
 
 export async function rebuildService(id: string, namespace: string) {
-  return mutate("POST", "/api/services/rebuild", { id, namespace });
+  return send("services:rebuild", { id, namespace });
 }
 
 export async function startWatch(id: string, namespace: string) {
-  return mutate("POST", "/api/services/watch/start", { id, namespace });
+  return send("services:watch/start", { id, namespace });
 }
 
 export async function stopWatch(id: string, namespace: string) {
-  return mutate("POST", "/api/services/watch/stop", { id, namespace });
+  return send("services:watch/stop", { id, namespace });
+}
+
+export async function fetchStacks(): Promise<Stack[]> {
+  const r = await fetch("/api/stacks");
+  if (!r.ok) throw new Error(`API error: ${r.status}`);
+  return r.json();
+}
+
+export async function startStack(id: string, namespace: string) {
+  return send("stacks:start", { id, namespace });
+}
+
+export async function stopStack(id: string, namespace: string) {
+  return send("stacks:stop", { id, namespace });
 }
 
 export async function getWatchStatus(id: string): Promise<{ message: string }> {
-  const r = await fetch("/api/services/watch/status", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id }),
-  });
-  return r.json();
+  const result = await send("services:watch/status", { id });
+  return { message: result.message ?? "" };
+}
+
+export interface Template {
+  id: string;
+  hasCode: boolean;
+  hasConfig: boolean;
+}
+
+export async function fetchTemplates(): Promise<Template[]> {
+  const result = await send("templates:list", {});
+  return (result as any).templates ?? [];
+}
+
+export async function addService(template: string, id: string) {
+  return send("services:add", { template, id });
 }

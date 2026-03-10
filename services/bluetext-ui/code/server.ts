@@ -181,96 +181,47 @@ function getServiceConfigs(): ServiceConfigInfo[] {
 }
 
 // ---------------------------------------------------------------------------
-// Apply / delete service configs via K8s API
+// Stack config discovery (reads /config/bluetext.yaml)
 // ---------------------------------------------------------------------------
 
-interface K8sResource {
-  apiVersion: string;
-  kind: string;
-  metadata: { name: string; [k: string]: any };
-  [k: string]: any;
+interface StackConfig {
+  id: string;
+  services: string[];
 }
 
-function apiPathForResource(
-  r: K8sResource,
-  namespace: string
-): { basePath: string; namePath: string } {
-  const name = r.metadata.name;
-  if (r.apiVersion === "v1" && r.kind === "Service") {
-    return {
-      basePath: `/api/v1/namespaces/${namespace}/services`,
-      namePath: `/api/v1/namespaces/${namespace}/services/${name}`,
-    };
-  }
-  if (r.apiVersion === "apps/v1" && r.kind === "Deployment") {
-    return {
-      basePath: `/apis/apps/v1/namespaces/${namespace}/deployments`,
-      namePath: `/apis/apps/v1/namespaces/${namespace}/deployments/${name}`,
-    };
-  }
-  if (r.apiVersion === "networking.k8s.io/v1" && r.kind === "Ingress") {
-    return {
-      basePath: `/apis/networking.k8s.io/v1/namespaces/${namespace}/ingresses`,
-      namePath: `/apis/networking.k8s.io/v1/namespaces/${namespace}/ingresses/${name}`,
-    };
-  }
-  throw new Error(`Unsupported resource: ${r.apiVersion}/${r.kind}`);
-}
+function getStackConfigs(): StackConfig[] {
+  try {
+    const content = readFileSync("/config/bluetext.yaml", "utf-8");
+    const docs = parseAllDocuments(content);
+    const root = docs[0]?.toJSON();
+    if (!root?.stacks) return [];
 
-function parseConfigTemplate(id: string, namespace: string): K8sResource[] {
-  const content = readFileSync(`/config/services/k8s.${id}.yaml`, "utf-8");
-  const templated = content.replaceAll("{{NAMESPACE}}", namespace);
-  const docs = parseAllDocuments(templated);
-  const resources: K8sResource[] = [];
-  for (const doc of docs) {
-    const obj = doc.toJSON();
-    if (!obj || !obj.kind) continue;
-    if (["ServiceAccount", "ClusterRole", "ClusterRoleBinding"].includes(obj.kind)) continue;
-    resources.push(obj);
-  }
-  return resources;
-}
+    const raw: Record<string, string[]> = root.stacks;
 
-async function applyServiceConfig(
-  id: string,
-  namespace: string
-): Promise<{ success: boolean; errors: string[] }> {
-  const resources = parseConfigTemplate(id, namespace);
-  const errors: string[] = [];
-
-  for (const r of resources) {
-    const { basePath, namePath } = apiPathForResource(r, namespace);
-    const createResult = await k8s("POST", basePath, r);
-    if (!createResult.ok) {
-      if (createResult.status === 409) {
-        const updateResult = await k8s("PUT", namePath, r);
-        if (!updateResult.ok) {
-          errors.push(`${r.kind}/${r.metadata.name}: ${updateResult.data.message || "update failed"}`);
+    // Resolve stack references: entries that match another stack name get expanded
+    function resolve(entries: string[], seen: Set<string>): string[] {
+      const result: string[] = [];
+      for (const entry of entries) {
+        if (raw[entry] && !seen.has(entry)) {
+          seen.add(entry);
+          result.push(...resolve(raw[entry], seen));
+        } else if (!raw[entry]) {
+          result.push(entry);
         }
-      } else {
-        errors.push(`${r.kind}/${r.metadata.name}: ${createResult.data.message || "create failed"}`);
       }
+      return result;
     }
+
+    return Object.entries(raw).map(([id, entries]) => ({
+      id,
+      services: [...new Set(resolve(entries, new Set([id])))],
+    }));
+  } catch {
+    return [];
   }
-  return { success: errors.length === 0, errors };
 }
 
-async function deleteServiceConfig(
-  id: string,
-  namespace: string
-): Promise<{ success: boolean; errors: string[] }> {
-  const resources = parseConfigTemplate(id, namespace);
-  const errors: string[] = [];
 
-  for (const r of resources) {
-    const { namePath } = apiPathForResource(r, namespace);
-    const result = await k8s("DELETE", namePath);
-    if (!result.ok && result.status !== 404) {
-      errors.push(`${r.kind}/${r.metadata.name}: ${result.data.message || "delete failed"}`);
-    }
-  }
-  return { success: errors.length === 0, errors };
-}
 
 // ---------------------------------------------------------------------------
 // Namespace operations
@@ -453,58 +404,9 @@ Bun.serve({
       );
     }
 
-    // --- Service mutations ---
-    if (url.pathname === "/api/services/start" && method === "POST") {
-      const body = await req.json();
-      const { id, namespace } = body;
-      if (!id || !namespace) {
-        return json({ success: false, error: "Missing id or namespace" }, 400);
-      }
-      const configs = getServiceConfigs();
-      const cfg = configs.find((c) => c.id === id);
-      if (!cfg) {
-        return json({ success: false, error: `Unknown service: ${id}` }, 404);
-      }
-      const result = await applyServiceConfig(id, namespace);
-      return json(
-        result.success
-          ? { success: true, message: `Service "${id}" started in ${namespace}` }
-          : { success: false, errors: result.errors },
-        result.success ? 200 : 500
-      );
-    }
-
-    if (url.pathname === "/api/services/stop" && method === "POST") {
-      const body = await req.json();
-      const { id, namespace } = body;
-      if (!id || !namespace) {
-        return json({ success: false, error: "Missing id or namespace" }, 400);
-      }
-      const result = await deleteServiceConfig(id, namespace);
-      return json(
-        result.success
-          ? { success: true, message: `Service "${id}" stopped in ${namespace}` }
-          : { success: false, errors: result.errors },
-        result.success ? 200 : 500
-      );
-    }
-
-    // --- Host agent proxy (rebuild / watch) ---
-    const hostAgentPaths = ["/api/services/rebuild", "/api/services/watch/start", "/api/services/watch/stop", "/api/services/watch/status"];
-    if (hostAgentPaths.includes(url.pathname) && method === "POST") {
-      const agentPath = url.pathname.replace("/api/services/", "/");
-      try {
-        const body = await req.json();
-        const resp = await fetch(`http://host.k3d.internal:16981${agentPath}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        const data = await resp.json();
-        return json(data, resp.ok ? 200 : 500);
-      } catch (err) {
-        return json({ success: false, message: `Host agent unreachable: ${err}` }, 502);
-      }
+    // --- Stack configs ---
+    if (url.pathname === "/api/stacks" && method === "GET") {
+      return json(getStackConfigs());
     }
 
     // --- Static files (production) ---

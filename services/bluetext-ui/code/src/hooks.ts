@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import type { ClusterStatus, ServiceConfig } from "./types";
-import { fetchStatus, fetchServiceConfigs } from "./api";
+import type { ClusterStatus, ServiceConfig, Stack } from "./types";
+import { fetchStatus, fetchServiceConfigs, fetchStacks } from "./api";
 
 export function useStatus(intervalMs = 3000) {
   const [status, setStatus] = useState<ClusterStatus | null>(null);
@@ -39,6 +39,23 @@ export function useServiceConfigs(intervalMs = 10000) {
   }, [intervalMs]);
 
   return configs;
+}
+
+export function useStacks(intervalMs = 10000) {
+  const [stacks, setStacks] = useState<Stack[]>([]);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setStacks(await fetchStacks());
+      } catch {}
+    };
+    load();
+    const id = setInterval(load, intervalMs);
+    return () => clearInterval(id);
+  }, [intervalMs]);
+
+  return stacks;
 }
 
 export function useToast() {

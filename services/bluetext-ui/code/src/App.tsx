@@ -1,8 +1,9 @@
-import { useStatus, useServiceConfigs, useToast } from "./hooks";
+import { useStatus, useServiceConfigs, useStacks, useToast } from "./hooks";
 import * as api from "./api";
 import { ClusterCard } from "./components/ClusterCard";
 import { NamespacesCard } from "./components/NamespacesCard";
 import { DeployPanel } from "./components/DeployPanel";
+import { StacksPanel } from "./components/StacksPanel";
 import { PodsTable } from "./components/PodsTable";
 import { ServicesTable } from "./components/ServicesTable";
 import { IngressTable } from "./components/IngressTable";
@@ -11,14 +12,22 @@ import { Toast } from "./components/Toast";
 export function App() {
   const { status, error } = useStatus();
   const configs = useServiceConfigs();
+  const stacks = useStacks();
   const { toast, show } = useToast();
 
-  async function handleAction(fn: () => Promise<{ success: boolean; message?: string; error?: string; errors?: string[] }>) {
-    const result = await fn();
-    if (result.success) {
-      show(result.message ?? "Done", "success");
-    } else {
-      show(result.error ?? result.errors?.join(", ") ?? "Request failed", "error");
+  async function handleAction(fn: () => Promise<{ success: boolean; message?: string; error?: string; errors?: string[] }>): Promise<boolean> {
+    try {
+      const result = await fn();
+      if (result.success) {
+        show(result.message ?? "Done", "success");
+        return true;
+      } else {
+        show(result.error ?? result.message ?? result.errors?.join(", ") ?? "Request failed", "error");
+        return false;
+      }
+    } catch (err) {
+      show(err instanceof Error ? err.message : "Request failed", "error");
+      return false;
     }
   }
 
@@ -38,6 +47,8 @@ export function App() {
       </div>
 
       <div className="grid">
+        <IngressTable ingresses={status.ingresses} />
+
         <ClusterCard
           nodes={status.cluster.nodes}
           reachable={status.cluster.reachable}
@@ -55,6 +66,18 @@ export function App() {
           }}
         />
 
+        <StacksPanel
+          stacks={stacks}
+          namespaces={status.namespaces}
+          deployments={status.deployments}
+          onStart={(id, ns) =>
+            handleAction(() => api.startStack(id, ns))
+          }
+          onStop={(id, ns) =>
+            handleAction(() => api.stopStack(id, ns))
+          }
+        />
+
         <DeployPanel
           configs={configs}
           namespaces={status.namespaces}
@@ -65,12 +88,11 @@ export function App() {
           onStop={(id, ns) =>
             handleAction(() => api.stopService(id, ns))
           }
-          onToast={(msg) => show(msg, "success")}
+          onToast={(msg, type) => show(msg, type ?? "success")}
         />
 
         <PodsTable pods={status.pods} />
         <ServicesTable services={status.services} />
-        <IngressTable ingresses={status.ingresses} />
       </div>
 
       <Toast toast={toast} />

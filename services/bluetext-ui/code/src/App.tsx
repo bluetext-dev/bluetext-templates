@@ -70,12 +70,17 @@ export function App() {
           stacks={stacks}
           namespaces={status.namespaces}
           deployments={status.deployments}
+          serviceConfigs={configs}
           onStart={(id, ns) =>
             handleAction(() => api.startStack(id, ns))
           }
           onStop={(id, ns) =>
             handleAction(() => api.stopStack(id, ns))
           }
+          onAddStack={(id, entries) =>
+            handleAction(() => api.addStack(id, entries))
+          }
+          onToast={(msg, type) => show(msg, type)}
         />
 
         <DeployPanel

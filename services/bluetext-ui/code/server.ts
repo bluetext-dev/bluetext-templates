@@ -1,6 +1,6 @@
-import { readFileSync, readdirSync, existsSync } from "fs";
+import { readFileSync, writeFileSync, readdirSync, existsSync } from "fs";
 import { join } from "path";
-import { parseAllDocuments } from "yaml";
+import { parseAllDocuments, stringify } from "yaml";
 
 const PORT = 3100;
 
@@ -407,6 +407,33 @@ Bun.serve({
     // --- Stack configs ---
     if (url.pathname === "/api/stacks" && method === "GET") {
       return json(getStackConfigs());
+    }
+
+    if (url.pathname === "/api/stacks" && method === "POST") {
+      const body = await req.json();
+      const id = body.id?.trim();
+      const entries: string[] = body.entries;
+      if (!id || !/^[a-z0-9][a-z0-9-]*$/.test(id)) {
+        return json({ success: false, error: "Invalid stack ID" }, 400);
+      }
+      if (!Array.isArray(entries) || entries.length === 0) {
+        return json({ success: false, error: "Stack must have at least one entry" }, 400);
+      }
+      try {
+        const configPath = "/config/bluetext.yaml";
+        let root: any = {};
+        try {
+          const content = readFileSync(configPath, "utf-8");
+          const docs = parseAllDocuments(content);
+          root = docs[0]?.toJSON() || {};
+        } catch {}
+        if (!root.stacks) root.stacks = {};
+        root.stacks[id] = entries;
+        writeFileSync(configPath, stringify(root));
+        return json({ success: true, message: `Stack "${id}" created` });
+      } catch (err) {
+        return json({ success: false, error: String(err) }, 500);
+      }
     }
 
     // --- Static files (production) ---

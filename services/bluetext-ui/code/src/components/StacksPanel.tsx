@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import type { Stack, Deployment } from "../types";
+import type { Stack, Deployment, ServiceConfig } from "../types";
+import { AddStackOverlay } from "./AddStackOverlay";
 
 function StackRow({
   stack,
@@ -90,19 +91,34 @@ export function StacksPanel({
   stacks,
   namespaces,
   deployments,
+  serviceConfigs,
   onStart,
   onStop,
+  onAddStack,
+  onToast,
 }: {
   stacks: Stack[];
   namespaces: string[];
   deployments: Deployment[];
+  serviceConfigs: ServiceConfig[];
   onStart: (id: string, ns: string) => Promise<boolean>;
   onStop: (id: string, ns: string) => Promise<boolean>;
+  onAddStack: (id: string, entries: string[]) => Promise<boolean>;
+  onToast: (msg: string, type: "success" | "error") => void;
 }) {
+  const [showAdd, setShowAdd] = useState(false);
+
   return (
     <div className="card full">
       <div className="card-title">
         Stacks <span className="count">{stacks.length}</span>
+        <button
+          className="btn btn-sm"
+          style={{ marginLeft: "auto" }}
+          onClick={() => setShowAdd(true)}
+        >
+          + Add
+        </button>
       </div>
       {stacks.length > 0 ? (
         stacks.map((stack) => (
@@ -117,6 +133,14 @@ export function StacksPanel({
         ))
       ) : (
         <div className="empty">No stacks defined in bluetext.yaml</div>
+      )}
+      {showAdd && (
+        <AddStackOverlay
+          serviceConfigs={serviceConfigs}
+          existingStacks={stacks}
+          onSave={onAddStack}
+          onClose={() => setShowAdd(false)}
+        />
       )}
     </div>
   );

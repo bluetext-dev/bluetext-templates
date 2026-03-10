@@ -78,6 +78,18 @@ export async function stopStack(id: string, namespace: string) {
   return send("stacks:stop", { id, namespace });
 }
 
+export async function addStack(
+  id: string,
+  entries: string[]
+): Promise<MutationResult> {
+  const r = await fetch("/api/stacks", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id, entries }),
+  });
+  return r.json();
+}
+
 export async function getWatchStatus(id: string): Promise<{ message: string }> {
   const result = await send("services:watch/status", { id });
   return { message: result.message ?? "" };

@@ -59,9 +59,15 @@ class _MyHomePageState extends State<MyHomePage> {
   
   Future<void> _startNativeReplication() async {
     try {
-      String url = 'ws://couchbase-sync-gateway.dev.svc.cluster.local:4984/main';
+      String url;
       if (Platform.isAndroid) {
+        // Android emulator uses 10.0.2.2 to reach the host machine's localhost.
+        // Requires port-forward to sync-gw (set up by `b service dev` via the
+        // bluetext.io/port-forwards annotation in the k8s manifest).
         url = 'ws://10.0.2.2:4984/main';
+      } else {
+        // iOS simulator / macOS can reach the ingress directly via localhost.
+        url = 'ws://couchbase-sync-gateway.dev.local.bluetext.io/main';
       }
       
       await _couchbaseLiteP2p.startSyncGatewayReplication(url);

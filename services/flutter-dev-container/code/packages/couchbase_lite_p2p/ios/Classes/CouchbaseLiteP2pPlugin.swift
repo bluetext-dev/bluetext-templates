@@ -99,30 +99,30 @@ public class CouchbaseLiteP2pPlugin: NSObject, FlutterPlugin {
         }
     }
     
-    private func startSyncGatewayReplication(urlString: String, result: @escaping FlutterResult) {
+    private func startSyncGatewayReplication(urlString: String, result: FlutterResult? = nil) {
         guard let db = database else {
-            result(FlutterError(code: "DB_ERROR", message: "Database not initialized", details: nil))
+            result?(FlutterError(code: "DB_ERROR", message: "Database not initialized", details: nil))
             return
         }
-        
+
         guard let url = URL(string: urlString) else {
-            result(FlutterError(code: "INVALID_URL", message: "Invalid URL: \(urlString)", details: nil))
+            result?(FlutterError(code: "INVALID_URL", message: "Invalid URL: \(urlString)", details: nil))
             return
         }
-        
+
         do {
             let target = URLEndpoint(url: url)
             var config = ReplicatorConfiguration(target: target)
             config.replicatorType = .pushAndPull
             config.continuous = true
-            
-            // Add default collection
+
             let collection = try db.defaultCollection()
             config.addCollection(collection, config: nil)
-            
-            replicator = Replicator(config: config)
-            
-            replicator?.addChangeListener { [weak self] change in
+
+            let newReplicator = Replicator(config: config)
+            replicator = newReplicator
+
+            newReplicator.addChangeListener { [weak self] change in
                 guard let self = self else { return }
                 let status = change.status
                 var statusStr = "Stopped"
@@ -134,24 +134,32 @@ public class CouchbaseLiteP2pPlugin: NSObject, FlutterPlugin {
                 case .busy: statusStr = "Busy"
                 @unknown default: statusStr = "Unknown"
                 }
-                
+
                 var errorStr: String? = nil
                 if let error = status.error {
                     errorStr = error.localizedDescription
                 }
-                
+
                 DispatchQueue.main.async {
                     self.channel?.invokeMethod("onSyncGatewayStatusChanged", arguments: [
                         "status": statusStr,
-                        "error": errorStr
+                        "error": errorStr as Any
                     ])
                 }
+
+                // Auto-restart the same replicator if it stopped due to an error
+                if status.activity == .stopped && status.error != nil {
+                    print("SyncGateway: Replicator stopped with error, will retry in 3s: \(status.error?.localizedDescription ?? "")")
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak newReplicator] in
+                        newReplicator?.start()
+                    }
+                }
             }
-            
-            replicator?.start()
-            result(true)
+
+            newReplicator.start()
+            result?(true)
         } catch {
-            result(FlutterError(code: "REPLICATION_ERROR", message: error.localizedDescription, details: nil))
+            result?(FlutterError(code: "REPLICATION_ERROR", message: error.localizedDescription, details: nil))
         }
     }
     

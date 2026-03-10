@@ -56,17 +56,18 @@ class CouchbaseLiteP2pPlugin : FlutterPlugin, MethodCallHandler {
         try {
             val url = URI(urlString)
             val target = URLEndpoint(url)
-            // Try using named arguments to avoid ambiguity
             val config = ReplicatorConfiguration(target)
-            // Use fully qualified enum if needed, or rely on default (PUSH_AND_PULL)
-            // config.replicatorType = ReplicatorType.PUSH_AND_PULL 
             config.isContinuous = true
-            // addCollection might require a config object in some versions
+            // Set Host header so Traefik ingress routes correctly when using 10.0.2.2:80
+            if (url.host == "10.0.2.2") {
+                config.headers = mapOf("Host" to "couchbase-sync-gateway.dev.local.bluetext.io")
+            }
             config.addCollection(database.defaultCollection, null)
-            
-            replicator = Replicator(config)
-            
-            replicator?.addChangeListener { change ->
+
+            val newReplicator = Replicator(config)
+            replicator = newReplicator
+
+            newReplicator.addChangeListener { change ->
                 val status = change.status
                 val statusStr = when (status.activityLevel) {
                     ReplicatorActivityLevel.STOPPED -> "Stopped"
@@ -75,20 +76,26 @@ class CouchbaseLiteP2pPlugin : FlutterPlugin, MethodCallHandler {
                     ReplicatorActivityLevel.IDLE -> "Idle"
                     ReplicatorActivityLevel.BUSY -> "Busy"
                 }
-                
+
                 val errorStr = status.error?.message
-                
+
                 val statusMap = mapOf(
                     "status" to statusStr,
                     "error" to errorStr
                 )
-                
+
                 mainHandler.post {
                     channel.invokeMethod("onSyncGatewayStatusChanged", statusMap)
                 }
+
+                // Auto-restart the same replicator if it stopped due to an error
+                if (status.activityLevel == ReplicatorActivityLevel.STOPPED && status.error != null) {
+                    println("SyncGateway: Replicator stopped with error, will retry in 3s: ${status.error?.message}")
+                    mainHandler.postDelayed({ newReplicator.start() }, 3000)
+                }
             }
-            
-            replicator?.start()
+
+            newReplicator.start()
         } catch (e: Exception) {
             println("SyncGateway: Failed to start replication: ${e.message}")
             mainHandler.post {

@@ -62,9 +62,9 @@ class _MyHomePageState extends State<MyHomePage> {
       String url;
       if (Platform.isAndroid) {
         // Android emulator uses 10.0.2.2 to reach the host machine's localhost.
-        // Requires port-forward to sync-gw (set up by `b service dev` via the
-        // bluetext.io/port-forwards annotation in the k8s manifest).
-        url = 'ws://10.0.2.2:4984/main';
+        // Routes through Traefik ingress on port 80 (survives pod restarts).
+        // The native plugin sets the Host header for Traefik routing.
+        url = 'ws://10.0.2.2:80/main';
       } else {
         // iOS simulator / macOS can reach the ingress directly via localhost.
         url = 'ws://couchbase-sync-gateway.dev.local.bluetext.io/main';

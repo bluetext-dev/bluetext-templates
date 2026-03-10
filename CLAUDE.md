@@ -1,6 +1,8 @@
 # Bluetext Templates
 
-This repo contains reusable service templates for [Bluetext CLI](https://github.com/user/bluetext-cli) (`b`). Projects add templates via `b service add <template-name>`.
+This repo contains reusable service templates for [Bluetext CLI](https://github.com/bluetext-dev/bluetext-cli) (`b`). Projects add templates via `b service add <template-name>...` (accepts multiple names).
+
+By default, the CLI auto-fetches this repo from GitHub and caches it at `~/.cache/bluetext/templates/`. Override with `--from` / `-f` flag or `templates_dir` in `~/.config/bluetext/config.yaml`.
 
 ## Directory Structure
 
@@ -23,20 +25,23 @@ Must contain `k8s.<service-id>.yaml` — a multi-document YAML with Deployment, 
 
 Contains the service's source code. This entire directory is copied into the project at `code/services/<service-id>/`. Do NOT include build artifacts (`node_modules`, `target`, `build`, `.dart_tool`) — they are skipped during copy.
 
+### config-files/ (optional)
+
+Non-Kubernetes configuration files. When `b service add` runs, files from `config-files/` are copied directly into the project's `config/` directory (preserving subdirectory structure).
+
 ## How `b service add` Works
 
-Running `b service add <name>` in a project:
+Running `b service add <name>...` in a project (accepts multiple template names):
 
-1. Looks for `services/<name>/` in this template repo
+1. Looks for `services/<name>/` in the templates repo (auto-fetched from GitHub or overridden with `--from` / `-f`)
 2. Copies all files from `services/<name>/config/` into the project's `config/services/` directory
 3. Copies `services/<name>/code/` into the project's `code/services/<name>/`
-4. The service is immediately discoverable via `b service list` and runnable via `b service start`
-
-The `--from` flag can point to a different templates repo: `b service add <name> --from /path/to/other-templates`
+4. Copies `services/<name>/config-files/` (if present) into the project's `config/` directory
+5. The service is immediately discoverable via `b service list` and runnable via `b service start`
 
 ## How the CLI Discovers Services
 
-After a template is added to a project, the CLI discovers it automatically. On every run, the CLI scans the project's `config/services/` directory for files matching the pattern `k8s.<id>.yaml`. Each matching file becomes a service with that `<id>`. The CLI then parses the YAML to extract `target_port` from the Service resource, and annotations + volumes from the Deployment resource (see "How the CLI Extracts Config" below).
+After a template is added to a project, the CLI discovers it automatically. On every run, the CLI **recursively** scans the project's `config/services/` directory (including subdirectories) for files matching the pattern `k8s.<id>.yaml`. Each matching file becomes a service with that `<id>`. The CLI then parses the YAML to extract `target_port` from the Service resource, and annotations + volumes from the Deployment resource (see "How the CLI Extracts Config" below).
 
 This means:
 - A service exists if and only if `config/services/k8s.<id>.yaml` exists
@@ -184,7 +189,7 @@ The CLI parses each `k8s.<id>.yaml` and extracts from the Deployment:
 |---|---|---|---|---|
 | `web-app` | Bun/Vite | 5173 | in-cluster | Frontend with hot reload via hostPath |
 | `api` | Rust | 3030 | mirrord | Backend compiled locally, traffic proxied |
-| `bluetext-ui` | Bun/Vite | 5175 | in-cluster | Control plane UI |
+| `bluetext-ui` | Bun/Vite | 3100 | in-cluster | Control plane UI |
 | `flutter-app` | Flutter | 8080 | host-forward | Mobile app running on host emulator |
 | `couchbase` | Couchbase Server | 8091 | in-cluster | Database with persistent data volume |
 | `couchbase-sync-gateway` | Sync Gateway | 4984 | in-cluster | Couchbase Sync Gateway with namespace-templated config |

@@ -128,7 +128,7 @@ The CLI reads annotations from `metadata.annotations` on the **Deployment** reso
 - **Parsed from:** `Deployment.metadata.annotations`
 - **Effect:** Switches the service out of in-cluster mode. Instead of deploying the full container, the CLI deploys a stub pod and runs this command locally on the host machine.
 - **Without `bluetext.io/dev-mode`:** Uses mirrord mode — deploys a pause container as stub, then runs `mirrord exec --steal` to intercept cluster traffic and forward it to the local process.
-- **Value:** The shell command to run locally (e.g. `cargo watch -x run`, `bun run dev --host`). Executed via `zsh -lc` so PATH includes user tools.
+- **Value:** The shell command to run locally (e.g. `cargo watch -x run`, `./bin/dev`). Executed via `zsh -lc` so PATH includes user tools. **Paths are relative to the service directory** (`code/services/<service-id>/`), not the project root.
 - **Requires:** A `project` hostPath volume under `/var/mnt/project/` so the CLI can determine the local source directory (it strips the `/var/mnt/project/` prefix to get the relative path).
 
 ### `bluetext.io/dev-mode`

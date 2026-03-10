@@ -1,0 +1,9 @@
+#!/bin/sh
+set -e
+
+FLUTTER_FIFO="/tmp/flutter_stdin"
+rm -f "$FLUTTER_FIFO"
+mkfifo "$FLUTTER_FIFO"
+
+echo "Flutter dev server starting (send 'r' to $FLUTTER_FIFO for hot reload, 'R' for hot restart)"
+exec tail -f "$FLUTTER_FIFO" | flutter run -d emulator-5554

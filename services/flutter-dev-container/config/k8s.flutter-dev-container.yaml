@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: flutter-dev-container
   annotations:
-    bluetext.io/dev-command: "flutter run -d emulator-5554"
+    bluetext.io/dev-command: "./bin/dev"
     bluetext.io/dev-mode: host-forward
     bluetext.io/port-forwards: "couchbase-sync-gateway:4984:80"
 spec:

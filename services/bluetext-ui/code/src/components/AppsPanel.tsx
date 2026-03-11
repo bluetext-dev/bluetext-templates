@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import type { AppConfig, Deployment } from "../types";
 import { rebuildApp } from "../api";
+import { AddAppOverlay } from "./AddAppOverlay";
 
 function getRunningInstances(id: string, deployments: Deployment[]) {
   const namespace = `app-${id}`;
@@ -108,11 +109,21 @@ export function AppsPanel({
   onStop: (id: string) => Promise<boolean>;
   onToast: (msg: string, type?: "success" | "error") => void;
 }) {
+  const [showAdd, setShowAdd] = useState(false);
   return (
     <div className="card full">
       <div className="card-title">
         Apps <span className="count">{configs.length}</span>
+        <button className="btn btn-primary btn-sm" style={{ marginLeft: "auto" }} onClick={() => setShowAdd(true)}>
+          + Add
+        </button>
       </div>
+      {showAdd && (
+        <AddAppOverlay
+          onClose={() => setShowAdd(false)}
+          onToast={(msg, type) => onToast(msg, type)}
+        />
+      )}
       {configs.length > 0 ? (
         configs.map((cfg) => (
           <AppRow

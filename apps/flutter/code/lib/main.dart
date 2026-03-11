@@ -62,9 +62,9 @@ class _MyHomePageState extends State<MyHomePage> {
       // Connect to Sync Gateway.
       String url;
       if (Platform.isAndroid) {
-        // Android emulator uses 10.0.2.2 to reach the host machine's localhost.
-        // Connect directly via port-forward (localhost:4984) to avoid .localhost DNS issues.
-        url = 'ws://10.0.2.2:4984/main';
+        // Use adb reverse (adb reverse tcp:4984 tcp:4984) to tunnel
+        // emulator's localhost:4984 to host's localhost:4984 (kubectl port-forward).
+        url = 'ws://localhost:4984/main';
       } else {
         // On iOS/macOS, .localhost resolves fine — use Traefik ingress.
         const backendNamespace = String.fromEnvironment('BACKEND_NAMESPACE');

@@ -129,3 +129,12 @@ export async function stopApp(id: string) {
 export async function rebuildApp(id: string) {
   return send("apps:rebuild", { id });
 }
+
+export async function fetchAppTemplates(): Promise<Template[]> {
+  const result = await send("templates:list-apps", {});
+  return (result as any).templates ?? [];
+}
+
+export async function addApp(template: string, id: string) {
+  return send("apps:add", { template, id });
+}

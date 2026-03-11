@@ -181,6 +181,46 @@ function getServiceConfigs(): ServiceConfigInfo[] {
 }
 
 // ---------------------------------------------------------------------------
+// App config discovery (reads /config/apps/k8s.*.yaml)
+// ---------------------------------------------------------------------------
+
+interface AppConfigInfo {
+  id: string;
+  targetPort: number;
+  hasImage: boolean;
+}
+
+function getAppConfigs(): AppConfigInfo[] {
+  try {
+    const dir = "/config/apps";
+    if (!existsSync(dir)) return [];
+    const files = readdirSync(dir);
+    const configs: AppConfigInfo[] = [];
+    for (const file of files) {
+      const match = file.match(/^k8s\.(.+)\.yaml$/);
+      if (!match) continue;
+      const id = match[1];
+
+      const content = readFileSync(`${dir}/${file}`, "utf-8");
+      let targetPort = 0;
+
+      for (const raw of content.split(/\n---\n/)) {
+        if (raw.includes("kind: Service")) {
+          const m = raw.match(/targetPort:\s*(\d+)/);
+          if (m) targetPort = parseInt(m[1], 10);
+        }
+      }
+      const hasImage = content.includes("imagePullPolicy: Never");
+      configs.push({ id, targetPort, hasImage });
+    }
+    configs.sort((a, b) => a.id.localeCompare(b.id));
+    return configs;
+  } catch {
+    return [];
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Stack config discovery (reads /config/bluetext.yaml)
 // ---------------------------------------------------------------------------
 
@@ -374,6 +414,11 @@ Bun.serve({
     // --- Service configs ---
     if (url.pathname === "/api/services/configs" && method === "GET") {
       return json(getServiceConfigs());
+    }
+
+    // --- App configs ---
+    if (url.pathname === "/api/apps/configs" && method === "GET") {
+      return json(getAppConfigs());
     }
 
     // --- Namespace mutations ---

@@ -1,0 +1,21 @@
+#!/bin/sh
+set -e
+
+if [ -z "$BLUETEXT_NAMESPACE" ]; then
+  echo "Error: BLUETEXT_NAMESPACE is not set" >&2
+  exit 1
+fi
+
+# BACKEND_NAMESPACE tells the Flutter app which namespace the backend
+# services (sync gateway, etc.) are running in, so it can connect via ingress.
+# Defaults to "dev" but can be overridden.
+BACKEND_NAMESPACE="${BACKEND_NAMESPACE:-dev}"
+
+FLUTTER_FIFO="/tmp/flutter_stdin"
+rm -f "$FLUTTER_FIFO"
+mkfifo "$FLUTTER_FIFO"
+
+echo "Flutter dev server starting (namespace: $BLUETEXT_NAMESPACE, backend: $BACKEND_NAMESPACE)"
+echo "Connecting to sync gateway via ingress: couchbase-sync-gateway.$BACKEND_NAMESPACE.bluetext.localhost"
+echo "Send 'r' to $FLUTTER_FIFO for hot reload, 'R' for hot restart"
+exec tail -f "$FLUTTER_FIFO" | flutter run -d emulator-5554 --dart-define=BACKEND_NAMESPACE="$BACKEND_NAMESPACE"

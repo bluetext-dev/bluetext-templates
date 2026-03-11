@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -59,19 +59,19 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> _startNativeReplication() async {
     try {
-      const namespace = String.fromEnvironment('NAMESPACE');
-      if (namespace.isEmpty) {
-        throw Exception('NAMESPACE not set. Pass --dart-define=NAMESPACE=<namespace> when running the app.');
-      }
-      // Port-forwarded directly to sync gateway (bypasses Traefik ingress).
-      // Port 4984 is forwarded to host via bluetext.io/port-forwards annotation.
+      // Connect to Sync Gateway.
       String url;
       if (Platform.isAndroid) {
         // Android emulator uses 10.0.2.2 to reach the host machine's localhost.
+        // Connect directly via port-forward (localhost:4984) to avoid .localhost DNS issues.
         url = 'ws://10.0.2.2:4984/main';
       } else {
-        // iOS simulator / macOS can reach localhost directly.
-        url = 'ws://localhost:4984/main';
+        // On iOS/macOS, .localhost resolves fine — use Traefik ingress.
+        const backendNamespace = String.fromEnvironment('BACKEND_NAMESPACE');
+        if (backendNamespace.isEmpty) {
+          throw Exception('BACKEND_NAMESPACE not set. Pass --dart-define=BACKEND_NAMESPACE=<namespace> when running the app.');
+        }
+        url = 'ws://couchbase-sync-gateway.$backendNamespace.bluetext.localhost/main';
       }
 
       await _couchbaseLiteP2p.startSyncGatewayReplication(url);

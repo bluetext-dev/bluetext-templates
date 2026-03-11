@@ -55,3 +55,9 @@ export interface Stack {
   id: string;
   services: string[];
 }
+
+export interface AppConfig {
+  id: string;
+  targetPort: number;
+  hasImage: boolean;
+}

@@ -40,6 +40,8 @@ flutter:
       ios:
         pluginClass: CouchbaseLiteP2pPlugin
         minimumOSVersion: 11.0
+      macos:
+        pluginClass: CouchbaseLiteP2pPlugin
 
   # To add assets to your plugin package, add an assets section, like this:
   # assets:

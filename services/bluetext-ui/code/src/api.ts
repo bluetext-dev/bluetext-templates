@@ -1,4 +1,4 @@
-import type { ClusterStatus, ServiceConfig, Stack } from "./types";
+import type { AppConfig, ClusterStatus, ServiceConfig, Stack } from "./types";
 import { send } from "./ws";
 
 export async function fetchStatus(): Promise<ClusterStatus> {
@@ -108,4 +108,24 @@ export async function fetchTemplates(): Promise<Template[]> {
 
 export async function addService(template: string, id: string) {
   return send("services:add", { template, id });
+}
+
+// --- App operations ---
+
+export async function fetchAppConfigs(): Promise<AppConfig[]> {
+  const r = await fetch("/api/apps/configs");
+  if (!r.ok) throw new Error(`API error: ${r.status}`);
+  return r.json();
+}
+
+export async function startApp(id: string) {
+  return send("apps:start", { id });
+}
+
+export async function stopApp(id: string) {
+  return send("apps:stop", { id });
+}
+
+export async function rebuildApp(id: string) {
+  return send("apps:rebuild", { id });
 }

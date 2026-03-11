@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import type { ClusterStatus, ServiceConfig, Stack } from "./types";
-import { fetchStatus, fetchServiceConfigs, fetchStacks } from "./api";
+import type { AppConfig, ClusterStatus, ServiceConfig, Stack } from "./types";
+import { fetchStatus, fetchServiceConfigs, fetchAppConfigs, fetchStacks } from "./api";
 
 export function useStatus(intervalMs = 3000) {
   const [status, setStatus] = useState<ClusterStatus | null>(null);
@@ -31,6 +31,23 @@ export function useServiceConfigs(intervalMs = 10000) {
     const load = async () => {
       try {
         setConfigs(await fetchServiceConfigs());
+      } catch {}
+    };
+    load();
+    const id = setInterval(load, intervalMs);
+    return () => clearInterval(id);
+  }, [intervalMs]);
+
+  return configs;
+}
+
+export function useAppConfigs(intervalMs = 10000) {
+  const [configs, setConfigs] = useState<AppConfig[]>([]);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setConfigs(await fetchAppConfigs());
       } catch {}
     };
     load();

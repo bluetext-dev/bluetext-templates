@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: flutter-app
+  name: flutter
   annotations:
     bluetext.io/dev-command: "./bin/dev"
     bluetext.io/dev-mode: host-forward
@@ -9,11 +9,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: flutter-app
+      app: flutter
   template:
     metadata:
       labels:
-        app: flutter-app
+        app: flutter
     spec:
       containers:
         - name: app
@@ -27,17 +27,17 @@ spec:
       volumes:
         - name: project
           hostPath:
-            path: /var/mnt/project/code/services/flutter-app
+            path: /var/mnt/project/code/apps/flutter
             type: Directory
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: flutter-app
+  name: flutter
 spec:
   type: ClusterIP
   selector:
-    app: flutter-app
+    app: flutter
   ports:
     - port: 80
       targetPort: 8080
@@ -45,7 +45,7 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: flutter-app
+  name: flutter
 spec:
   ingressClassName: traefik
   rules:
@@ -56,6 +56,6 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: flutter-app
+                name: flutter
                 port:
                   number: 80

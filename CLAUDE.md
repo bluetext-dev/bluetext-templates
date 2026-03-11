@@ -1,6 +1,6 @@
 # Bluetext Templates
 
-This repo contains reusable service templates for [Bluetext CLI](https://github.com/bluetext-dev/bluetext-cli) (`b`). Projects add templates via `b service add <template-name>...` (accepts multiple names).
+This repo contains reusable service and app templates for [Bluetext CLI](https://github.com/bluetext-dev/bluetext-cli) (`b`). Projects add templates via `b service add <template-name>...` or `b app add <template-name>...` (both accept multiple names).
 
 By default, the CLI auto-fetches this repo from GitHub and caches it at `~/.cache/bluetext/templates/`. Override with `--from` / `-f` flag or `templates_dir` in `~/.config/bluetext/config.yaml`.
 
@@ -9,13 +9,20 @@ By default, the CLI auto-fetches this repo from GitHub and caches it at `~/.cach
 ```
 services/
   <service-id>/
-    config/          # K8s manifests (copied to project's config/)
+    config/          # K8s manifests (copied to project's config/services/)
       k8s.<service-id>.yaml
     code/            # Service source code (copied to project's code/services/<service-id>/)
       ...
+
+apps/
+  <app-id>/
+    config/          # K8s manifests (copied to project's config/apps/)
+      k8s.<app-id>.yaml
+    code/            # App source code (copied to project's code/apps/<app-id>/)
+      ...
 ```
 
-Each template is a directory under `services/` named by its service id.
+Each template is a directory under `services/` or `apps/` named by its id.
 
 ### config/
 
@@ -39,6 +46,15 @@ Running `b service add <name>...` in a project (accepts multiple template names)
 4. Copies `services/<name>/config-files/` (if present) into the project's `config/` directory
 5. The service is immediately discoverable via `b service list` and runnable via `b service start`
 
+## How `b app add` Works
+
+Running `b app add <name>...` in a project (accepts multiple template names):
+
+1. Looks for `apps/<name>/` in the templates repo (auto-fetched from GitHub or overridden with `--from` / `-f`)
+2. Copies all files from `apps/<name>/config/` into the project's `config/apps/` directory
+3. Copies `apps/<name>/code/` into the project's `code/apps/<name>/`
+4. The app is immediately discoverable via `b app list` and runnable via `b app start`
+
 ## How the CLI Discovers Services
 
 After a template is added to a project, the CLI discovers it automatically. On every run, the CLI **recursively** scans the project's `config/services/` directory (including subdirectories) for files matching the pattern `k8s.<id>.yaml`. Each matching file becomes a service with that `<id>`. The CLI then parses the YAML to extract `target_port` from the Service resource, and annotations + volumes from the Deployment resource (see "How the CLI Extracts Config" below).
@@ -48,6 +64,16 @@ This means:
 - The service id is derived from the filename, not from any field inside the YAML
 - The `code/services/<id>/` directory is used at runtime (volume mounts, local dev commands) but is not required for discovery
 - `b service list` shows all discovered services and their target ports
+
+## How the CLI Discovers Apps
+
+The CLI scans `config/apps/` for files matching `k8s.<id>.yaml`. Each matching file becomes an app. Apps differ from services in that they get an auto-generated namespace (`app-<id>`) and a network policy blocking cluster-internal traffic, enforcing isolation. The CLI commands for apps (`b app start`, `b app stop`, etc.) do not require a `-n` flag since the namespace is derived automatically.
+
+## Apps vs Services
+
+**Services** are backend components that run in shared namespaces and communicate freely with other services via cluster DNS. They require a `-n <namespace>` flag for most commands.
+
+**Apps** are isolated client-facing applications (e.g. Flutter, React Native). Each app gets its own auto-generated namespace (`app-<id>`), a network policy restricting cluster-internal traffic, and simpler CLI commands (no `-n` flag needed). Use app templates for frontends that connect to backend services via ingress rather than direct cluster networking.
 
 ## Writing a K8s Manifest (`k8s.<id>.yaml`)
 
@@ -185,15 +211,22 @@ The CLI parses each `k8s.<id>.yaml` and extracts from the Deployment:
 
 ## Existing Template Examples
 
+### Service Templates
+
 | Template | Type | Port | Dev Mode | Description |
 |---|---|---|---|---|
 | `web-app` | Bun/Vite | 5173 | in-cluster | Frontend with hot reload via hostPath |
 | `api` | Rust | 3030 | mirrord | Backend compiled locally, traffic proxied |
 | `bluetext-ui` | Bun/Vite | 3100 | in-cluster | Control plane UI |
-| `flutter-app` | Flutter | 8080 | host-forward | Mobile app running on host emulator |
 | `couchbase` | Couchbase Server | 8091 | in-cluster | Database with persistent data volume |
 | `couchbase-sync-gateway` | Sync Gateway | 4984 | in-cluster | Couchbase Sync Gateway with namespace-templated config |
 | `service-config-manager` | Python | — | in-cluster | Init service that configures Couchbase buckets and Sync Gateway databases |
+
+### App Templates
+
+| Template | Type | Port | Dev Mode | Description |
+|---|---|---|---|---|
+| `flutter` | Flutter | 8080 | host-forward | Mobile app running on host emulator (isolated namespace) |
 
 ## Template Extras
 

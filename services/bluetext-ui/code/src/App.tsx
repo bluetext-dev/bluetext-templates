@@ -1,5 +1,6 @@
-import { useStatus, useServiceConfigs, useStacks, useToast } from "./hooks";
+import { useStatus, useServiceConfigs, useAppConfigs, useStacks, useToast } from "./hooks";
 import * as api from "./api";
+import { AppsPanel } from "./components/AppsPanel";
 import { ClusterCard } from "./components/ClusterCard";
 import { NamespacesCard } from "./components/NamespacesCard";
 import { DeployPanel } from "./components/DeployPanel";
@@ -12,6 +13,7 @@ import { Toast } from "./components/Toast";
 export function App() {
   const { status, error } = useStatus();
   const configs = useServiceConfigs();
+  const appConfigs = useAppConfigs();
   const stacks = useStacks();
   const { toast, show } = useToast();
 
@@ -92,6 +94,18 @@ export function App() {
           }
           onStop={(id, ns) =>
             handleAction(() => api.stopService(id, ns))
+          }
+          onToast={(msg, type) => show(msg, type ?? "success")}
+        />
+
+        <AppsPanel
+          configs={appConfigs}
+          deployments={status.deployments}
+          onStart={(id) =>
+            handleAction(() => api.startApp(id))
+          }
+          onStop={(id) =>
+            handleAction(() => api.stopApp(id))
           }
           onToast={(msg, type) => show(msg, type ?? "success")}
         />

@@ -1,0 +1,7 @@
+id: flutter
+name: Flutter App
+description: Mobile app running on host emulator with host-forward dev mode
+ports:
+  - 8080
+dev_mode: host-forward
+dependencies: []

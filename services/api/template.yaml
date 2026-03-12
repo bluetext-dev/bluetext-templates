@@ -1,0 +1,7 @@
+id: api
+name: Rust API
+description: Backend API with Axum, mirrord dev mode
+ports:
+  - 3030
+dev_mode: mirrord
+dependencies: []

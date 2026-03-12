@@ -1,0 +1,11 @@
+id: couchbase
+name: Couchbase Server
+description: Couchbase Server with persistent data volume
+ports:
+  - 8091
+  - 8092
+  - 8093
+  - 8094
+  - 11210
+dev_mode: in-cluster
+dependencies: []

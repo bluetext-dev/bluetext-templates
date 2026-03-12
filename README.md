@@ -9,6 +9,7 @@ By default, the CLI auto-fetches this repo from GitHub and caches it at `~/.cach
 ```
 services/
   <service-id>/
+    template.yaml    # Template metadata (id, name, description, ports, dev_mode, dependencies)
     config/          # K8s manifests (copied to project's config/services/)
       k8s.<service-id>.yaml
     code/            # Service source code (copied to project's code/services/<service-id>/)
@@ -16,6 +17,7 @@ services/
 
 apps/
   <app-id>/
+    template.yaml    # Template metadata (id, name, description, ports, dev_mode, dependencies)
     config/          # K8s manifests (copied to project's config/apps/)
       k8s.<app-id>.yaml
     code/            # App source code (copied to project's code/apps/<app-id>/)
@@ -23,6 +25,21 @@ apps/
 ```
 
 Each template is a directory under `services/` or `apps/` named by its id.
+
+### template.yaml
+
+Each template must include a `template.yaml` at its root with metadata used by the CLI for listing and dependency resolution:
+
+```yaml
+id: <service-id>
+name: Human-readable name
+description: Short description of the template
+ports:
+  - <port>           # List of ports the service exposes (can be empty)
+dev_mode: in-cluster # One of: in-cluster, mirrord, host-forward
+dependencies:        # Other template ids this template depends on
+  - <dependency-id>
+```
 
 ### config/
 
@@ -217,7 +234,6 @@ The CLI parses each `k8s.<id>.yaml` and extracts from the Deployment:
 |---|---|---|---|---|
 | `web-app` | Bun/Vite | 5173 | in-cluster | Frontend with hot reload via hostPath |
 | `api` | Rust | 3030 | mirrord | Backend compiled locally, traffic proxied |
-| `bluetext-ui` | Bun/Vite | 5173 | in-cluster | Control plane UI — pure client-side React app, communicates with host agent via WebSocket |
 | `couchbase` | Couchbase Server | 8091 | in-cluster | Database with persistent data volume |
 | `couchbase-sync-gateway` | Sync Gateway | 4984 | in-cluster | Couchbase Sync Gateway with namespace-templated config |
 | `service-config-manager` | Python | — | in-cluster | Init service that configures Couchbase buckets and Sync Gateway databases |

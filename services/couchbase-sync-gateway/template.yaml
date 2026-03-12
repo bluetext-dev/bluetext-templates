@@ -1,0 +1,9 @@
+id: couchbase-sync-gateway
+name: Couchbase Sync Gateway
+description: Couchbase Sync Gateway with namespace-templated config
+ports:
+  - 4984
+  - 4985
+dev_mode: in-cluster
+dependencies:
+  - couchbase

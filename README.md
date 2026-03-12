@@ -10,6 +10,7 @@ By default, the CLI auto-fetches this repo from GitHub and caches it at `~/.cach
 services/
   <service-id>/
     template.yaml    # Template metadata (id, name, description, ports, dev_mode, dependencies)
+    icon.svg         # Optional icon for CLI display
     config/          # K8s manifests (copied to project's config/services/)
       k8s.<service-id>.yaml
     code/            # Service source code (copied to project's code/services/<service-id>/)
@@ -18,6 +19,7 @@ services/
 apps/
   <app-id>/
     template.yaml    # Template metadata (id, name, description, ports, dev_mode, dependencies)
+    icon.svg         # Optional icon for CLI display
     config/          # K8s manifests (copied to project's config/apps/)
       k8s.<app-id>.yaml
     code/            # App source code (copied to project's code/apps/<app-id>/)

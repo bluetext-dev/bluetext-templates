@@ -10,9 +10,6 @@ export default defineConfig({
     hmr: {
       clientPort: 80,
     },
-    proxy: {
-      "/api": "http://localhost:3100",
-    },
     watch: {
       usePolling: true,
     },

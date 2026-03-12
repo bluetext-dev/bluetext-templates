@@ -1,48 +1,3 @@
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: bluetext-ui
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: bluetext-ui
-rules:
-  - apiGroups: [""]
-    resources: ["nodes", "namespaces", "pods", "services"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: ["apps"]
-    resources: ["deployments"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: ["networking.k8s.io"]
-    resources: ["ingresses"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: [""]
-    resources: ["namespaces"]
-    verbs: ["create", "delete"]
-  - apiGroups: [""]
-    resources: ["services"]
-    verbs: ["create", "update", "patch", "delete"]
-  - apiGroups: ["apps"]
-    resources: ["deployments"]
-    verbs: ["create", "update", "patch", "delete"]
-  - apiGroups: ["networking.k8s.io"]
-    resources: ["ingresses"]
-    verbs: ["create", "update", "patch", "delete"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: bluetext-ui
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: bluetext-ui
-subjects:
-  - kind: ServiceAccount
-    name: bluetext-ui
-    namespace: bluetext
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -57,7 +12,6 @@ spec:
       labels:
         app: bluetext-ui
     spec:
-      serviceAccountName: bluetext-ui
       tolerations:
         - key: node-role.kubernetes.io/control-plane
           operator: Exists
@@ -73,8 +27,6 @@ spec:
               mountPath: /app
             - name: node-modules
               mountPath: /app/node_modules
-            - name: config
-              mountPath: /config
       volumes:
         - name: project
           hostPath:
@@ -84,10 +36,6 @@ spec:
           hostPath:
             path: /var/mnt/project/.bluetext/cache/bluetext-ui/node_modules
             type: DirectoryOrCreate
-        - name: config
-          hostPath:
-            path: /var/mnt/project/config
-            type: Directory
 ---
 apiVersion: v1
 kind: Service

@@ -2,47 +2,40 @@ import type { AppConfig, ClusterStatus, ServiceConfig, Stack } from "./types";
 import { send } from "./ws";
 
 export async function fetchStatus(): Promise<ClusterStatus> {
-  const r = await fetch("/api/status");
-  if (!r.ok) throw new Error(`API error: ${r.status}`);
-  return r.json();
+  const result = await send("status", {});
+  if (!result.success) throw new Error(result.message || "Failed to fetch status");
+  return (result as any).data;
 }
 
 export async function fetchServiceConfigs(): Promise<ServiceConfig[]> {
-  const r = await fetch("/api/services/configs");
-  if (!r.ok) throw new Error(`API error: ${r.status}`);
-  return r.json();
+  const result = await send("services:configs", {});
+  if (!result.success) throw new Error(result.message || "Failed to fetch service configs");
+  return (result as any).data ?? [];
 }
 
-export interface MutationResult {
-  success: boolean;
-  message?: string;
-  error?: string;
-  errors?: string[];
+export async function fetchAppConfigs(): Promise<AppConfig[]> {
+  const result = await send("apps:configs", {});
+  if (!result.success) throw new Error(result.message || "Failed to fetch app configs");
+  return (result as any).data ?? [];
 }
 
-async function mutate(
-  method: string,
-  path: string,
-  body?: unknown,
-): Promise<MutationResult> {
-  const opts: RequestInit = {
-    method,
-    headers: { "Content-Type": "application/json" },
-  };
-  if (body) opts.body = JSON.stringify(body);
-  const r = await fetch(path, opts);
-  return r.json();
+export async function fetchStacks(): Promise<Stack[]> {
+  const result = await send("stacks:list", {});
+  if (!result.success) throw new Error(result.message || "Failed to fetch stacks");
+  return (result as any).data ?? [];
+}
+
+export async function addStack(id: string, entries: string[]) {
+  return send("stacks:add", { id, entries });
 }
 
 export async function createNamespace(name: string) {
-  return mutate("POST", "/api/namespaces", { name });
+  return send("namespaces:create", { name });
 }
 
 export async function deleteNamespace(name: string) {
-  return mutate("DELETE", `/api/namespaces/${encodeURIComponent(name)}`);
+  return send("namespaces:delete", { name });
 }
-
-// --- Host-agent operations via WebSocket ---
 
 export async function startService(id: string, namespace: string) {
   return send("services:start", { id, namespace });
@@ -64,32 +57,6 @@ export async function stopWatch(id: string, namespace: string) {
   return send("services:watch/stop", { id, namespace });
 }
 
-export async function fetchStacks(): Promise<Stack[]> {
-  const r = await fetch("/api/stacks");
-  if (!r.ok) throw new Error(`API error: ${r.status}`);
-  return r.json();
-}
-
-export async function startStack(id: string, namespace: string) {
-  return send("stacks:start", { id, namespace });
-}
-
-export async function stopStack(id: string, namespace: string) {
-  return send("stacks:stop", { id, namespace });
-}
-
-export async function addStack(
-  id: string,
-  entries: string[]
-): Promise<MutationResult> {
-  const r = await fetch("/api/stacks", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id, entries }),
-  });
-  return r.json();
-}
-
 export async function getWatchStatus(id: string): Promise<{ message: string }> {
   const result = await send("services:watch/status", { id });
   return { message: result.message ?? "" };
@@ -97,6 +64,8 @@ export async function getWatchStatus(id: string): Promise<{ message: string }> {
 
 export interface Template {
   id: string;
+  name?: string;
+  description?: string;
   hasCode: boolean;
   hasConfig: boolean;
 }
@@ -110,12 +79,12 @@ export async function addService(template: string, id: string) {
   return send("services:add", { template, id });
 }
 
-// --- App operations ---
+export async function startStack(id: string, namespace: string) {
+  return send("stacks:start", { id, namespace });
+}
 
-export async function fetchAppConfigs(): Promise<AppConfig[]> {
-  const r = await fetch("/api/apps/configs");
-  if (!r.ok) throw new Error(`API error: ${r.status}`);
-  return r.json();
+export async function stopStack(id: string, namespace: string) {
+  return send("stacks:stop", { id, namespace });
 }
 
 export async function startApp(id: string) {

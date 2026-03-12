@@ -217,7 +217,7 @@ The CLI parses each `k8s.<id>.yaml` and extracts from the Deployment:
 |---|---|---|---|---|
 | `web-app` | Bun/Vite | 5173 | in-cluster | Frontend with hot reload via hostPath |
 | `api` | Rust | 3030 | mirrord | Backend compiled locally, traffic proxied |
-| `bluetext-ui` | Bun/Vite | 3100 | in-cluster | Control plane UI (manage services, apps, stacks, namespaces; add from templates) |
+| `bluetext-ui` | Bun/Vite | 5173 | in-cluster | Control plane UI — pure client-side React app, communicates with host agent via WebSocket |
 | `couchbase` | Couchbase Server | 8091 | in-cluster | Database with persistent data volume |
 | `couchbase-sync-gateway` | Sync Gateway | 4984 | in-cluster | Couchbase Sync Gateway with namespace-templated config |
 | `service-config-manager` | Python | — | in-cluster | Init service that configures Couchbase buckets and Sync Gateway databases |

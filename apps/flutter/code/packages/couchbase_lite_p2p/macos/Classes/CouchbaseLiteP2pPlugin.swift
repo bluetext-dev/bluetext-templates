@@ -104,6 +104,8 @@ public class CouchbaseLiteP2pPlugin: NSObject, FlutterPlugin {
             var config = ReplicatorConfiguration(target: target)
             config.replicatorType = .pushAndPull
             config.continuous = true
+            config.maxAttemptWaitTime = 5
+            config.heartbeat = 5
 
             let collection = try db.defaultCollection()
             config.addCollection(collection, config: nil)

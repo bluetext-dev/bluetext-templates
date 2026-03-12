@@ -58,6 +58,8 @@ class CouchbaseLiteP2pPlugin : FlutterPlugin, MethodCallHandler {
             val target = URLEndpoint(url)
             val config = ReplicatorConfiguration(target)
             config.isContinuous = true
+            config.setMaxAttemptWaitTime(5)
+            config.setHeartbeat(5)
             // Set Host header so Traefik ingress routes correctly when using 10.0.2.2:80
             if (url.host == "10.0.2.2" && host != null) {
                 config.headers = mapOf("Host" to host)

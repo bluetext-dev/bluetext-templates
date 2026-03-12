@@ -16,22 +16,12 @@ spec:
         - key: node-role.kubernetes.io/control-plane
           operator: Exists
           effect: NoSchedule
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000
-        fsGroup: 1000
-        seccompProfile:
-          type: RuntimeDefault
       containers:
         - name: app
           image: oven/bun:latest
           command: ["sh", "-c", "cd /app && bun install && bun run dev --host"]
           ports:
             - containerPort: 5173
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop: ["ALL"]
           volumeMounts:
             - name: project
               mountPath: /app

@@ -5,6 +5,7 @@ prerequisites:
   - A running cluster (b start)
   - At least one existing service to protect (already added via b service add)
 caveats:
+  - Requires a Curity license key — get a free trial at developer.curity.io (on a bluetext VM, it is pre-set as $CURITY_LICENSE_KEY)
   - Kong phantom-token plugin version must match Kong version
   - Adds introspection latency per request (mitigated by token caching)
   - Target services will have their direct Ingress removed (traffic routes through Kong)
@@ -14,6 +15,10 @@ variables:
     description: Target namespace for Curity and Kong
     type: string
     default: auth
+  - name: license_key
+    description: Curity license key (get a free dev license at developer.curity.io)
+    type: string
+    required: true
   - name: target_services
     description: Comma-separated list of service IDs to protect with phantom tokens
     type: string
@@ -24,6 +29,19 @@ steps:
     tool: service_add
     params:
       name: curity
+  - name: Add Curity license secret
+    tool: file_patch
+    params:
+      file: config/services/k8s.curity.yaml
+      operation: append_document
+      content: |
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: curity-license
+        type: Opaque
+        stringData:
+          license-key: "{{license_key}}"
   - name: Add kong service template
     tool: service_add
     params:

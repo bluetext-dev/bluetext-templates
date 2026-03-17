@@ -4,6 +4,7 @@ tags: [auth, oidc, security, gateway, phantom-token, rbac]
 prerequisites:
   - A running cluster (b start)
 caveats:
+  - Requires a Curity license key — get a free trial at developer.curity.io (on a bluetext VM, it is pre-set as $CURITY_LICENSE_KEY)
   - Uses default admin password "admin" — change for non-dev environments
   - Kong phantom-token plugin validates tokens via introspection (adds latency, mitigated by caching)
   - API trusts the JWT from Kong without signature verification (Kong already validated it)
@@ -15,6 +16,10 @@ variables:
     description: Target namespace
     type: string
     default: auth
+  - name: license_key
+    description: Curity license key (get a free dev license at developer.curity.io)
+    type: string
+    required: true
   - name: target_services
     description: Comma-separated list of additional service IDs to protect (beyond the api)
     type: string
@@ -25,6 +30,19 @@ steps:
     tool: service_add
     params:
       name: curity
+  - name: Add Curity license secret
+    tool: file_patch
+    params:
+      file: config/services/k8s.curity.yaml
+      operation: append_document
+      content: |
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: curity-license
+        type: Opaque
+        stringData:
+          license-key: "{{license_key}}"
   - name: Add kong service template
     tool: service_add
     params:

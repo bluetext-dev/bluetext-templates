@@ -35,6 +35,12 @@ spec:
           env:
             - name: PASSWORD
               value: admin
+            - name: LICENSE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: curity-license
+                  key: license-key
+                  optional: true
           readinessProbe:
             httpGet:
               path: /admin/alive
@@ -90,6 +96,7 @@ metadata:
   name: curity
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/service.serversscheme: https
 spec:
   ingressClassName: traefik
   rules:
@@ -110,6 +117,7 @@ metadata:
   name: curity-admin
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/service.serversscheme: https
 spec:
   ingressClassName: traefik
   rules:

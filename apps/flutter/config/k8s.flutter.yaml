@@ -28,15 +28,25 @@ spec:
               mountPath: /root/.pub-cache
             - name: gradle-cache
               mountPath: /root/.gradle
+            - name: sdk-cache
+              mountPath: /sdk-cache
       volumes:
         - name: project
           hostPath:
             path: /var/mnt/project/code/apps/flutter
             type: Directory
         - name: pub-cache
-          emptyDir: {}
+          hostPath:
+            path: /var/mnt/project/.flutter-cache/pub
+            type: DirectoryOrCreate
         - name: gradle-cache
-          emptyDir: {}
+          hostPath:
+            path: /var/mnt/project/.flutter-cache/gradle
+            type: DirectoryOrCreate
+        - name: sdk-cache
+          hostPath:
+            path: /var/mnt/project/.flutter-cache/sdk
+            type: DirectoryOrCreate
 ---
 apiVersion: v1
 kind: Service

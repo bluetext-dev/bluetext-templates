@@ -3,6 +3,9 @@ set -e
 
 echo "Initializing Flutter app..."
 
+SDK="/opt/android-sdk-linux"
+CACHE="/sdk-cache"
+
 # On ARM64, install x86 multiarch libraries so OrbStack/Rosetta can run
 # Android SDK's x86 tools (adb, aapt2, d8, etc.) transparently.
 if [ "$(uname -m)" = "aarch64" ] && [ ! -f /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 ]; then
@@ -26,6 +29,22 @@ SOURCES
   mkdir -p /usr/lib64
   ln -sf /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 /usr/lib64/ld-linux-x86-64.so.2
 fi
+
+# Persist Android SDK downloads across pod restarts.
+# Copy base image SDK content to cache on first run, then symlink so all
+# future downloads (NDK, platforms, CMake, build-tools) land in the cache.
+for dir in ndk cmake platforms build-tools; do
+  if [ ! -d "$CACHE/$dir" ]; then
+    mkdir -p "$CACHE/$dir"
+    # Copy any pre-existing content from the base image
+    cp -a "$SDK/$dir/"* "$CACHE/$dir/" 2>/dev/null || true
+  fi
+  # Replace with symlink to cache
+  if [ ! -L "$SDK/$dir" ]; then
+    rm -rf "$SDK/$dir"
+    ln -sf "$CACHE/$dir" "$SDK/$dir"
+  fi
+done
 
 # Accept Android licenses
 yes | flutter doctor --android-licenses 2>/dev/null || true

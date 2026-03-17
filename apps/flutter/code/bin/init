@@ -39,6 +39,18 @@ for dir in ndk cmake platforms build-tools; do
     # Copy any pre-existing content from the base image
     cp -a "$SDK/$dir/"* "$CACHE/$dir/" 2>/dev/null || true
   fi
+
+  # Validate cached NDK versions have source.properties (corrupted downloads lack it)
+  if [ "$dir" = "ndk" ]; then
+    for ndk_ver in "$CACHE/ndk/"*/; do
+      [ -d "$ndk_ver" ] || continue
+      if [ ! -f "$ndk_ver/source.properties" ]; then
+        echo "Removing corrupted NDK cache: $ndk_ver"
+        rm -rf "$ndk_ver"
+      fi
+    done
+  fi
+
   # Replace with symlink to cache
   if [ ! -L "$SDK/$dir" ]; then
     rm -rf "$SDK/$dir"

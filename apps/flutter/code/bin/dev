@@ -11,6 +11,12 @@ done
 DEVICE=$(adb devices | grep "emulator" | head -1 | awk '{print $1}')
 echo "Connected to $DEVICE"
 
+# Set up emulator networking so the app can reach k8s services via Traefik.
+# *.local.bluetext.io resolves to 127.0.0.1 via public DNS.
+# adb reverse tunnels port 8888 on the emulator to port 80 (Traefik) on the host.
+echo "Setting up ADB reverse tunnel (emulator :8888 → host :80 Traefik)..."
+adb -s "$DEVICE" reverse tcp:8888 tcp:80
+
 # Package name derived from applicationId in build.gradle
 PKG="com.example.workspace"
 

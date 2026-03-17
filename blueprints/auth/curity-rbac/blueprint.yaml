@@ -1,0 +1,128 @@
+name: Curity RBAC Stack
+description: Full-stack RBAC — Curity (IdP) + Kong (gateway enforcement) + API (service-level role guards)
+tags: [auth, oidc, security, gateway, phantom-token, rbac]
+prerequisites:
+  - A running cluster (b start)
+caveats:
+  - Uses default admin password "admin" — change for non-dev environments
+  - Kong phantom-token plugin validates tokens via introspection (adds latency, mitigated by caching)
+  - API trusts the JWT from Kong without signature verification (Kong already validated it)
+  - Accounts persisted in file-based HSQLDB (survives pod restarts, stored in .bluetext/curity-db/)
+  - Create Account link on the login page, or register at curity.<namespace>.local.bluetext.io/authn/registration
+  - Target services will have their direct Ingress removed (traffic routes through Kong)
+variables:
+  - name: namespace
+    description: Target namespace
+    type: string
+    default: auth
+  - name: target_services
+    description: Comma-separated list of additional service IDs to protect (beyond the api)
+    type: string
+    default: ""
+see_also: [auth/curity-configured, auth/curity-phantom-token, gateway/kong]
+steps:
+  - name: Add curity service template
+    tool: service_add
+    params:
+      name: curity
+  - name: Add kong service template
+    tool: service_add
+    params:
+      name: kong
+  - name: Add api service template
+    tool: service_add
+    params:
+      name: api
+  - name: Write Curity base configuration with OAuth2 profiles, clients, and scopes
+    tool: file_write
+    params:
+      file: config/curity/base-config.xml
+      content_file: files/base-config.xml
+  - name: Write Kong declarative config with phantom-token plugin and RBAC route enforcement
+    tool: file_write
+    params:
+      file: config/kong/kong.yaml
+      content_file: files/kong-rbac.yaml
+  - name: Write API with JWT extraction and role-guarded routes
+    tool: file_write
+    params:
+      file: code/services/api/src/main.rs
+      content_file: files/api-main.rs
+  - name: Write API Cargo.toml with base64 dependency
+    tool: file_write
+    params:
+      file: code/services/api/Cargo.toml
+      content_file: files/api-cargo.toml
+  - name: Remove direct ingress for api
+    tool: file_patch
+    params:
+      file: config/services/k8s.api.yaml
+      operation: remove_document
+      match_kind: Ingress
+  - name: Add gateway annotations to api
+    tool: file_patch
+    params:
+      file: config/services/k8s.api.yaml
+      operation: merge
+      match_kind: Deployment
+      path: spec.template.metadata.annotations
+      content: |
+        bluetext.io/gateway: kong
+        bluetext.io/phantom-token: "true"
+  - name: Configure additional target services for phantom token
+    for_each: target_services
+    steps:
+      - name: "Remove direct ingress for {{item}}"
+        tool: file_patch
+        params:
+          file: "config/services/k8s.{{item}}.yaml"
+          operation: remove_document
+          match_kind: Ingress
+      - name: "Add gateway annotations to {{item}}"
+        tool: file_patch
+        params:
+          file: "config/services/k8s.{{item}}.yaml"
+          operation: merge
+          match_kind: Deployment
+          path: spec.template.metadata.annotations
+          content: |
+            bluetext.io/gateway: kong
+            bluetext.io/phantom-token: "true"
+      - name: "Add Kong route for {{item}}"
+        tool: file_patch
+        params:
+          file: config/kong/kong.yaml
+          operation: append_list
+          path: services
+          content: |
+            - name: "{{item}}"
+              url: "http://{{item}}.{{namespace}}.svc.cluster.local"
+              routes:
+                - name: "{{item}}-route"
+                  paths:
+                    - "/{{item}}"
+                  strip_path: true
+      - name: "Restart {{item}} in {{namespace}}"
+        tool: service_restart
+        params:
+          id: "{{item}}"
+          namespace: "{{namespace}}"
+  - name: Create {{namespace}} namespace
+    tool: namespace_create
+    params:
+      id: "{{namespace}}"
+  - name: Start curity in {{namespace}}
+    tool: service_start
+    params:
+      id: curity
+      namespace: "{{namespace}}"
+  - name: Start kong in {{namespace}}
+    tool: service_start
+    params:
+      id: kong
+      namespace: "{{namespace}}"
+  - name: Start api in {{namespace}}
+    tool: service_start
+    params:
+      id: api
+      namespace: "{{namespace}}"

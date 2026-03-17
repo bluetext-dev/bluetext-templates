@@ -1,0 +1,47 @@
+name: Add OIDC Authentication
+description: Add OpenID Connect authentication and role-based access to an existing Flutter app
+tags: [auth, oidc, rbac, mobile]
+prerequisites:
+  - An existing Flutter app (b app add flutter)
+  - A running Curity IdP (b blueprint run auth/curity-configured or auth/curity-rbac)
+caveats:
+  - Patches pubspec.yaml — existing comments will be stripped (serde_yaml limitation)
+  - You must wire auth into your main.dart (import and call AuthService)
+  - "Android: add redirect URI scheme to AndroidManifest.xml (see flutter_appauth docs)"
+  - "iOS: add CFBundleURLTypes to Info.plist for com.bluetext.app scheme"
+variables:
+  - name: app_id
+    description: ID of the existing app to add OIDC to
+    type: string
+    required: true
+  - name: namespace
+    description: Namespace where Curity is running (for endpoint URLs)
+    type: string
+    default: auth
+see_also: [auth/curity-rbac, auth/curity-configured]
+steps:
+  - name: Add OIDC dependencies to pubspec.yaml
+    tool: file_patch
+    params:
+      file: "code/apps/{{app_id}}/pubspec.yaml"
+      operation: merge
+      path: dependencies
+      content: |
+        flutter_appauth: ^7.0.1
+        flutter_secure_storage: ^9.2.4
+        http: ^1.2.2
+  - name: Write auth config with Curity endpoints
+    tool: file_write
+    params:
+      file: "code/apps/{{app_id}}/lib/config/auth_config.dart"
+      content_file: files/auth-config.dart
+  - name: Write OIDC auth service
+    tool: file_write
+    params:
+      file: "code/apps/{{app_id}}/lib/services/auth_service.dart"
+      content_file: files/auth-service.dart
+  - name: Write authenticated API client
+    tool: file_write
+    params:
+      file: "code/apps/{{app_id}}/lib/services/api_client.dart"
+      content_file: files/api-client.dart

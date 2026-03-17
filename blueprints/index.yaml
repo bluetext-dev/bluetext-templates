@@ -1,0 +1,26 @@
+# AUTO-GENERATED — do not edit. Run `b blueprint index` to regenerate.
+blueprints:
+  - id: auth/add-oidc
+    name: Add OIDC Authentication
+    description: Add OpenID Connect authentication and role-based access to an existing Flutter app
+    tags: [auth, oidc, rbac, mobile]
+  - id: auth/curity
+    name: Curity Identity Server
+    description: Deploy a standalone Curity Identity Server for OAuth 2.0 and OpenID Connect
+    tags: [auth, oidc, oauth]
+  - id: auth/curity-configured
+    name: Curity Identity Server (Pre-Configured)
+    description: Deploy Curity with pre-configured OAuth2 clients, scopes, role claims, and test users
+    tags: [auth, oidc, oauth, rbac]
+  - id: auth/curity-phantom-token
+    name: Curity Phantom Token Pattern
+    description: Deploy Curity + Kong with phantom token introspection to protect target services
+    tags: [auth, phantom-token, gateway, security]
+  - id: auth/curity-rbac
+    name: Curity RBAC Stack
+    description: Full-stack RBAC — Curity (IdP) + Kong (gateway enforcement) + API (service-level role guards)
+    tags: [auth, oidc, security, gateway, phantom-token, rbac]
+  - id: gateway/kong
+    name: Kong Gateway
+    description: Deploy Kong Gateway in DB-less declarative mode
+    tags: [gateway]

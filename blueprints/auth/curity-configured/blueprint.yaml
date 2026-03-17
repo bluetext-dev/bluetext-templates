@@ -1,0 +1,36 @@
+name: Curity Identity Server (Pre-Configured)
+description: Deploy Curity with pre-configured OAuth2 profiles, clients, and scopes
+tags: [auth, oidc, oauth]
+prerequisites:
+  - A running cluster (b start)
+caveats:
+  - Uses default admin password "admin" — change for non-dev environments
+  - Admin UI available at curity-admin.<namespace>.local.bluetext.io
+  - Pre-configured client — flutter-app (public, PKCE)
+  - Accounts persisted in file-based HSQLDB (survives pod restarts, stored in .bluetext/curity-db/)
+  - Create Account link on the login page, or register at curity.<namespace>.local.bluetext.io/authn/registration
+variables:
+  - name: namespace
+    description: Target namespace
+    type: string
+    default: auth
+see_also: [auth/curity, auth/curity-rbac, auth/curity-phantom-token]
+steps:
+  - name: Add curity service template
+    tool: service_add
+    params:
+      name: curity
+  - name: Write Curity base configuration with OAuth2 profiles, clients, and scopes
+    tool: file_write
+    params:
+      file: config/curity/base-config.xml
+      content_file: files/base-config.xml
+  - name: Create {{namespace}} namespace
+    tool: namespace_create
+    params:
+      id: "{{namespace}}"
+  - name: Start curity in {{namespace}}
+    tool: service_start
+    params:
+      id: curity
+      namespace: "{{namespace}}"

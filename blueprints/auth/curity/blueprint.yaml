@@ -1,0 +1,28 @@
+name: Curity Identity Server
+description: Deploy a standalone Curity Identity Server for OAuth 2.0 and OpenID Connect
+tags: [auth, oidc, oauth]
+prerequisites:
+  - A running cluster (b start)
+caveats:
+  - Uses default admin password "admin" — change for non-dev environments
+  - Admin UI available at curity-admin.<namespace>.local.bluetext.io
+variables:
+  - name: namespace
+    description: Target namespace
+    type: string
+    default: auth
+see_also: [auth/curity-configured, auth/curity-rbac, auth/curity-phantom-token]
+steps:
+  - name: Add curity service template
+    tool: service_add
+    params:
+      name: curity
+  - name: Create {{namespace}} namespace
+    tool: namespace_create
+    params:
+      id: "{{namespace}}"
+  - name: Start curity in {{namespace}}
+    tool: service_start
+    params:
+      id: curity
+      namespace: "{{namespace}}"

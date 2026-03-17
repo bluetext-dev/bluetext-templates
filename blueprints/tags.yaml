@@ -1,0 +1,35 @@
+tags:
+  auth:
+    description: Authentication and authorization
+    aliases: [authentication, authorization]
+    children:
+      oauth:
+        description: OAuth 2.0 related
+        aliases: [oauth2]
+      phantom-token:
+        description: Phantom token pattern
+      oidc:
+        description: OpenID Connect
+        aliases: [openid]
+      rbac:
+        description: Role-based access control
+        aliases: [roles, role-based, permissions]
+      mobile:
+        description: Mobile app authentication
+  gateway:
+    description: API gateway patterns
+    aliases: [api-gateway]
+    children:
+      rate-limiting:
+        description: Rate limiting
+      routing:
+        description: Request routing
+  database:
+    description: Database setup and configuration
+    aliases: [db]
+    children:
+      couchbase:
+        aliases: [cb]
+  security:
+    description: Security patterns
+    aliases: [sec]

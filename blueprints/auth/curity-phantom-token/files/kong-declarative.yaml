@@ -1,0 +1,9 @@
+_format_version: "3.0"
+plugins:
+  - name: phantom-token
+    config:
+      introspection_endpoint: http://curity.{{namespace}}.svc.cluster.local/oauth/v2/oauth-introspect
+      client_id: phantom-token-client
+      client_secret: phantom-token-secret
+      token_cache_seconds: 300
+services: []

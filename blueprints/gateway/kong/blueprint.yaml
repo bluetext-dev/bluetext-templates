@@ -1,0 +1,35 @@
+name: Kong Gateway
+description: Deploy Kong Gateway in DB-less declarative mode
+tags: [gateway]
+prerequisites:
+  - A running cluster (b start)
+caveats:
+  - Runs in DB-less mode — config is declarative via config/kong/kong.yaml
+  - Admin API available inside the cluster on port 8001
+variables:
+  - name: namespace
+    description: Target namespace
+    type: string
+    default: gateway
+see_also: [auth/curity-phantom-token]
+steps:
+  - name: Add kong service template
+    tool: service_add
+    params:
+      name: kong
+  - name: Create {{namespace}} namespace
+    tool: namespace_create
+    params:
+      id: "{{namespace}}"
+  - name: Write initial Kong declarative config
+    tool: file_write
+    params:
+      file: config/kong/kong.yaml
+      content: |
+        _format_version: "3.0"
+        services: []
+  - name: Start kong in {{namespace}}
+    tool: service_start
+    params:
+      id: kong
+      namespace: "{{namespace}}"

@@ -1,0 +1,66 @@
+_format_version: "3.0"
+plugins:
+  - name: phantom-token
+    config:
+      introspection_endpoint: http://curity.{{namespace}}.svc.cluster.local/oauth/v2/oauth-introspect
+      client_id: phantom-token-client
+      client_secret: phantom-token-secret
+      token_cache_seconds: 300
+services:
+  - name: api
+    url: http://api.{{namespace}}.svc.cluster.local
+    routes:
+      - name: api-admin
+        paths:
+          - /api/admin
+        strip_path: false
+        plugins:
+          - name: pre-function
+            config:
+              access:
+                - |
+                  local cjson = require "cjson"
+                  local auth = kong.request.get_header("Authorization")
+                  if not auth then return kong.response.exit(401, {message="missing token"}) end
+                  local token = auth:match("Bearer%s+(.+)")
+                  if not token then return kong.response.exit(401, {message="invalid auth header"}) end
+                  local parts = {}
+                  for part in token:gmatch("[^%.]+") do parts[#parts+1] = part end
+                  if #parts ~= 3 then return kong.response.exit(401, {message="invalid token"}) end
+                  local payload = ngx.decode_base64(parts[2]:gsub("-","+"):gsub("_","/"))
+                  if not payload then return kong.response.exit(401, {message="invalid token payload"}) end
+                  local ok, claims = pcall(cjson.decode, payload)
+                  if not ok then return kong.response.exit(401, {message="invalid token claims"}) end
+                  local roles = claims.roles or {}
+                  local has_admin = false
+                  for _, r in ipairs(roles) do if r == "admin" then has_admin = true break end end
+                  if not has_admin then return kong.response.exit(403, {message="admin role required"}) end
+      - name: api-moderate
+        paths:
+          - /api/moderate
+        strip_path: false
+        plugins:
+          - name: pre-function
+            config:
+              access:
+                - |
+                  local cjson = require "cjson"
+                  local auth = kong.request.get_header("Authorization")
+                  if not auth then return kong.response.exit(401, {message="missing token"}) end
+                  local token = auth:match("Bearer%s+(.+)")
+                  if not token then return kong.response.exit(401, {message="invalid auth header"}) end
+                  local parts = {}
+                  for part in token:gmatch("[^%.]+") do parts[#parts+1] = part end
+                  if #parts ~= 3 then return kong.response.exit(401, {message="invalid token"}) end
+                  local payload = ngx.decode_base64(parts[2]:gsub("-","+"):gsub("_","/"))
+                  if not payload then return kong.response.exit(401, {message="invalid token payload"}) end
+                  local ok, claims = pcall(cjson.decode, payload)
+                  if not ok then return kong.response.exit(401, {message="invalid token claims"}) end
+                  local roles = claims.roles or {}
+                  local allowed = false
+                  for _, r in ipairs(roles) do if r == "admin" or r == "moderator" then allowed = true break end end
+                  if not allowed then return kong.response.exit(403, {message="moderator or admin role required"}) end
+      - name: api-public
+        paths:
+          - /api
+        strip_path: true

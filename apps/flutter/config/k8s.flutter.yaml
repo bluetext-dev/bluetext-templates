@@ -2,9 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: flutter
-  annotations:
-    bluetext.io/dev-command: "./bin/dev"
-    bluetext.io/dev-mode: host-forward
 spec:
   replicas: 1
   selector:
@@ -17,18 +14,29 @@ spec:
     spec:
       containers:
         - name: app
-          image: registry.k8s.io/pause:3.9
-          imagePullPolicy: IfNotPresent
+          image: ghcr.io/cirruslabs/flutter:stable
+          command: ["sh", "-c", "cd /app && ./bin/init && exec ./bin/dev"]
           ports:
             - containerPort: 8080
+          env:
+            - name: ANDROID_ADB_SERVER_ADDRESS
+              value: host.docker.internal
           volumeMounts:
             - name: project
               mountPath: /app
+            - name: pub-cache
+              mountPath: /root/.pub-cache
+            - name: gradle-cache
+              mountPath: /root/.gradle
       volumes:
         - name: project
           hostPath:
             path: /var/mnt/project/code/apps/flutter
             type: Directory
+        - name: pub-cache
+          emptyDir: {}
+        - name: gradle-cache
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service

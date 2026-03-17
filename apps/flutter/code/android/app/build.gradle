@@ -36,6 +36,8 @@ android {
         }
 
         buildConfigField "String", "CBL_BASE_URL", "\"${prop('CBL_BASE_URL')}\""
+
+        manifestPlaceholders += [appAuthRedirectScheme: "com.bluetext.app"]
     }
 
     buildTypes {

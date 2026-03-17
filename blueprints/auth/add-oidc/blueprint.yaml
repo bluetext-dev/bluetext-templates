@@ -4,10 +4,10 @@ tags: [auth, oidc, rbac, mobile]
 prerequisites:
   - An existing Flutter app (b app add flutter)
   - A running Curity IdP (b blueprint run auth/curity-configured or auth/curity-rbac)
+  - An Android emulator running (the Flutter dev container builds and deploys to it)
 caveats:
   - Patches pubspec.yaml — existing comments will be stripped (serde_yaml limitation)
-  - You must wire auth into your main.dart (import and call AuthService)
-  - "Android: add redirect URI scheme to AndroidManifest.xml (see flutter_appauth docs)"
+  - Replaces main.dart with a login screen — back up your main.dart if you have custom code
   - "iOS: add CFBundleURLTypes to Info.plist for com.bluetext.app scheme"
 variables:
   - name: app_id
@@ -45,3 +45,8 @@ steps:
     params:
       file: "code/apps/{{app_id}}/lib/services/api_client.dart"
       content_file: files/api-client.dart
+  - name: Write main.dart with login screen
+    tool: file_write
+    params:
+      file: "code/apps/{{app_id}}/lib/main.dart"
+      content_file: files/main.dart

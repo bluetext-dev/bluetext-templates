@@ -29,11 +29,15 @@ steps:
     tool: service_add
     params:
       name: curity
-  - name: Add Curity license secret
-    tool: file_patch
+  - name: Gitignore service secret files
+    tool: file_write
     params:
-      file: config/services/k8s.curity.yaml
-      operation: append_document
+      file: config/services/.gitignore
+      content: "secret.*.yaml\n"
+  - name: Write Curity license secret
+    tool: file_write
+    params:
+      file: config/services/secret.curity.yaml
       content: |
         apiVersion: v1
         kind: Secret

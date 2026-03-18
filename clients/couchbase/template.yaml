@@ -1,0 +1,4 @@
+id: couchbase
+name: Couchbase Client
+description: Rust Couchbase client library with generic CRUD entity trait
+dependencies: []

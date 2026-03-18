@@ -2,8 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: api
-  annotations:
-    bluetext.io/dev-command: "cargo watch -x run"
 spec:
   replicas: 1
   selector:
@@ -34,10 +32,28 @@ spec:
           env:
             - name: PORT
               value: "3030"
+            - name: COUCHBASE_HOST
+              value: "couchbase-headless"
+            - name: COUCHBASE_USERNAME
+              value: "Administrator"
+            - name: COUCHBASE_PASSWORD
+              value: "password"
+            - name: COUCHBASE_BUCKET
+              value: "main"
+            - name: COUCHBASE_PROTOCOL
+              value: "couchbase"
       volumes:
         - name: project
           hostPath:
             path: /var/mnt/project/code/services/api
+            type: Directory
+        - name: clients
+          hostPath:
+            path: /var/mnt/project/code/clients
+            type: Directory
+        - name: models
+          hostPath:
+            path: /var/mnt/project/code/models
             type: Directory
 ---
 apiVersion: v1
@@ -51,3 +67,21 @@ spec:
   ports:
     - port: 80
       targetPort: 3030
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: api
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: api.{{NAMESPACE}}.bluetext.localhost
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: api
+                port:
+                  number: 80

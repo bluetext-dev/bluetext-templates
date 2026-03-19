@@ -13,12 +13,17 @@ class AuthService {
   static const _refreshTokenKey = 'refresh_token';
   static const _idTokenKey = 'id_token';
 
+  static final _serviceConfig = AuthorizationServiceConfiguration(
+    authorizationEndpoint: AuthConfig.authorizationEndpoint,
+    tokenEndpoint: AuthConfig.tokenEndpoint,
+  );
+
   Future<bool> login() async {
     final result = await _appAuth.authorizeAndExchangeCode(
       AuthorizationTokenRequest(
         AuthConfig.clientId,
         AuthConfig.redirectUri,
-        issuer: AuthConfig.issuer,
+        serviceConfiguration: _serviceConfig,
         scopes: AuthConfig.scopes,
         allowInsecureConnections: true,
       ),
@@ -46,7 +51,7 @@ class AuthService {
       TokenRequest(
         AuthConfig.clientId,
         AuthConfig.redirectUri,
-        issuer: AuthConfig.issuer,
+        serviceConfiguration: _serviceConfig,
         refreshToken: stored,
         allowInsecureConnections: true,
       ),

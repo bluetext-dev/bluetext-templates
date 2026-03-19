@@ -83,7 +83,7 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: kong.{{NAMESPACE}}.local.bluetext.io
+    - host: kong.{{NAMESPACE}}.bluetext.localhost
       http:
         paths:
           - path: /

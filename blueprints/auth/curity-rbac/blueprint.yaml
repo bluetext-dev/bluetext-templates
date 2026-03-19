@@ -9,7 +9,7 @@ caveats:
   - Kong phantom-token plugin validates tokens via introspection (adds latency, mitigated by caching)
   - API trusts the JWT from Kong without signature verification (Kong already validated it)
   - Accounts persisted in file-based HSQLDB (survives pod restarts, stored in .bluetext/curity-db/)
-  - Create Account link on the login page, or register at curity.<namespace>.local.bluetext.io/authn/registration
+  - Create Account link on the login page, or register at curity.<namespace>.bluetext.localhost/authn/registration
   - Target services will have their direct Ingress removed (traffic routes through Kong)
 variables:
   - name: namespace

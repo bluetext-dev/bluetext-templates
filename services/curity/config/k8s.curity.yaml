@@ -123,7 +123,7 @@ spec:
   entryPoints:
     - web
   routes:
-    - match: Host(`curity.{{NAMESPACE}}.local.bluetext.io`)
+    - match: Host(`curity.{{NAMESPACE}}.bluetext.localhost`)
       kind: Rule
       services:
         - name: curity
@@ -139,7 +139,7 @@ spec:
   entryPoints:
     - web
   routes:
-    - match: Host(`curity-admin.{{NAMESPACE}}.local.bluetext.io`)
+    - match: Host(`curity-admin.{{NAMESPACE}}.bluetext.localhost`)
       kind: Rule
       services:
         - name: curity-admin

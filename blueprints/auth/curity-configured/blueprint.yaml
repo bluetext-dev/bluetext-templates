@@ -6,10 +6,10 @@ prerequisites:
 caveats:
   - Requires a Curity license key — get a free trial at developer.curity.io (on a bluetext VM, it is pre-set as $CURITY_LICENSE_KEY)
   - Uses default admin password "admin" — change for non-dev environments
-  - Admin UI available at curity-admin.<namespace>.local.bluetext.io
+  - Admin UI available at curity-admin.<namespace>.bluetext.localhost
   - Pre-configured client — flutter-app (public, PKCE)
   - Accounts persisted in file-based HSQLDB (survives pod restarts, stored in .bluetext/curity-db/)
-  - Create Account link on the login page, or register at curity.<namespace>.local.bluetext.io/authn/registration
+  - Create Account link on the login page, or register at curity.<namespace>.bluetext.localhost/authn/registration
 variables:
   - name: namespace
     description: Target namespace

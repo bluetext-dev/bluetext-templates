@@ -6,7 +6,7 @@ prerequisites:
 caveats:
   - Requires a Curity license key — get a free trial at developer.curity.io (on a bluetext VM, it is pre-set as $CURITY_LICENSE_KEY)
   - Uses default admin password "admin" — change for non-dev environments
-  - Admin UI available at curity-admin.<namespace>.local.bluetext.io
+  - Admin UI available at curity-admin.<namespace>.bluetext.localhost
 variables:
   - name: namespace
     description: Target namespace

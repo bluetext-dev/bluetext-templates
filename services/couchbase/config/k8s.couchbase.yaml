@@ -20,7 +20,7 @@ spec:
           effect: NoSchedule
       containers:
         - name: couchbase
-          image: couchbase/server:community-7.6.2
+          image: couchbase:enterprise-7.6.6
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8091
@@ -45,9 +45,19 @@ spec:
               mountPath: /opt/couchbase/var
       volumes:
         - name: couchbase-data
-          hostPath:
-            path: /var/mnt/project/.bluetext/cache/couchbase/{{NAMESPACE}}/data
-            type: DirectoryOrCreate
+          persistentVolumeClaim:
+            claimName: couchbase-data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: couchbase-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
 ---
 apiVersion: v1
 kind: Service

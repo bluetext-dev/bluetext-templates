@@ -1,5 +1,5 @@
 class AuthConfig {
-  static const issuer = 'http://curity.{{namespace}}.local.bluetext.io:8888';
+  static const issuer = 'http://curity.{{namespace}}.local.bluetext.io:8888/oauth/v2/oauth-anonymous';
   static const authorizationEndpoint =
       'http://curity.{{namespace}}.local.bluetext.io:8888/oauth/v2/oauth-authorize';
   static const tokenEndpoint =

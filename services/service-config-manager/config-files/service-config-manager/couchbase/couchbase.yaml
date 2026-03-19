@@ -1,14 +1,47 @@
 bucket_defaults:
   ram_quota_mb: 100
+  bucket_type: couchbase
   num_replicas: 0
-  flush_enabled: true
+  flush_enabled: false
+  eviction_policy: value_only
+  compression_mode: off
+
+collection_defaults:
+  max_ttl: 0  # seconds
 
 buckets:
   main:
     defaults:
-      ram_quota_mb: 100
-      bucket_type: couchbase
       flush_enabled: true
+      compression_mode: passive
+    env_settings:
+      dev:
+        ram_quota_mb: 100
+        num_replicas: 0
+      test:
+        ram_quota_mb: 150
+        num_replicas: 1
+      staging:
+        ram_quota_mb: 500
+        num_replicas: 2
+        flush_enabled: false
+        eviction_policy: full_eviction
+        compression_mode: active
+      prod:
+        ram_quota_mb: 2048
+        num_replicas: 3
+        flush_enabled: false
+        eviction_policy: full_eviction
+        compression_mode: active
     scopes:
       _default:
-        collections: {}
+        collections:
+          users:
+            defaults:
+              max_ttl: 3600
+            env_settings:
+              staging:
+                max_ttl: 7200
+              prod:
+                max_ttl: 7200
+          sessions: {}

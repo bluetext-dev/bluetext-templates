@@ -16,6 +16,27 @@ spec:
         - key: node-role.kubernetes.io/control-plane
           operator: Exists
           effect: NoSchedule
+      initContainers:
+        - name: init-db
+          image: curity.azurecr.io/curity/idsvr:latest
+          command:
+            - sh
+            - -c
+            - |
+              if [ ! -f /hsqldb/curity.script ] || ! grep -q "CREATE TABLE" /hsqldb/curity.script; then
+                echo "Initializing HSQLDB schema..."
+                java -cp "/opt/idsvr/lib/hsqldb-cli/sqltool-2.7.2.jar:/opt/idsvr/lib/hsqldb-cli/hsqldb-2.7.2.jar" \
+                  org.hsqldb.cmdline.SqlTool \
+                  --autoCommit \
+                  --inlineRc="url=jdbc:hsqldb:file:/hsqldb/curity,user=,password=" \
+                  /opt/idsvr/etc/hsqldb-create_database.sql
+                echo "Schema initialized."
+              else
+                echo "HSQLDB schema already exists, skipping."
+              fi
+          volumeMounts:
+            - name: hsqldb-data
+              mountPath: /hsqldb
       containers:
         - name: curity
           image: curity.azurecr.io/curity/idsvr:latest

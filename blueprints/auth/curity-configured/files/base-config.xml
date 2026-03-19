@@ -30,6 +30,11 @@
         </jdbc>
       </data-source>
     </data-sources>
+    <caching-services>
+      <default-caching-service>
+        <data-source>default-datasource</data-source>
+      </default-caching-service>
+    </caching-services>
   </facilities>
 
   <processing xmlns="https://curity.se/ns/conf/base">

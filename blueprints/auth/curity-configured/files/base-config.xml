@@ -2,6 +2,20 @@
   <environments xmlns="https://curity.se/ns/conf/base">
     <environment>
       <base-url>http://curity.{{namespace}}.local.bluetext.io</base-url>
+      <services>
+        <service-role>
+          <id>default</id>
+          <protocol>https</protocol>
+          <ssl-server-keystore>default-admin-ssl-key</ssl-server-keystore>
+          <endpoints>auth-service-authentication</endpoints>
+          <endpoints>auth-service-registration</endpoints>
+          <endpoints>token-service-anonymous</endpoints>
+          <endpoints>token-service-authorize</endpoints>
+          <endpoints>token-service-token</endpoints>
+          <endpoints>token-service-introspect</endpoints>
+          <endpoints>token-service-userinfo</endpoints>
+        </service-role>
+      </services>
     </environment>
   </environments>
 
@@ -156,6 +170,9 @@
               <id>email</id>
             </scope>
           </scopes>
+          <openid-connect>
+            <expose-metadata/>
+          </openid-connect>
         </authorization-server>
       </settings>
     </profile>

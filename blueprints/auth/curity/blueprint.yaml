@@ -38,7 +38,7 @@ steps:
           name: curity-license
         type: Opaque
         stringData:
-          license-key: "{{license_key}}"
+          license-key: '{"License":"{{license_key}}"}'
   - name: Create {{namespace}} namespace
     tool: namespace_create
     params:

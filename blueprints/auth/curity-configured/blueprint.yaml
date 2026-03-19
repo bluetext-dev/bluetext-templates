@@ -41,7 +41,7 @@ steps:
           name: curity-license
         type: Opaque
         stringData:
-          license-key: "{{license_key}}"
+          license-key: '{"License":"{{license_key}}"}'
   - name: Write Curity base configuration with OAuth2 profiles, clients, and scopes
     tool: file_write
     params:

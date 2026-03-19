@@ -45,7 +45,7 @@ steps:
           name: curity-license
         type: Opaque
         stringData:
-          license-key: "{{license_key}}"
+          license-key: '{"License":"{{license_key}}"}'
   - name: Add kong service template
     tool: service_add
     params:

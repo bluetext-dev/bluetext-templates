@@ -2,3 +2,20 @@ id: couchbase
 name: Couchbase Client
 description: Rust Couchbase client library with generic CRUD entity trait
 dependencies: []
+default_prefix: COUCHBASE
+env_vars:
+  - suffix: HOST
+    description: Couchbase server hostname
+    default: "{{upstream}}-headless.{{upstream_ns}}.svc.cluster.local"
+  - suffix: USERNAME
+    description: Couchbase admin username
+    default: "Administrator"
+  - suffix: PASSWORD
+    description: Couchbase admin password
+    default: "password"
+  - suffix: BUCKET
+    description: Couchbase bucket name
+    default: "main"
+  - suffix: PROTOCOL
+    description: Couchbase connection protocol
+    default: "couchbase"

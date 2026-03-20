@@ -32,16 +32,6 @@ spec:
           env:
             - name: PORT
               value: "3030"
-            - name: COUCHBASE_HOST
-              value: "couchbase-headless"
-            - name: COUCHBASE_USERNAME
-              value: "Administrator"
-            - name: COUCHBASE_PASSWORD
-              value: "password"
-            - name: COUCHBASE_BUCKET
-              value: "main"
-            - name: COUCHBASE_PROTOCOL
-              value: "couchbase"
       volumes:
         - name: project
           hostPath:

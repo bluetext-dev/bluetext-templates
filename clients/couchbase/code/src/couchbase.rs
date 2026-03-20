@@ -26,18 +26,33 @@ pub struct CouchbaseConf {
 impl CouchbaseConf {
     /// Build config from environment variables using a prefix.
     /// e.g. prefix "COUCHBASE" reads COUCHBASE_HOST, COUCHBASE_USERNAME, etc.
-    pub fn from_env(prefix: &str) -> Self {
+    ///
+    /// HOST, USERNAME, and PASSWORD are required. PROTOCOL and BUCKET have
+    /// sensible defaults ("couchbase" and "main" respectively).
+    pub fn from_env(prefix: &str) -> Result<Self, String> {
         let prefix = prefix.to_uppercase().replace('-', "_");
-        Self {
-            host: std::env::var(format!("{prefix}_HOST")).unwrap_or_else(|_| "localhost".into()),
-            username: std::env::var(format!("{prefix}_USERNAME"))
-                .unwrap_or_else(|_| "Administrator".into()),
-            password: std::env::var(format!("{prefix}_PASSWORD"))
-                .unwrap_or_else(|_| "password".into()),
-            bucket: std::env::var(format!("{prefix}_BUCKET")).unwrap_or_else(|_| "main".into()),
-            protocol: std::env::var(format!("{prefix}_PROTOCOL"))
-                .unwrap_or_else(|_| "couchbase".into()),
-        }
+
+        let host = std::env::var(format!("{prefix}_HOST")).map_err(|_| {
+            format!("Required env var {prefix}_HOST is not set. Run 'b client configure' to inject it.")
+        })?;
+        let username = std::env::var(format!("{prefix}_USERNAME")).map_err(|_| {
+            format!("Required env var {prefix}_USERNAME is not set. Run 'b client configure' to inject it.")
+        })?;
+        let password = std::env::var(format!("{prefix}_PASSWORD")).map_err(|_| {
+            format!("Required env var {prefix}_PASSWORD is not set. Run 'b client configure' to inject it.")
+        })?;
+        let bucket =
+            std::env::var(format!("{prefix}_BUCKET")).unwrap_or_else(|_| "main".into());
+        let protocol =
+            std::env::var(format!("{prefix}_PROTOCOL")).unwrap_or_else(|_| "couchbase".into());
+
+        Ok(Self {
+            host,
+            username,
+            password,
+            bucket,
+            protocol,
+        })
     }
 }
 
@@ -51,22 +66,23 @@ fn registry() -> &'static Mutex<HashMap<String, CouchbaseClient>> {
     CLIENTS.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
-/// Register a client under a service instance name.
-pub async fn register_client(name: &str, conf: CouchbaseConf) {
-    let client = CouchbaseClient::new(conf).await;
+/// Register a client under a given name with explicit config.
+pub async fn register_client(name: &str, conf: CouchbaseConf) -> Result<(), String> {
+    let client = CouchbaseClient::new(conf).await?;
     registry().lock().await.insert(name.to_string(), client);
+    Ok(())
 }
 
-/// Get a client by service instance name. Auto-registers from env vars if not found.
-pub async fn get_client(name: &str) -> CouchbaseClient {
+/// Get a client by name. Auto-registers from env vars using `prefix` if not found.
+pub async fn get_client(name: &str, prefix: &str) -> Result<CouchbaseClient, String> {
     let mut clients = registry().lock().await;
     if let Some(client) = clients.get(name) {
-        return client.clone();
+        return Ok(client.clone());
     }
-    let conf = CouchbaseConf::from_env(name);
-    let client = CouchbaseClient::new(conf).await;
+    let conf = CouchbaseConf::from_env(prefix)?;
+    let client = CouchbaseClient::new(conf).await?;
     clients.insert(name.to_string(), client.clone());
-    client
+    Ok(client)
 }
 
 // ---------------------------------------------------------------------------
@@ -88,14 +104,14 @@ impl std::fmt::Debug for CouchbaseClient {
 }
 
 impl CouchbaseClient {
-    pub async fn new(conf: CouchbaseConf) -> Self {
+    pub async fn new(conf: CouchbaseConf) -> Result<Self, String> {
         let url = format!("{}://{}", conf.protocol, conf.host);
         let auth = PasswordAuthenticator::new(&conf.username, &conf.password);
         let opts = ClusterOptions::new(auth.into());
         let cluster = Cluster::connect(&url, opts)
             .await
-            .expect("Failed to connect to Couchbase cluster");
-        Self { conf, cluster }
+            .map_err(|e| format!("Failed to connect to Couchbase cluster at {url}: {e}"))?;
+        Ok(Self { conf, cluster })
     }
 
     /// Ensure a collection exists, creating it if necessary.
@@ -292,6 +308,7 @@ pub struct Document<T> {
 ///     type Data = TaskData;
 ///     fn collection_name() -> &'static str { "tasks" }
 ///     fn service_instance() -> &'static str { "couchbase" }
+///     fn env_prefix() -> &'static str { "COUCHBASE" }
 /// }
 /// ```
 pub trait Entity: Sized {
@@ -300,14 +317,19 @@ pub trait Entity: Sized {
     /// The Couchbase collection name for this entity.
     fn collection_name() -> &'static str;
 
-    /// The service instance name used to look up the client.
+    /// The service instance name used to look up the client in the registry.
     fn service_instance() -> &'static str {
         "couchbase"
     }
 
+    /// The env var prefix used to configure this client instance.
+    fn env_prefix() -> &'static str {
+        "COUCHBASE"
+    }
+
     /// Get the Keyspace for this entity.
     async fn get_keyspace() -> Result<Keyspace, String> {
-        let client = get_client(Self::service_instance()).await;
+        let client = get_client(Self::service_instance(), Self::env_prefix()).await?;
         Ok(client
             .get_keyspace(Self::collection_name(), None, None)
             .await)

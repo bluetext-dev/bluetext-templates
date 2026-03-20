@@ -27,6 +27,8 @@ spec:
               mountPath: /app
             - name: node-modules
               mountPath: /app/node_modules
+            - name: clients
+              mountPath: /clients
       volumes:
         - name: project
           hostPath:
@@ -36,6 +38,10 @@ spec:
           hostPath:
             path: /var/mnt/project/.bluetext/cache/web-app/node_modules
             type: DirectoryOrCreate
+        - name: clients
+          hostPath:
+            path: /var/mnt/project/code/clients
+            type: Directory
 ---
 apiVersion: v1
 kind: Service

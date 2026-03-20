@@ -10,7 +10,7 @@ export default defineConfig({
     allowedHosts: ['.bluetext.localhost'],
     proxy: {
       '/api': {
-        target: 'http://api',
+        target: process.env.API_URL || 'http://api',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },

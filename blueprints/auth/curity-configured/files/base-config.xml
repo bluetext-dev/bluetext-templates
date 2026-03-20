@@ -134,6 +134,7 @@
       </endpoints>
       <settings>
         <authorization-server xmlns="https://curity.se/ns/conf/profile/oauth">
+          <account-manager>default-account-manager</account-manager>
           <authentication-service>
             <authentication-profile>auth-service</authentication-profile>
           </authentication-service>

@@ -1,18 +1,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: couchbase-sync-gateway
+  name: couchbase-edge-server
   annotations:
-    bluetext.io/port-forwards: "couchbase-sync-gateway:4984:80"
+    bluetext.io/port-forwards: "couchbase-edge-server:59840:80"
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: couchbase-sync-gateway
+      app: couchbase-edge-server
   template:
     metadata:
       labels:
-        app: couchbase-sync-gateway
+        app: couchbase-edge-server
     spec:
       tolerations:
         - key: node-role.kubernetes.io/control-plane
@@ -33,32 +33,29 @@ spec:
             - name: config
               mountPath: /config
       containers:
-        - name: couchbase-sync-gateway
-          image: couchbase/sync-gateway:3.1.1-enterprise
+        - name: couchbase-edge-server
+          image: couchbase/edge-server:latest
           imagePullPolicy: IfNotPresent
-          args:
-            - "-bootstrap.use_tls_server=false"
-            - "/etc/sync_gateway/config.json"
+          command: ["couchbase-edge-server"]
+          args: ["--verbose", "/etc/edge-server/config.json"]
           ports:
-            - containerPort: 4984
+            - containerPort: 59840
               name: public
-            - containerPort: 4985
-              name: admin
           readinessProbe:
             httpGet:
               path: /
-              port: 4984
+              port: 59840
             initialDelaySeconds: 5
             periodSeconds: 5
             failureThreshold: 12
           volumeMounts:
             - name: config
-              mountPath: /etc/sync_gateway/config.json
+              mountPath: /etc/edge-server/config.json
               subPath: config.json
       volumes:
         - name: config-template
           hostPath:
-            path: /var/mnt/project/config/couchbase-sync-gateway
+            path: /var/mnt/project/config/couchbase-edge-server
             type: Directory
         - name: config
           emptyDir: {}
@@ -66,35 +63,32 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: couchbase-sync-gateway
+  name: couchbase-edge-server
 spec:
   type: ClusterIP
   selector:
-    app: couchbase-sync-gateway
+    app: couchbase-edge-server
   ports:
     - name: public
       port: 80
-      targetPort: 4984
-    - name: admin
-      port: 4985
-      targetPort: 4985
+      targetPort: 59840
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: couchbase-sync-gateway
+  name: couchbase-edge-server
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web
 spec:
   ingressClassName: traefik
   rules:
-    - host: couchbase-sync-gateway.{{NAMESPACE}}.bluetext.localhost
+    - host: couchbase-edge-server.{{NAMESPACE}}.bluetext.localhost
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: couchbase-sync-gateway
+                name: couchbase-edge-server
                 port:
                   number: 80

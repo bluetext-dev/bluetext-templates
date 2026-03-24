@@ -1,0 +1,8 @@
+id: couchbase-edge-server
+name: Couchbase Edge Server
+description: Couchbase Edge Server for offline-first sync with namespace-templated config
+ports:
+  - 59840
+dev_mode: in-cluster
+dependencies:
+  - couchbase-sync-gateway

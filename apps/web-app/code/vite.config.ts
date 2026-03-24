@@ -13,6 +13,7 @@ export default defineConfig({
         target: process.env.API_URL || 'http://api',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
+        headers: process.env.API_HOST ? { Host: process.env.API_HOST } : {},
       },
     },
   },

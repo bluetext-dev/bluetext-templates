@@ -97,6 +97,12 @@ class CouchbaseSyncGatewayController:
             'num_index_replicas': db_config.get('num_index_replicas', 0),
         }
 
+        # Pass through optional database settings
+        if 'import_docs' in db_config:
+            payload['import_docs'] = db_config['import_docs']
+        if 'enable_shared_bucket_access' in db_config:
+            payload['enable_shared_bucket_access'] = db_config['enable_shared_bucket_access']
+
         # Configure guest access
         guest_config = db_config.get('guest', {})
         if guest_config:

@@ -1,26 +1,22 @@
 # AUTO-GENERATED — do not edit. Run `b blueprint index` to regenerate.
 blueprints:
-  - id: auth/add-oidc
-    name: Add OIDC Authentication
-    description: Add OpenID Connect authentication and role-based access to an existing Flutter app
-    tags: [auth, oidc, rbac, mobile]
-  - id: auth/curity
-    name: Curity Identity Server
-    description: Deploy a standalone Curity Identity Server for OAuth 2.0 and OpenID Connect
-    tags: [auth, oidc, oauth]
-  - id: auth/curity-configured
-    name: Curity Identity Server (Pre-Configured)
-    description: Deploy Curity with pre-configured OAuth2 clients, scopes, role claims, and test users
-    tags: [auth, oidc, oauth, rbac]
-  - id: auth/curity-phantom-token
-    name: Curity Phantom Token Pattern
-    description: Deploy Curity + Kong with phantom token introspection to protect target services
-    tags: [auth, phantom-token, gateway, security]
-  - id: auth/curity-rbac
-    name: Curity RBAC Stack
-    description: Full-stack RBAC — Curity (IdP) + Kong (gateway enforcement) + API (service-level role guards)
-    tags: [auth, oidc, security, gateway, phantom-token, rbac]
-  - id: gateway/kong
-    name: Kong Gateway
-    description: Deploy Kong Gateway in DB-less declarative mode
-    tags: [gateway]
+  - id: auth/api-rbac
+    name: API Role-Based Access Control
+    description: Add role-guarded routes to the API with RBAC enforcement via Kong and Curity roles scope
+    tags: [auth, rbac, api, kong, curity]
+  - id: auth/app-oidc
+    name: App OIDC Authentication
+    description: Add OpenID Connect authentication to an existing Flutter app
+    tags: [auth, oidc, mobile, curity, flutter]
+  - id: auth/curity-couchbase
+    name: Curity Couchbase Data Store
+    description: "Switch Curity's data source from HSQLDB to Couchbase — accounts, tokens, sessions, credentials, all in one place"
+    tags: [auth, curity, couchbase, database]
+  - id: auth/curity-oauth
+    name: Curity OAuth2 Configuration
+    description: Configure Curity with OAuth2 profiles, clients, and scopes
+    tags: [auth, oidc, oauth, curity]
+  - id: auth/kong-phantom-token
+    name: Kong Phantom Token
+    description: Configure Kong with phantom token introspection and wire target services through the gateway
+    tags: [auth, phantom-token, gateway, kong, curity]

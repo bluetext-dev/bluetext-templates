@@ -1,0 +1,30 @@
+name: Curity OAuth2 Configuration
+description: Configure Curity with OAuth2 profiles, clients, and scopes
+tags: [auth, oidc, oauth, curity]
+prerequisites:
+  - description: Curity service exists
+    check: service_exists
+    params:
+      id: curity
+caveats:
+  - Accounts persisted in file-based HSQLDB (survives pod restarts, stored in .bluetext/curity-db/)
+  - Pre-configured client — flutter-app (public, PKCE)
+  - Create Account link on the login page, or register at curity.<namespace>.bluetext.localhost/authn/registration
+variables:
+  - name: namespace
+    description: Namespace where Curity is running (for endpoint URLs in config)
+    type: string
+    default: main
+restarts: [curity]
+see_also: [auth/kong-phantom-token, auth/curity-couchbase, auth/app-oidc]
+steps:
+  - name: Write OAuth2 profiles, clients, and scopes configuration
+    tool: file_write
+    params:
+      file: config/curity/oauth-config.xml
+      content_file: files/oauth-config.xml
+  - name: Restart curity in {{namespace}}
+    tool: service_restart
+    params:
+      id: curity
+      namespace: "{{namespace}}"

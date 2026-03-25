@@ -1,0 +1,107 @@
+name: Curity Couchbase Data Store
+description: Switch Curity's data source from HSQLDB to Couchbase — accounts, tokens, sessions, credentials, all in one place
+tags: [auth, curity, couchbase, database]
+prerequisites:
+  - description: Curity service exists
+    check: service_exists
+    params:
+      id: curity
+  - description: Couchbase service exists
+    check: service_exists
+    params:
+      id: couchbase
+  - description: Service Config Manager exists
+    check: service_exists
+    params:
+      id: service-config-manager
+caveats:
+  - First build takes several minutes (downloads Gradle, JDK, and plugin dependencies for the Couchbase Data Access Provider)
+  - Curity may restart once or twice while Couchbase initializes — this is normal
+  - Overwrites Curity k8s manifest (switches to custom image with Couchbase plugin)
+  - "The Couchbase plugin (github.com/curityio/couchbase-data-access-provider) auto-creates collections on first startup"
+  - Couchbase admin credentials are Administrator/password — change for non-dev environments
+variables:
+  - name: namespace
+    description: Namespace where Curity and Couchbase are running
+    type: string
+    default: main
+restarts: [couchbase, curity]
+see_also: [auth/curity-oauth, auth/kong-phantom-token]
+steps:
+  - name: Append Couchbase init Job to initialize cluster and create curity bucket
+    tool: file_patch
+    params:
+      file: config/services/k8s.couchbase.yaml
+      operation: append_document
+      content: |
+        apiVersion: batch/v1
+        kind: Job
+        metadata:
+          name: couchbase-init
+        spec:
+          backoffLimit: 10
+          template:
+            spec:
+              restartPolicy: OnFailure
+              tolerations:
+                - key: node-role.kubernetes.io/control-plane
+                  operator: Exists
+                  effect: NoSchedule
+              containers:
+                - name: init
+                  image: couchbase:enterprise-7.6.6
+                  imagePullPolicy: IfNotPresent
+                  command: ["/bin/bash", "-c"]
+                  args:
+                    - |
+                      set -e
+                      echo "Waiting for Couchbase to be ready..."
+                      until curl -sf http://couchbase-headless:8091/ui/index.html > /dev/null 2>&1; do
+                        sleep 3
+                      done
+                      sleep 5
+
+                      echo "Initializing Couchbase cluster..."
+                      /opt/couchbase/bin/couchbase-cli cluster-init \
+                        -c couchbase-headless:8091 \
+                        --cluster-username Administrator \
+                        --cluster-password password \
+                        --cluster-ramsize 512 \
+                        --cluster-index-ramsize 256 \
+                        --services data,index,query || true
+
+                      echo "Creating curity bucket..."
+                      /opt/couchbase/bin/couchbase-cli bucket-create \
+                        -c couchbase-headless:8091 \
+                        -u Administrator -p password \
+                        --bucket curity \
+                        --bucket-type couchbase \
+                        --bucket-ramsize 256 \
+                        --bucket-replica 0 || true
+
+                      echo "Couchbase initialization complete"
+  - name: Overwrite Curity k8s manifest with Couchbase-compatible version (custom image, no HSQLDB)
+    tool: file_write
+    params:
+      file: config/services/k8s.curity.yaml
+      content_file: files/k8s.curity.yaml
+  - name: Write Dockerfile for Curity with Couchbase Data Access Provider plugin
+    tool: file_write
+    params:
+      file: code/services/curity/Dockerfile
+      content_file: files/Dockerfile
+  - name: Overwrite base-config.xml with Couchbase data source
+    tool: file_write
+    params:
+      file: config/curity/base-config.xml
+      content_file: files/base-config.xml
+  - name: Restart couchbase in {{namespace}}
+    tool: service_restart
+    params:
+      id: couchbase
+      namespace: "{{namespace}}"
+  - name: Restart curity in {{namespace}}
+    tool: service_restart
+    params:
+      id: curity
+      namespace: "{{namespace}}"

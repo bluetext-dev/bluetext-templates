@@ -1,0 +1,53 @@
+name: App OIDC Authentication
+description: Add OpenID Connect authentication to an existing Flutter app
+tags: [auth, oidc, mobile, curity, flutter]
+prerequisites:
+  - description: Flutter app exists
+    check: app_exists
+    params:
+      id: "{{app_id}}"
+caveats:
+  - Patches pubspec.yaml — existing comments will be stripped (serde_yaml limitation)
+  - Replaces main.dart with a login screen — back up your main.dart if you have custom code
+  - "iOS: add CFBundleURLTypes to Info.plist for com.bluetext.app scheme"
+variables:
+  - name: app_id
+    description: ID of the existing app to add OIDC to
+    type: string
+    required: true
+  - name: namespace
+    description: Namespace where Curity is running (for endpoint URLs)
+    type: string
+    default: main
+see_also: [auth/curity-oauth]
+steps:
+  - name: Add OIDC dependencies to pubspec.yaml
+    tool: file_patch
+    params:
+      file: "code/apps/{{app_id}}/pubspec.yaml"
+      operation: merge
+      path: dependencies
+      content: |
+        flutter_appauth: ^7.0.1
+        flutter_secure_storage: ^9.2.4
+        http: ^1.2.2
+  - name: Write auth config with Curity endpoints
+    tool: file_write
+    params:
+      file: "code/apps/{{app_id}}/lib/config/auth_config.dart"
+      content_file: files/auth-config.dart
+  - name: Write OIDC auth service
+    tool: file_write
+    params:
+      file: "code/apps/{{app_id}}/lib/services/auth_service.dart"
+      content_file: files/auth-service.dart
+  - name: Write authenticated API client
+    tool: file_write
+    params:
+      file: "code/apps/{{app_id}}/lib/services/api_client.dart"
+      content_file: files/api-client.dart
+  - name: Write main.dart with login screen
+    tool: file_write
+    params:
+      file: "code/apps/{{app_id}}/lib/main.dart"
+      content_file: files/main.dart

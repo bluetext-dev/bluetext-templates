@@ -33,3 +33,12 @@ tags:
   security:
     description: Security patterns
     aliases: [sec]
+  service:
+    description: Specific services
+    children:
+      curity:
+        description: Curity Identity Server
+      kong:
+        description: Kong API Gateway
+      flutter:
+        description: Flutter mobile apps

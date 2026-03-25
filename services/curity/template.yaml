@@ -1,0 +1,9 @@
+name: Curity Identity Server
+description: OAuth 2.0 and OpenID Connect Identity Server
+variables:
+  - name: license_key
+    description: Curity license key (free dev license at developer.curity.io)
+    secret:
+      name: curity-license
+      key: license-key
+      transform: '{"License":"{{value}}"}'

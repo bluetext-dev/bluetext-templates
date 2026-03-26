@@ -1,0 +1,41 @@
+<config xmlns="http://tail-f.com/ns/config/1.0">
+  <profiles xmlns="https://curity.se/ns/conf/base">
+    <profile>
+      <id>token-service</id>
+      <type xmlns:as="https://curity.se/ns/conf/profile/oauth">as:oauth-service</type>
+      <settings>
+        <authorization-server xmlns="https://curity.se/ns/conf/profile/oauth">
+          <claims>
+            <claims-mappers>
+              <claims-mapper>
+                <id>default</id>
+                <access_token>
+                  <claim>email</claim>
+                  <claim>name</claim>
+                  <claim>given_name</claim>
+                  <claim>family_name</claim>
+                  <claim>roles</claim>
+                </access_token>
+                <id_token>
+                  <claim>email</claim>
+                  <claim>name</claim>
+                  <claim>given_name</claim>
+                  <claim>family_name</claim>
+                  <claim>roles</claim>
+                </id_token>
+                <userinfo>
+                  <claim>email</claim>
+                  <claim>name</claim>
+                  <claim>given_name</claim>
+                  <claim>family_name</claim>
+                  <claim>roles</claim>
+                </userinfo>
+              </claims-mapper>
+              <default-claims-mapper>default</default-claims-mapper>
+            </claims-mappers>
+          </claims>
+        </authorization-server>
+      </settings>
+    </profile>
+  </profiles>
+</config>

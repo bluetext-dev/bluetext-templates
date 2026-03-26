@@ -23,6 +23,10 @@
             <claim>
               <name>roles</name>
               <value-provided-by>roles</value-provided-by>
+              <transformation>
+                <input-attribute-names>roles</input-attribute-names>
+                <value-transformation-procedure>ZnVuY3Rpb24gdHJhbnNmb3JtKGF0dHJpYnV0ZXMpIHsKICBpZiAoYXR0cmlidXRlc1sncm9sZXMnXSkgewogICAgdmFyIHJvbGVzID0gW107CiAgICBhdHRyaWJ1dGVzWydyb2xlcyddLmZvckVhY2goZnVuY3Rpb24odikgeyByb2xlcy5wdXNoKHYudmFsdWUpIH0pOwogICAgcmV0dXJuIHJvbGVzOwogIH0KICByZXR1cm4gbnVsbDsKfQ==</value-transformation-procedure>
+              </transformation>
             </claim>
             <claims-value-provider>
               <id>roles</id>

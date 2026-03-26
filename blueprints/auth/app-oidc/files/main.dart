@@ -184,18 +184,18 @@ class _HomePageState extends State<HomePage> {
           children: [
             FilledButton.tonalIcon(
               icon: const Icon(Icons.public),
-              label: const Text('GET /api/public'),
-              onPressed: () => _callApi('/api/public'),
+              label: const Text('GET /api/hello'),
+              onPressed: () => _callApi('/api/hello'),
             ),
             FilledButton.tonalIcon(
               icon: const Icon(Icons.verified_user),
-              label: const Text('GET /api/protected'),
-              onPressed: () => _callApi('/api/protected'),
+              label: const Text('GET /api/me'),
+              onPressed: () => _callApi('/api/me'),
             ),
             FilledButton.tonalIcon(
               icon: const Icon(Icons.admin_panel_settings),
-              label: const Text('GET /api/admin'),
-              onPressed: () => _callApi('/api/admin'),
+              label: const Text('GET /api/admin/users'),
+              onPressed: () => _callApi('/api/admin/users'),
             ),
           ],
         ),

@@ -130,11 +130,37 @@
             </scope>
             <scope>
               <id>profile</id>
+              <claims>name</claims>
+              <claims>given_name</claims>
+              <claims>family_name</claims>
             </scope>
             <scope>
               <id>email</id>
+              <claims>email</claims>
             </scope>
           </scopes>
+          <claims>
+            <claim>
+              <name>email</name>
+              <value-provided-by>account-claims</value-provided-by>
+            </claim>
+            <claim>
+              <name>name</name>
+              <value-provided-by>account-claims</value-provided-by>
+            </claim>
+            <claim>
+              <name>given_name</name>
+              <value-provided-by>account-claims</value-provided-by>
+            </claim>
+            <claim>
+              <name>family_name</name>
+              <value-provided-by>account-claims</value-provided-by>
+            </claim>
+            <claims-value-provider>
+              <id>account-claims</id>
+              <authentication-subject-claims-provider xmlns="https://curity.se/ns/ext-conf/authentication-subject-claims-provider"/>
+            </claims-value-provider>
+          </claims>
           <openid-connect>
             <expose-metadata/>
           </openid-connect>

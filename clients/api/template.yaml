@@ -1,9 +1,0 @@
-id: api
-name: API Client
-description: TypeScript HTTP client for connecting to the API service
-dependencies: []
-default_prefix: API
-env_vars:
-  - suffix: URL
-    description: Base URL for the API service
-    default: "http://{{upstream}}.{{upstream_ns}}.svc.cluster.local"

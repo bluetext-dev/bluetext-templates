@@ -44,6 +44,20 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    _init();
+  }
+
+  Future<void> _init() async {
+    // Complete any login interrupted by process death
+    final recovered = await _authService.completePendingLogin();
+    if (recovered) {
+      final roles = await _authService.roles;
+      setState(() {
+        _loggedIn = true;
+        _roles = roles;
+      });
+      return;
+    }
     _checkAuth();
   }
 

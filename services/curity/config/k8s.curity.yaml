@@ -17,6 +17,19 @@ spec:
           operator: Exists
           effect: NoSchedule
       initContainers:
+        - name: config-templater
+          image: busybox:stable
+          command: ['sh', '-c', 'for f in /config-template/*.xml; do sed "s/__NAMESPACE__/$POD_NAMESPACE/g" "$f" > "/config/$(basename $f)"; done']
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          volumeMounts:
+            - name: config-template
+              mountPath: /config-template
+            - name: init-config
+              mountPath: /config
         - name: init-db
           image: curity.azurecr.io/curity/idsvr:latest
           command:
@@ -66,10 +79,12 @@ spec:
               mountPath: /opt/idsvr/etc/init/license
               readOnly: true
       volumes:
-        - name: init-config
+        - name: config-template
           hostPath:
             path: /var/mnt/project/config/curity
             type: DirectoryOrCreate
+        - name: init-config
+          emptyDir: {}
         - name: hsqldb-data
           hostPath:
             path: /var/mnt/project/.bluetext/curity-db
@@ -133,15 +148,13 @@ spec:
   entryPoints:
     - web
   routes:
-    - match: Host(`curity.{{NAMESPACE}}.bluetext.localhost`)
+    - match: Host(`curity.{{NAMESPACE}}.bluetext.localhost`) || Host(`curity.{{NAMESPACE}}.bluetext.lvh.me`)
       kind: Rule
       middlewares:
         - name: curity-headers
       services:
         - name: curity
           port: 80
-          scheme: https
-          serversTransport: curity-transport
 ---
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute

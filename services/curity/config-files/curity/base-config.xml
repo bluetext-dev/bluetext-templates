@@ -1,12 +1,11 @@
 <config xmlns="http://tail-f.com/ns/config/1.0">
   <environments xmlns="https://curity.se/ns/conf/base">
     <environment>
-      <base-url>http://localhost:8443</base-url>
+      <base-url>http://curity.__NAMESPACE__.bluetext.lvh.me:8888</base-url>
       <services>
         <service-role>
           <id>default</id>
-          <protocol>https</protocol>
-          <ssl-server-keystore>default-admin-ssl-key</ssl-server-keystore>
+          <protocol>http</protocol>
         </service-role>
       </services>
     </environment>

@@ -93,3 +93,13 @@ spec:
                 name: kong
                 port:
                   number: 80
+    - host: kong.{{NAMESPACE}}.bluetext.lvh.me
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kong
+                port:
+                  number: 80

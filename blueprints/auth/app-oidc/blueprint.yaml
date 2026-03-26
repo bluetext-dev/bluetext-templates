@@ -10,6 +10,7 @@ caveats:
   - Patches pubspec.yaml — existing comments will be stripped (serde_yaml limitation)
   - Replaces main.dart with a login screen — back up your main.dart if you have custom code
   - "iOS: add CFBundleURLTypes to Info.plist for com.bluetext.app scheme"
+  - Uses url_launcher (external browser) for auth — Chrome Custom Tab causes process death on emulators
 variables:
   - name: app_id
     description: ID of the existing app to add OIDC to
@@ -28,9 +29,11 @@ steps:
       operation: merge
       path: dependencies
       content: |
-        flutter_appauth: ^7.0.1
         flutter_secure_storage: ^9.2.4
         http: ^1.2.2
+        url_launcher: ^6.3.1
+        app_links: ^6.3.3
+        crypto: ^3.0.6
   - name: Write auth config with Curity endpoints
     tool: file_write
     params:
@@ -51,3 +54,8 @@ steps:
     params:
       file: "code/apps/{{app_id}}/lib/main.dart"
       content_file: files/main.dart
+  - name: Add OIDC redirect URI receiver to Android manifest
+    tool: file_write
+    params:
+      file: "code/apps/{{app_id}}/android/app/src/main/AndroidManifest.xml"
+      content_file: files/AndroidManifest.xml

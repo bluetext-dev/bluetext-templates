@@ -38,6 +38,8 @@ spec:
               value: "0.0.0.0:8000"
             - name: KONG_ADMIN_LISTEN
               value: "0.0.0.0:8001"
+            - name: KONG_UNTRUSTED_LUA_SANDBOX_REQUIRES
+              value: "cjson"
           readinessProbe:
             httpGet:
               path: /status

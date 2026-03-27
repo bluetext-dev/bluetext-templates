@@ -83,6 +83,18 @@ steps:
                   paths:
                     - "/{{item}}"
                   strip_path: true
+      - name: "Register gateway relationship for {{item}}"
+        tool: file_patch
+        params:
+          file: config/bluetext.yaml
+          operation: append_list
+          path: relationships
+          content: |
+            - from: kong
+              to: "{{item}}"
+              type: gateway
+              label: Routes traffic to
+              blueprint: auth/kong-phantom-token
       - name: "Restart {{item}} in {{namespace}}"
         tool: service_restart
         params:

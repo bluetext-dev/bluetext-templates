@@ -1,0 +1,39 @@
+name: Service Config Manager — Couchbase
+description: Register that service-config-manager configures Couchbase buckets and collections
+tags: [database, couchbase, service-config-manager]
+prerequisites:
+  - description: Service Config Manager exists
+    check: service_exists
+    params:
+      id: service-config-manager
+  - description: Couchbase exists
+    check: service_exists
+    params:
+      id: couchbase
+caveats:
+  - Couchbase config is pre-installed with service-config-manager — this blueprint registers the relationship
+variables:
+  - name: namespace
+    description: Target namespace
+    type: string
+    default: main
+restarts: [service-config-manager]
+see_also: [database/scm-sync-gateway]
+steps:
+  - name: Register relationship
+    tool: file_patch
+    params:
+      file: config/bluetext.yaml
+      operation: append_list
+      path: relationships
+      content: |
+        - from: service-config-manager
+          to: couchbase
+          type: configures
+          label: Manages buckets for
+          blueprint: database/scm-couchbase
+  - name: Restart service-config-manager
+    tool: service_restart
+    params:
+      id: service-config-manager
+      namespace: "{{namespace}}"

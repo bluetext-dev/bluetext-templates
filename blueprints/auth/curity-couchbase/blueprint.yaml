@@ -95,6 +95,18 @@ steps:
     params:
       file: config/curity/base-config.xml
       content_file: files/base-config.xml
+  - name: Register datasource relationship
+    tool: file_patch
+    params:
+      file: config/bluetext.yaml
+      operation: append_list
+      path: relationships
+      content: |
+        - from: curity
+          to: couchbase
+          type: datasource
+          label: Uses as data store
+          blueprint: auth/curity-couchbase
   - name: Restart couchbase in {{namespace}}
     tool: service_restart
     params:

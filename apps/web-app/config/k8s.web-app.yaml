@@ -22,11 +22,6 @@ spec:
           command: ["sh", "-c", "cd /app && bun install && bun run dev --host"]
           ports:
             - containerPort: 5173
-          env:
-            - name: API_URL
-              value: "http://traefik.kube-system.svc.cluster.local"
-            - name: API_HOST
-              value: "api.{{NS:api}}.bluetext.localhost"
           volumeMounts:
             - name: project
               mountPath: /app

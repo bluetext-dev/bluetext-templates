@@ -8,6 +8,14 @@ blueprints:
     name: App OIDC Authentication
     description: Add OpenID Connect authentication to an existing Flutter app
     tags: [auth, oidc, mobile, curity, flutter]
+  - id: auth/curity
+    name: Curity Identity Server
+    description: Deploy a standalone Curity Identity Server for OAuth 2.0 and OpenID Connect
+    tags: [auth, oidc, oauth]
+  - id: auth/curity-configured
+    name: Curity Identity Server (Pre-Configured)
+    description: Deploy Curity with pre-configured OAuth2 profiles, clients, and scopes
+    tags: [auth, oidc, oauth]
   - id: auth/curity-couchbase
     name: Curity Couchbase Data Store
     description: "Switch Curity's data source from HSQLDB to Couchbase — accounts, tokens, sessions, credentials, all in one place"
@@ -16,6 +24,18 @@ blueprints:
     name: Curity OAuth2 Configuration
     description: Configure Curity with OAuth2 profiles, clients, and scopes
     tags: [auth, oidc, oauth, curity]
+  - id: auth/curity-phantom-token
+    name: Curity Phantom Token Pattern
+    description: Deploy Curity + Kong with phantom token introspection to protect target services
+    tags: [auth, phantom-token, gateway, security]
+  - id: auth/curity-rbac
+    name: Curity RBAC Stack
+    description: Full-stack RBAC — Curity (IdP) + Kong (gateway enforcement) + API (service-level role guards)
+    tags: [auth, oidc, security, gateway, phantom-token, rbac]
+  - id: auth/curity-test-users
+    name: Curity Test Users
+    description: Create test users with roles via SCIM API for RBAC testing
+    tags: [auth, curity, rbac]
   - id: auth/kong-phantom-token
     name: Kong Phantom Token
     description: Configure Kong with phantom token introspection and wire target services through the gateway
@@ -28,3 +48,7 @@ blueprints:
     name: "Service Config Manager \u2014 Sync Gateway"
     description: Wire service-config-manager to configure Couchbase Sync Gateway databases
     tags: [database, couchbase, service-config-manager]
+  - id: gateway/kong
+    name: Kong Gateway
+    description: Deploy Kong Gateway in DB-less declarative mode
+    tags: [gateway]

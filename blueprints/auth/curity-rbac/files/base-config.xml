@@ -26,6 +26,7 @@
           <connection-string>jdbc:hsqldb:file:/opt/idsvr/var/hsqldb/curity</connection-string>
           <driver>org.hsqldb.jdbc.JDBCDriver</driver>
           <standard-credentials-mode/>
+          <attribute-query>SELECT "attributes" as account_data FROM "accounts" WHERE "username" = :subject</attribute-query>
         </jdbc>
       </data-source>
     </data-sources>
@@ -179,14 +180,93 @@
             </scope>
             <scope>
               <id>profile</id>
+              <claims>name</claims>
+              <claims>given_name</claims>
+              <claims>family_name</claims>
             </scope>
             <scope>
               <id>email</id>
+              <claims>email</claims>
             </scope>
             <scope>
               <id>roles</id>
+              <claims>roles</claims>
             </scope>
           </scopes>
+          <claims>
+            <claim>
+              <name>email</name>
+              <value-provided-by>account-claims</value-provided-by>
+            </claim>
+            <claim>
+              <name>name</name>
+              <value-provided-by>account-claims</value-provided-by>
+              <transformation>
+                <input-attribute-names>given_name</input-attribute-names>
+                <input-attribute-names>family_name</input-attribute-names>
+                <value-transformation-procedure>ZnVuY3Rpb24gdHJhbnNmb3JtKGF0dHJpYnV0ZXMpIHsKICB2YXIgcGFydHMgPSBbXTsKICBpZiAoYXR0cmlidXRlc1snZ2l2ZW5fbmFtZSddKSBwYXJ0cy5wdXNoKGF0dHJpYnV0ZXNbJ2dpdmVuX25hbWUnXSk7CiAgaWYgKGF0dHJpYnV0ZXNbJ2ZhbWlseV9uYW1lJ10pIHBhcnRzLnB1c2goYXR0cmlidXRlc1snZmFtaWx5X25hbWUnXSk7CiAgcmV0dXJuIHBhcnRzLmxlbmd0aCA+IDAgPyBwYXJ0cy5qb2luKCcgJykgOiBudWxsOwp9</value-transformation-procedure>
+              </transformation>
+            </claim>
+            <claim>
+              <name>given_name</name>
+              <value-provided-by>account-claims</value-provided-by>
+            </claim>
+            <claim>
+              <name>family_name</name>
+              <value-provided-by>account-claims</value-provided-by>
+            </claim>
+            <claim>
+              <name>roles</name>
+              <value-provided-by>roles</value-provided-by>
+              <transformation>
+                <input-attribute-names>account_data</input-attribute-names>
+                <value-transformation-procedure>ZnVuY3Rpb24gdHJhbnNmb3JtKGF0dHJpYnV0ZXMpIHsKICBpZiAoYXR0cmlidXRlcy5hY2NvdW50X2RhdGEpIHsKICAgIHZhciBkYXRhID0gSlNPTi5wYXJzZShhdHRyaWJ1dGVzLmFjY291bnRfZGF0YSk7CiAgICBpZiAoZGF0YS5yb2xlcykgewogICAgICB2YXIgcm9sZXMgPSBbXTsKICAgICAgZGF0YS5yb2xlcy5mb3JFYWNoKGZ1bmN0aW9uKHIpIHsgcm9sZXMucHVzaChyLnZhbHVlKSB9KTsKICAgICAgcmV0dXJuIHJvbGVzOwogICAgfQogIH0KICByZXR1cm4gbnVsbDsKfQ==</value-transformation-procedure>
+              </transformation>
+            </claim>
+            <claims-value-provider>
+              <id>account-claims</id>
+              <account-manager-claims-provider xmlns="https://curity.se/ns/ext-conf/account-manager-claims-provider">
+                <account-manager>
+                  <id>default-account-manager</id>
+                </account-manager>
+              </account-manager-claims-provider>
+            </claims-value-provider>
+            <claims-value-provider>
+              <id>roles</id>
+              <data-source-claims-provider xmlns="https://curity.se/ns/ext-conf/data-source-claims-provider">
+                <data-source>
+                  <data-source>default-datasource</data-source>
+                </data-source>
+              </data-source-claims-provider>
+            </claims-value-provider>
+            <claims-mappers>
+              <claims-mapper>
+                <id>default</id>
+                <access_token>
+                  <claim>email</claim>
+                  <claim>name</claim>
+                  <claim>given_name</claim>
+                  <claim>family_name</claim>
+                  <claim>roles</claim>
+                </access_token>
+                <id_token>
+                  <claim>email</claim>
+                  <claim>name</claim>
+                  <claim>given_name</claim>
+                  <claim>family_name</claim>
+                  <claim>roles</claim>
+                </id_token>
+                <userinfo>
+                  <claim>email</claim>
+                  <claim>name</claim>
+                  <claim>given_name</claim>
+                  <claim>family_name</claim>
+                  <claim>roles</claim>
+                </userinfo>
+              </claims-mapper>
+              <default-claims-mapper>default</default-claims-mapper>
+            </claims-mappers>
+          </claims>
           <openid-connect>
             <expose-metadata/>
           </openid-connect>

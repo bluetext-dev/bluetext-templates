@@ -40,6 +40,11 @@ steps:
     params:
       file: config/curity/claims-mapper.xml
       content_file: files/claims-mapper.xml
+  - name: Write User Management profile for SCIM account management
+    tool: file_write
+    params:
+      file: config/curity/user-management.xml
+      content_file: files/user-management.xml
   - name: Write Kong declarative config with RBAC route enforcement
     tool: file_write
     params:

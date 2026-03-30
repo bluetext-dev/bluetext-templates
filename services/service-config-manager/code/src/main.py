@@ -4,6 +4,7 @@ import os
 import sys
 import yaml
 import time
+import socket
 from pathlib import Path
 from config import Config
 from controllers.couchbase_controller import CouchbaseController
@@ -21,6 +22,19 @@ def get_env_var(name, default=None):
             return os.environ[name]
     except KeyError:
         raise KeyError(f"Environment variable '{name}' is not set")
+
+def is_service_reachable(service_name):
+    """Check if a service's host resolves via DNS. Returns True if the host
+    is found, False if the env var is missing or the hostname doesn't resolve."""
+    prefix = service_name.upper().replace('-', '_')
+    host = os.environ.get(f'{prefix}_HOST')
+    if not host:
+        return False
+    try:
+        socket.getaddrinfo(host, None)
+        return True
+    except socket.gaierror:
+        return False
 
 def main():
     """Main entry point for the init module."""
@@ -51,6 +65,7 @@ def main():
         # Process each managed service
         processed_count = 0
         failed_count = 0
+        skipped_count = 0
 
         for service in services:
             name = service.get('name')
@@ -60,6 +75,11 @@ def main():
             if not name or not service_type or not config_dir:
                 logger.error(f"❌ Invalid service definition: {service}")
                 failed_count += 1
+                continue
+
+            if not is_service_reachable(name):
+                logger.info(f"⏭️  Skipping {name} — host not found in cluster")
+                skipped_count += 1
                 continue
 
             logger.info(f"🔄 Processing {name} ({service_type})...")
@@ -91,7 +111,7 @@ def main():
                 failed_count += 1
 
         if services:
-            logger.info(f"🎉 Configuration processing completed! Success: {processed_count}, Failed: {failed_count}")
+            logger.info(f"🎉 Configuration processing completed! Success: {processed_count}, Skipped: {skipped_count}, Failed: {failed_count}")
             if failed_count > 0:
                 sys.exit(1)
         else:

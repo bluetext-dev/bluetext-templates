@@ -48,6 +48,9 @@
       <settings>
         <user-management-service xmlns="https://curity.se/ns/conf/profile/user-management">
           <account-manager>default-account-manager</account-manager>
+          <credential-management>
+            <credential-manager-ref>default-credential-manager</credential-manager-ref>
+          </credential-management>
           <api-authentication>
             <oauth-service>token-service</oauth-service>
           </api-authentication>

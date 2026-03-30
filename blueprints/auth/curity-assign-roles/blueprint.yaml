@@ -1,5 +1,5 @@
-name: Curity Test Users
-description: Create test users with roles via SCIM API for RBAC testing
+name: Curity Assign Roles
+description: Assign roles to existing user accounts via SCIM API
 tags: [auth, curity, rbac]
 prerequisites:
   - description: Curity service exists
@@ -11,7 +11,7 @@ prerequisites:
     params:
       file: config/curity/user-management.xml
 caveats:
-  - Creates accounts without passwords — users set their own via the registration/login flow
+  - Users must already exist (registered via app or created with auth/curity-create-users)
   - Requires Curity to be running with the User Management profile
 variables:
   - name: users
@@ -21,14 +21,14 @@ variables:
     description: Namespace where Curity is running
     type: string
     default: main
-see_also: [auth/api-rbac, auth/curity-oauth]
+see_also: [auth/curity-create-users, auth/api-rbac]
 steps:
-  - name: Write user provisioning script
+  - name: Write role assignment script
     tool: file_write
     params:
-      file: config/curity/provision-users.sh
-      content_file: files/provision-users.sh
-  - name: Provision test users with roles
+      file: config/curity/assign-roles.sh
+      content_file: files/assign-roles.sh
+  - name: Assign roles to users
     tool: shell_exec
     params:
-      command: "sh config/curity/provision-users.sh {{namespace}} {{users}}"
+      command: "sh config/curity/assign-roles.sh {{namespace}} {{users}}"

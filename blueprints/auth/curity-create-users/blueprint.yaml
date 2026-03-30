@@ -1,0 +1,38 @@
+name: Curity Create Users
+description: Create user accounts with passwords via SCIM API
+tags: [auth, curity]
+prerequisites:
+  - description: Curity service exists
+    check: service_exists
+    params:
+      id: curity
+  - description: User Management profile configured (run auth/api-rbac first)
+    check: file_exists
+    params:
+      file: config/curity/user-management.xml
+caveats:
+  - Uses a shared password for all users — for development only
+  - Requires Curity to be running with the User Management profile
+variables:
+  - name: users
+    description: "Comma-separated usernames (e.g. alice,bob,carol)"
+    type: string
+  - name: password
+    description: Shared password for all users
+    type: string
+    default: Password1
+  - name: namespace
+    description: Namespace where Curity is running
+    type: string
+    default: main
+see_also: [auth/curity-assign-roles, auth/api-rbac]
+steps:
+  - name: Write user creation script
+    tool: file_write
+    params:
+      file: config/curity/create-users.sh
+      content_file: files/create-users.sh
+  - name: Create user accounts
+    tool: shell_exec
+    params:
+      command: "sh config/curity/create-users.sh {{namespace}} {{users}} {{password}}"

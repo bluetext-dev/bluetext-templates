@@ -15,12 +15,8 @@ caveats:
   - Requires Curity to be running with the User Management profile
 variables:
   - name: users
-    description: "Comma-separated usernames (e.g. alice,bob,carol)"
+    description: "Comma-separated username:password pairs (e.g. alice:Pass1,bob:Pass2)"
     type: string
-  - name: password
-    description: Shared password for all users
-    type: string
-    default: Password1
   - name: namespace
     description: Namespace where Curity is running
     type: string
@@ -35,4 +31,4 @@ steps:
   - name: Create user accounts
     tool: shell_exec
     params:
-      command: "sh config/curity/create-users.sh {{namespace}} {{users}} {{password}}"
+      command: "sh config/curity/create-users.sh {{namespace}} {{users}}"

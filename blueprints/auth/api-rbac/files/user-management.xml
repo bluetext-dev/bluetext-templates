@@ -49,7 +49,7 @@
         <user-management-service xmlns="https://curity.se/ns/conf/profile/user-management">
           <account-manager>default-account-manager</account-manager>
           <credential-management>
-            <credential-manager-ref>default-credential-manager</credential-manager-ref>
+            <credential-manager>default-credential-manager</credential-manager>
           </credential-management>
           <api-authentication>
             <oauth-service>token-service</oauth-service>

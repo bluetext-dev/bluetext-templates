@@ -1,11 +1,10 @@
 #!/bin/sh
 # Create user accounts via Curity SCIM API
-# Usage: sh create-users.sh <namespace> <users> <password>
-#   users: comma-separated usernames (e.g. "alice,bob,carol")
+# Usage: sh create-users.sh <namespace> <users>
+#   users: comma-separated username:password pairs (e.g. "alice:Pass1,bob:Pass2")
 
 NAMESPACE="$1"
 USERS="$2"
-PASSWORD="$3"
 BASE_URL="http://curity.${NAMESPACE}.bluetext.localhost"
 
 TOKEN=$(curl -sf -X POST "${BASE_URL}/oauth/v2/oauth-token" \
@@ -17,9 +16,13 @@ if [ -z "$TOKEN" ]; then
   exit 1
 fi
 
-echo "$USERS" | tr ',' '\n' | while read -r USERNAME; do
+echo "$USERS" | tr ',' '\n' | while IFS=: read -r USERNAME PASSWORD; do
   USERNAME=$(echo "$USERNAME" | tr -d ' ')
-  [ -z "$USERNAME" ] && continue
+  PASSWORD=$(echo "$PASSWORD" | tr -d ' ')
+  if [ -z "$USERNAME" ] || [ -z "$PASSWORD" ]; then
+    echo "Skipping invalid entry (expected username:password): ${USERNAME}"
+    continue
+  fi
 
   EMAIL="${USERNAME}@test.local"
 
@@ -36,7 +39,7 @@ echo "$USERS" | tr ',' '\n' | while read -r USERNAME; do
     }" 2>&1)
 
   if echo "$RESULT" | grep -q '"userName"'; then
-    echo "[${USERNAME}] Created (password: ${PASSWORD})"
+    echo "[${USERNAME}] Created"
   else
     ERROR=$(echo "$RESULT" | sed -n 's/.*"detail":"\([^"]*\)".*/\1/p')
     echo "[${USERNAME}] Failed: ${ERROR:-$RESULT}"

@@ -6,7 +6,7 @@ caveats:
   - API trusts the JWT from Kong without signature verification (Kong already validated it)
   - First Flutter image pull is ~1.9GB — cached globally after first pull via registry mirror
 tips:
-  - "Create users: b bp run auth/curity-create-users --var users=alice,bob"
+  - "Create users: b bp run auth/curity-create-users --var users=alice:Pass1,bob:Pass2"
   - "Assign roles: b bp run auth/curity-assign-roles --var users=alice:admin,bob:moderator"
   - b app start auto-configures ADB reverse (emulator:8888 → host:80) for ingress access
   - "If Chrome Custom Tab fails after wiping HSQLDB, clear Chrome data: adb shell pm clear com.android.chrome"
@@ -35,7 +35,7 @@ steps:
     description: Start all services (picks up all config at once)
   - run: b app start flutter
     description: Start Flutter app (builds image, sets up ADB reverse for emulator)
-  - run: b bp run auth/curity-create-users --var users=alice,bob
-    description: Create test user accounts (shared password Password1)
+  - run: b bp run auth/curity-create-users --var users=alice:Password1,bob:Password1
+    description: Create test user accounts with passwords
   - run: b bp run auth/curity-assign-roles --var users=alice:admin,bob:moderator
     description: Assign roles to the test users

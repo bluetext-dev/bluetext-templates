@@ -1,7 +1,12 @@
 name: Curity with Couchbase
 description: Curity IdP backed by Couchbase — unified data store for accounts, tokens, sessions, and credentials
+variables:
+  - name: license_key
+    alias: l
+    description: Curity license key (free trial at developer.curity.io)
+    type: string
+    required: true
 caveats:
-  - Requires a Curity license key — get a free trial at developer.curity.io (on a bluetext VM, it is pre-set as $CURITY_LICENSE_KEY)
   - First Curity build takes several minutes (downloads Gradle, JDK, and Couchbase plugin dependencies)
   - Curity may restart once or twice while Couchbase initializes — this is normal
   - Couchbase admin credentials are Administrator/password — change for non-dev environments
@@ -17,8 +22,10 @@ steps:
     description: Add the Couchbase database service
   - run: b service add service-config-manager
     description: Add the service config manager (handles Couchbase bucket setup)
-  - run: b service add curity --var license_key=$CURITY_LICENSE_KEY
+  - run: b service add curity --var license_key={{license_key}}
     description: Add the Curity Identity Server with license secret
+  - run: b bp run database/service-config-manager-register --var service=couchbase --no-restart
+    description: Wire service-config-manager to Couchbase (injects connection env vars)
   - run: b service start couchbase
     description: Start Couchbase (wait for cluster initialization)
   - run: b service start service-config-manager
@@ -29,7 +36,8 @@ steps:
     description: Switch Curity's data source from HSQLDB to Couchbase
   - run: b bp run auth/curity-oauth --no-restart
     description: Configure OAuth2 profiles, clients (flutter-app), and scopes
-  - run: b service restart couchbase
-    description: Pick up init Job for curity bucket creation
+  - run: b service restart service-config-manager
+    description: Pick up curity bucket config — creates bucket in Couchbase
   - run: b service restart curity
     description: Pick up Couchbase data source + OAuth2 configuration
+

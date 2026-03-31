@@ -6,3 +6,12 @@ ports:
 dev_mode: in-cluster
 dependencies:
   - couchbase-sync-gateway
+connection_profiles:
+  sync:
+    description: Sync API (WebSocket replication endpoint)
+    prefix: COUCHBASE_EDGE_SERVER
+    env_vars:
+      - suffix: HOST
+        default: "{{upstream}}.{{upstream_ns}}.svc.cluster.local"
+      - suffix: PORT
+        default: "59840"

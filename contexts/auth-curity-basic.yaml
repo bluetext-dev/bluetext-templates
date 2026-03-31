@@ -1,7 +1,12 @@
 name: Basic Auth with Curity
 description: Minimal authentication stack — Curity IdP with OAuth2, OIDC, and user registration
+variables:
+  - name: license_key
+    alias: l
+    description: Curity license key (free trial at developer.curity.io)
+    type: string
+    required: true
 caveats:
-  - Requires a Curity license key — get a free trial at developer.curity.io (on a bluetext VM, it is pre-set as $CURITY_LICENSE_KEY)
   - Uses default admin password "admin" — change for non-dev environments
 tips:
   - Register test users at curity.main.bluetext.localhost/authn/registration
@@ -10,7 +15,7 @@ tips:
 pitfalls:
   - The license secret must be created before starting Curity
 steps:
-  - run: b service add curity --var license_key=$CURITY_LICENSE_KEY
+  - run: b service add curity --var license_key={{license_key}}
     description: Add the Curity Identity Server with license secret
   - run: b service start curity
     description: Start Curity with HSQLDB (admin UI available immediately)

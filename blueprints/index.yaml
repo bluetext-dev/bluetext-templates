@@ -44,14 +44,10 @@ blueprints:
     name: Kong Phantom Token
     description: Configure Kong with phantom token introspection and wire target services through the gateway
     tags: [auth, phantom-token, gateway, kong, curity]
-  - id: database/scm-couchbase
-    name: Service Config Manager — Couchbase
-    description: Register that service-config-manager configures Couchbase buckets and collections
-    tags: [database, couchbase, service-config-manager]
-  - id: database/scm-sync-gateway
-    name: Service Config Manager — Sync Gateway
-    description: Wire service-config-manager to configure Couchbase Sync Gateway databases
-    tags: [database, couchbase, service-config-manager]
+  - id: database/service-config-manager-register
+    name: Register Service with Config Manager
+    description: Wire service-config-manager to an upstream service — injects connection env vars, registers in managed services, and creates the relationship
+    tags: [database, service-config-manager]
   - id: gateway/kong
     name: Kong Gateway
     description: Deploy Kong Gateway in DB-less declarative mode

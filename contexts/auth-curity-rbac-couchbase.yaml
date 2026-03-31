@@ -1,0 +1,70 @@
+name: RBAC Auth with Curity + Couchbase
+description: Full RBAC stack backed by Couchbase — Curity (IdP) + Kong (gateway) + API (role guards) + Flutter app
+variables:
+  - name: license_key
+    alias: l
+    description: Curity license key (free trial at developer.curity.io)
+    type: string
+    required: true
+  - name: app_id
+    alias: a
+    description: App ID for OIDC configuration
+    type: string
+    default: flutter
+caveats:
+  - First Curity build takes several minutes (downloads Gradle, JDK, and Couchbase plugin dependencies)
+  - Curity may restart once or twice while Couchbase initializes — this is normal
+  - Kong adds introspection latency per request (mitigated by 300s token caching)
+  - API trusts the JWT from Kong without signature verification (Kong already validated it)
+  - First Flutter image pull is ~1.9GB — cached globally after first pull via registry mirror
+tips:
+  - "Create users: b bp run auth/curity-create-users --var users=alice:Pass1,bob:Pass2"
+  - "Assign roles: b bp run auth/curity-assign-roles --var users=alice:admin,bob:moderator"
+  - Couchbase UI at couchbase.<namespace>.bluetext.localhost
+  - The Couchbase plugin auto-creates collections (curity-accounts, curity-tokens, etc.) on first startup
+  - b app start auto-configures ADB reverse (emulator:8888 → host:80) for ingress access
+pitfalls:
+  - Don't skip auth/curity-oauth — phantom-token needs the introspect endpoint configured
+  - Couchbase must be fully initialized before Curity connects — service-config-manager handles this
+  - The API routes through Kong — direct API ingress is removed
+steps:
+  - run: b service add couchbase
+    description: Add the Couchbase database service
+  - run: b service add service-config-manager
+    description: Add the service config manager (handles Couchbase bucket provisioning)
+  - run: b service add curity --var license_key={{license_key}}
+    description: Add the Curity Identity Server with license secret
+  - run: b service add kong
+    description: Add the Kong API Gateway
+  - run: b service add api
+    description: Add the API service
+  - run: b app add {{app_id}}
+    description: Add the {{app_id}} app
+  - run: b bp run database/service-config-manager-register --var service=couchbase --no-restart
+    description: Wire service-config-manager to Couchbase (injects connection env vars)
+  - run: b service start couchbase
+    description: Start Couchbase (wait for cluster initialization)
+  - run: b service start service-config-manager
+    description: Start the service config manager (creates main bucket)
+  - run: b service start curity
+    description: Start Curity (initial start with HSQLDB defaults)
+  - run: b bp run auth/curity-couchbase --no-restart
+    description: Switch Curity to Couchbase — adds curity bucket via service-config-manager, custom image with plugin
+  - run: b bp run auth/curity-oauth --no-restart
+    description: Configure OAuth2 profiles, clients (flutter-app), and scopes
+  - run: b bp run auth/kong-phantom-token --var targets=api --no-restart
+    description: Configure Kong with phantom token introspection, route API traffic through it
+  - run: b bp run auth/api-rbac --var d=couchbase --no-restart
+    description: Add role-guarded routes with Couchbase claim provider, SCIM user management, claims mapper
+  - run: b bp run auth/app-oidc --var app_id={{app_id}} --no-restart
+    description: Add OIDC login flow to the app
+  - run: b service restart service-config-manager
+    description: Pick up curity bucket config — creates bucket in Couchbase
+  - run: b service restart curity kong api
+    description: Pick up all configuration changes (Couchbase datasource, OAuth2, RBAC)
+  - run: b app start {{app_id}}
+    description: Start app (builds image, sets up ADB reverse for emulator)
+  - run: b bp run auth/curity-create-users --var users=alice:Password1,bob:Password1
+    description: Create test user accounts with passwords
+  - run: b bp run auth/curity-assign-roles --var users=alice:admin,bob:moderator
+    description: Assign roles to the test users

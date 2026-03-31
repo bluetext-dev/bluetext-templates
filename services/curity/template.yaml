@@ -7,3 +7,22 @@ variables:
       name: curity-license
       key: license-key
       transform: '{"License":"{{value}}"}'
+connection_profiles:
+  oidc:
+    description: OpenID Connect endpoints (authorization, token, JWKS)
+    prefix: CURITY
+    env_vars:
+      - suffix: HOST
+        default: "{{upstream}}.{{upstream_ns}}.bluetext.localhost"
+      - suffix: ISSUER
+        default: "http://{{upstream}}.{{upstream_ns}}.bluetext.localhost/oauth/v2/oauth-anonymous"
+      - suffix: JWKS_URI
+        default: "http://{{upstream}}.{{upstream_ns}}.svc.cluster.local:8443/oauth/v2/oauth-anonymous/jwks"
+  admin:
+    description: Admin API (configuration, token management)
+    prefix: CURITY
+    env_vars:
+      - suffix: ADMIN_HOST
+        default: "{{upstream}}.{{upstream_ns}}.svc.cluster.local"
+      - suffix: ADMIN_PORT
+        default: "6749"

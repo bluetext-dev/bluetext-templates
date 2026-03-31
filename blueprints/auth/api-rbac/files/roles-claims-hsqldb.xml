@@ -1,0 +1,41 @@
+<config xmlns="http://tail-f.com/ns/config/1.0">
+  <facilities xmlns="https://curity.se/ns/conf/base">
+    <data-sources>
+      <data-source>
+        <id>default-datasource</id>
+        <jdbc xmlns="https://curity.se/ns/ext-conf/jdbc">
+          <attribute-query>SELECT "attributes" FROM "accounts" WHERE "username" = :subject</attribute-query>
+        </jdbc>
+      </data-source>
+    </data-sources>
+  </facilities>
+
+  <profiles xmlns="https://curity.se/ns/conf/base">
+    <profile>
+      <id>token-service</id>
+      <type xmlns:as="https://curity.se/ns/conf/profile/oauth">as:oauth-service</type>
+      <settings>
+        <authorization-server xmlns="https://curity.se/ns/conf/profile/oauth">
+          <claims>
+            <claim>
+              <name>roles</name>
+              <value-provided-by>roles</value-provided-by>
+              <transformation>
+                <input-attribute-names>attributes</input-attribute-names>
+                <value-transformation-procedure>ZnVuY3Rpb24gdHJhbnNmb3JtKGF0dHJpYnV0ZXMpIHsKICBpZiAoYXR0cmlidXRlcy5hdHRyaWJ1dGVzKSB7CiAgICB2YXIgZGF0YSA9IEpTT04ucGFyc2UoYXR0cmlidXRlcy5hdHRyaWJ1dGVzKTsKICAgIGlmIChkYXRhLnJvbGVzKSB7CiAgICAgIHZhciByb2xlcyA9IFtdOwogICAgICBkYXRhLnJvbGVzLmZvckVhY2goZnVuY3Rpb24ocikgeyByb2xlcy5wdXNoKHIudmFsdWUpIH0pOwogICAgICByZXR1cm4gcm9sZXM7CiAgICB9CiAgfQogIHJldHVybiBudWxsOwp9</value-transformation-procedure>
+              </transformation>
+            </claim>
+            <claims-value-provider>
+              <id>roles</id>
+              <data-source-claims-provider xmlns="https://curity.se/ns/ext-conf/data-source-claims-provider">
+                <data-source>
+                  <data-source>default-datasource</data-source>
+                </data-source>
+              </data-source-claims-provider>
+            </claims-value-provider>
+          </claims>
+        </authorization-server>
+      </settings>
+    </profile>
+  </profiles>
+</config>

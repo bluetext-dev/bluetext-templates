@@ -9,12 +9,17 @@ By default, the CLI auto-fetches this repo from GitHub and caches it at `~/.cach
 ```
 services/
   <service-id>/
-    template.yaml    # Template metadata (id, name, description, ports, dev_mode, dependencies)
+    template.yaml    # Template metadata (id, name, description, ports, dev_mode, dependencies, connection_profiles)
     icon.svg         # Optional icon for CLI display
     config/          # K8s manifests (copied to project's config/services/)
       k8s.<service-id>.yaml
     code/            # Service source code (copied to project's code/services/<service-id>/)
       ...
+
+external_services/
+  <id>/
+    template.yaml    # External service metadata (name, description, connection_profiles)
+    icon.svg         # Optional icon
 
 apps/
   <app-id>/
@@ -41,7 +46,26 @@ ports:
 dev_mode: in-cluster # One of: in-cluster, mirrord, host-forward
 dependencies:        # Other template ids this template depends on
   - <dependency-id>
+connection_profiles: # What information is needed to reach this service (used by b service wire)
+  <profile-name>:
+    description: What this profile is for
+    prefix: ENV_PREFIX  # Default env var prefix (e.g. COUCHBASE)
+    env_vars:
+      - suffix: HOST           # Combined with prefix: ENV_PREFIX_HOST
+        default: "{{upstream}}.{{upstream_ns}}.svc.cluster.local"
+      - suffix: PASSWORD
+        secret:                # K8s Secret reference (injected as secretKeyRef)
+          name: secret-name
+          key: password
 ```
+
+**Connection profile placeholders:**
+- `{{upstream}}` — resolves to the upstream service ID at `b service wire` time
+- `{{upstream_ns}}` — resolves to a deploy-time namespace placeholder `{{NS:<id>}}`
+
+**Env var resolution:** Each env var must have either a `default` (plain value) or a `secret` (K8s Secret reference). If neither is set, `b service wire` fails with an actionable error.
+
+**Connection profiles define what, not how.** They declare what information a consumer needs to reach a service (host, port, credentials, protocol). How that information is used — SDK initialization, HTTP client setup, connection pooling — is the responsibility of client libraries and application code.
 
 ### config/
 
@@ -73,6 +97,54 @@ Running `b app add <name>...` in a project (accepts multiple template names):
 2. Copies all files from `apps/<name>/config/` into the project's `config/apps/` directory
 3. Copies `apps/<name>/code/` into the project's `code/apps/<name>/`
 4. The app is immediately discoverable via `b app list` and runnable via `b app start`
+
+## External Services
+
+External services represent dependencies not deployed to the cluster (e.g. Couchbase Capella, Twilio, Stripe). They have no k8s manifests or code — just metadata and connection profiles.
+
+### How `b external-service add` Works
+
+1. Looks for `external_services/<name>/template.yaml` in the templates repo
+2. Copies to `config/external_services/<name>.yaml` in the project
+3. If the template has secret refs in connection_profiles, generates `secret.samples.<name>.yaml`
+4. If no template found, creates a minimal skeleton for manual editing
+
+### External Service File Format
+
+```yaml
+# config/external_services/couchbase-capella.yaml
+name: Couchbase Capella
+description: Managed Couchbase cloud database
+connection_profiles:
+  data:
+    prefix: COUCHBASE
+    env_vars:
+      - suffix: HOST
+        default: "cb.abcdef.cloud.couchbase.com"
+      - suffix: USERNAME
+        secret:
+          name: couchbase-capella-creds
+          key: username
+      - suffix: PASSWORD
+        secret:
+          name: couchbase-capella-creds
+          key: password
+```
+
+Connection profiles have the same shape for internal and external services. Clients don't know the difference — they read `env::var("COUCHBASE_HOST")` either way.
+
+### Secrets Samples Pattern
+
+Secret values are gitignored. A committed samples file documents what secrets are needed:
+
+```
+config/external_services/
+  couchbase-capella.yaml               # committed — metadata + connection_profiles
+  secret.samples.couchbase-capella.yaml # committed — placeholder values
+  secret.couchbase-capella.yaml         # gitignored — actual values
+```
+
+Collaborators run `b secret init <id>` to create the actual secrets file from samples, then fill in real values.
 
 ## How the CLI Discovers Services
 

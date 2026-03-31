@@ -112,3 +112,29 @@ Blueprints restart services after writing config files. This is within scope of 
 Blueprints show related blueprints after execution via `see_also`. There is no `next_steps` field.
 
 **Why:** A `next_steps` field implies ordering and dependency — "after this, do that." That contradicts composability (principle 4). Blueprints are independent; they don't know or care what comes next. `see_also` is a lateral suggestion ("you might also want"), not a sequential instruction. Ordering belongs in contexts (principle 7), where the full workflow is explicitly designed.
+
+## Principle 13: `service_wire` for cross-service wiring
+
+When a blueprint needs to wire one service to another, use the `service_wire` step type. The upstream service's `connection_profiles` are the single source of truth for *what information is needed* to reach it — host, port, credentials, protocol. They define the *what*, not the *how*. How that information is used (SDK initialization, HTTP client setup, connection pooling, retry logic) is the responsibility of client libraries, application code, or config files.
+
+```yaml
+steps:
+  - name: Connect service-config-manager to Couchbase
+    tool: service_wire
+    params:
+      target: service-config-manager
+      upstream: couchbase
+      profile: admin
+```
+
+This reads the upstream's connection profile and injects the right env vars into the target's Deployment. Works for both internal services and external services.
+
+**What `service_wire` is for:** Cross-service env var injection — when one service needs to know how to reach another. The connection profile defines the env vars (HOST, USERNAME, PASSWORD, etc.) and the blueprint declares which profile to use.
+
+**What it's NOT for:** Self-contained env vars that are about the service itself (`ENVIRONMENT`, `POD_NAMESPACE`, `PASSWORD` for an admin UI) are fine hardcoded in the service template's k8s manifest. These don't describe a connection to another service.
+
+**Services that read config files (not env vars):** Some services (e.g., Curity) read connection details from config files (XML, JSON) rather than env vars. For these, use the initContainer + `__PLACEHOLDER__` substitution pattern: the blueprint writes config files with `__COUCHBASE_HOST__` placeholders, and an initContainer does sed substitution from env vars at pod startup. The env var values come from the k8s manifest (dev defaults matching the connection profile).
+
+**Why:** Connection information belongs with the service that exposes it, not duplicated across every blueprint that needs it. If Couchbase changes its connection surface, one update to its `connection_profiles` fixes all blueprints that use `service_wire`. Hardcoding connection details in blueprints creates silent drift.
+
+**Prerequisite checks:** Use `upstream_exists` (checks both services and external services) or `external_service_exists` (checks external services only) to validate before connecting.

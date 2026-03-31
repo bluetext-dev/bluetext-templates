@@ -25,61 +25,28 @@ variables:
     description: Namespace where Curity and Couchbase are running
     type: string
     default: main
-restarts: [couchbase, curity]
+restarts: [service-config-manager, curity]
 see_also: [auth/curity-oauth, auth/kong-phantom-token]
 steps:
-  - name: Append Couchbase init Job to initialize cluster and create curity bucket
+  - name: Add curity bucket to service-config-manager Couchbase config
     tool: file_patch
     params:
-      file: config/services/k8s.couchbase.yaml
-      operation: append_document
+      file: config/service-config-manager/couchbase/couchbase.yaml
+      operation: merge
+      path: buckets
       content: |
-        apiVersion: batch/v1
-        kind: Job
-        metadata:
-          name: couchbase-init
-        spec:
-          backoffLimit: 10
-          template:
-            spec:
-              restartPolicy: OnFailure
-              tolerations:
-                - key: node-role.kubernetes.io/control-plane
-                  operator: Exists
-                  effect: NoSchedule
-              containers:
-                - name: init
-                  image: couchbase:enterprise-7.6.6
-                  imagePullPolicy: IfNotPresent
-                  command: ["/bin/bash", "-c"]
-                  args:
-                    - |
-                      set -e
-                      echo "Waiting for Couchbase to be ready..."
-                      until curl -sf http://couchbase-headless:8091/ui/index.html > /dev/null 2>&1; do
-                        sleep 3
-                      done
-                      sleep 5
-
-                      echo "Initializing Couchbase cluster..."
-                      /opt/couchbase/bin/couchbase-cli cluster-init \
-                        -c couchbase-headless:8091 \
-                        --cluster-username Administrator \
-                        --cluster-password password \
-                        --cluster-ramsize 512 \
-                        --cluster-index-ramsize 256 \
-                        --services data,index,query || true
-
-                      echo "Creating curity bucket..."
-                      /opt/couchbase/bin/couchbase-cli bucket-create \
-                        -c couchbase-headless:8091 \
-                        -u Administrator -p password \
-                        --bucket curity \
-                        --bucket-type couchbase \
-                        --bucket-ramsize 256 \
-                        --bucket-replica 0 || true
-
-                      echo "Couchbase initialization complete"
+        curity:
+          defaults:
+            flush_enabled: true
+          env_settings:
+            dev:
+              ram_quota_mb: 256
+            prod:
+              ram_quota_mb: 2048
+              num_replicas: 3
+          scopes:
+            _default:
+              collections: {}
   - name: Overwrite Curity k8s manifest with Couchbase-compatible version (custom image, no HSQLDB)
     tool: file_write
     params:
@@ -107,10 +74,10 @@ steps:
           type: datasource
           label: Uses as data store
           blueprint: auth/curity-couchbase
-  - name: Restart couchbase in {{namespace}}
+  - name: Restart service-config-manager in {{namespace}}
     tool: service_restart
     params:
-      id: couchbase
+      id: service-config-manager
       namespace: "{{namespace}}"
   - name: Restart curity in {{namespace}}
     tool: service_restart

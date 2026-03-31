@@ -1,18 +1,11 @@
 <config xmlns="http://tail-f.com/ns/config/1.0">
   <environments xmlns="https://curity.se/ns/conf/base">
     <environment>
-      <base-url>http://curity.{{namespace}}.bluetext.lvh.me:8888</base-url>
+      <base-url>http://curity.__NAMESPACE__.bluetext.lvh.me:8888</base-url>
       <services>
         <service-role>
           <id>default</id>
           <protocol>http</protocol>
-          <endpoints>auth-service-authentication</endpoints>
-          <endpoints>auth-service-registration</endpoints>
-          <endpoints>token-service-anonymous</endpoints>
-          <endpoints>token-service-authorize</endpoints>
-          <endpoints>token-service-token</endpoints>
-          <endpoints>token-service-introspect</endpoints>
-          <endpoints>token-service-userinfo</endpoints>
         </service-role>
       </services>
     </environment>
@@ -21,12 +14,12 @@
   <facilities xmlns="https://curity.se/ns/conf/base">
     <data-sources>
       <data-source>
-        <id>couchbase-datasource</id>
+        <id>default-datasource</id>
         <couchbase xmlns="https://curity.se/ns/ext-conf/couchbase">
-          <host>couchbase-headless</host>
-          <use-tls>false</use-tls>
-          <user-name>Administrator</user-name>
-          <password>password</password>
+          <host>__COUCHBASE_HOST__</host>
+          <use-tls>__COUCHBASE_TLS__</use-tls>
+          <user-name>__COUCHBASE_USERNAME__</user-name>
+          <password>__COUCHBASE_PASSWORD__</password>
           <bucket>curity</bucket>
           <scope>_default</scope>
           <claim-query>SELECT `curity-accounts`.* FROM `curity`.`_default`.`curity-accounts` WHERE META().id = :subject</claim-query>
@@ -35,7 +28,7 @@
     </data-sources>
     <caching-services>
       <default-caching-service>
-        <data-source>couchbase-datasource</data-source>
+        <data-source>default-datasource</data-source>
       </default-caching-service>
     </caching-services>
   </facilities>
@@ -44,7 +37,7 @@
     <account-managers>
       <account-manager>
         <id>default-account-manager</id>
-        <account-data-source>couchbase-datasource</account-data-source>
+        <account-data-source>default-datasource</account-data-source>
         <enable-registration>
           <account-verification-method>no-verification</account-verification-method>
         </enable-registration>
@@ -54,135 +47,9 @@
       <credential-manager>
         <id>default-credential-manager</id>
         <data-source-backed>
-          <data-source-id>couchbase-datasource</data-source-id>
+          <data-source-id>default-datasource</data-source-id>
         </data-source-backed>
       </credential-manager>
     </credential-managers>
   </processing>
-
-  <profiles xmlns="https://curity.se/ns/conf/base">
-    <profile>
-      <id>auth-service</id>
-      <type xmlns:auth="https://curity.se/ns/conf/profile/authentication">auth:authentication-service</type>
-      <endpoints>
-        <endpoint>
-          <id>auth-service-authentication</id>
-          <uri>/authn</uri>
-          <endpoint-kind>auth-authentication</endpoint-kind>
-        </endpoint>
-        <endpoint>
-          <id>auth-service-registration</id>
-          <uri>/authn/registration</uri>
-          <endpoint-kind>auth-registration</endpoint-kind>
-        </endpoint>
-      </endpoints>
-      <settings>
-        <authentication-service xmlns="https://curity.se/ns/conf/profile/authentication">
-          <authenticators>
-            <authenticator>
-              <id>html-form</id>
-              <html-form xmlns="https://curity.se/ns/conf/authenticators/html-form">
-                <account-manager>default-account-manager</account-manager>
-                <credential-manager>default-credential-manager</credential-manager>
-              </html-form>
-            </authenticator>
-          </authenticators>
-          <protocols>
-            <protocol>
-              <id>simple-api-protocol</id>
-              <simple-api/>
-            </protocol>
-          </protocols>
-        </authentication-service>
-      </settings>
-    </profile>
-
-    <profile>
-      <id>token-service</id>
-      <type xmlns:as="https://curity.se/ns/conf/profile/oauth">as:oauth-service</type>
-      <token-issuers>
-        <default-token-issuer>
-          <default-data-source>couchbase-datasource</default-data-source>
-          <jwt-issuer-settings>
-            <signing-key-id>default-signing-key</signing-key-id>
-          </jwt-issuer-settings>
-        </default-token-issuer>
-      </token-issuers>
-      <endpoints>
-        <endpoint>
-          <id>token-service-anonymous</id>
-          <uri>/oauth/v2/oauth-anonymous</uri>
-          <endpoint-kind>oauth-anonymous</endpoint-kind>
-        </endpoint>
-        <endpoint>
-          <id>token-service-authorize</id>
-          <uri>/oauth/v2/oauth-authorize</uri>
-          <endpoint-kind>oauth-authorize</endpoint-kind>
-        </endpoint>
-        <endpoint>
-          <id>token-service-token</id>
-          <uri>/oauth/v2/oauth-token</uri>
-          <endpoint-kind>oauth-token</endpoint-kind>
-        </endpoint>
-        <endpoint>
-          <id>token-service-introspect</id>
-          <uri>/oauth/v2/oauth-introspect</uri>
-          <endpoint-kind>oauth-introspect</endpoint-kind>
-        </endpoint>
-        <endpoint>
-          <id>token-service-userinfo</id>
-          <uri>/oauth/v2/oauth-userinfo</uri>
-          <endpoint-kind>oauth-userinfo</endpoint-kind>
-        </endpoint>
-      </endpoints>
-      <settings>
-        <authorization-server xmlns="https://curity.se/ns/conf/profile/oauth">
-          <authentication-service>
-            <authentication-profile>auth-service</authentication-profile>
-          </authentication-service>
-          <client-capabilities>
-            <code/>
-            <introspection/>
-          </client-capabilities>
-          <client-store>
-            <config-backed>
-              <client>
-                <id>flutter-app</id>
-                <client-name>Flutter App</client-name>
-                <no-authentication>true</no-authentication>
-                <redirect-uris>com.bluetext.app://callback</redirect-uris>
-                <redirect-uris>http://localhost:3000/callback</redirect-uris>
-                <scope>openid</scope>
-                <scope>profile</scope>
-                <scope>email</scope>
-                <capabilities>
-                  <code/>
-                </capabilities>
-                <proof-key>
-                  <require-proof-key>true</require-proof-key>
-                </proof-key>
-                <use-pairwise-subject-identifiers>
-                  <sector-identifier>bluetext-flutter</sector-identifier>
-                </use-pairwise-subject-identifiers>
-              </client>
-            </config-backed>
-          </client-store>
-          <scopes>
-            <scope>
-              <id>openid</id>
-            </scope>
-            <scope>
-              <id>profile</id>
-            </scope>
-            <scope>
-              <id>email</id>
-            </scope>
-          </scopes>
-          <openid-connect>
-            <expose-metadata/>
-          </openid-connect>
-        </authorization-server>
-      </settings>
-    </profile>
-  </profiles>
 </config>

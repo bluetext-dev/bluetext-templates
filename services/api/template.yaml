@@ -5,3 +5,12 @@ ports:
   - 3030
 dev_mode: mirrord
 dependencies: []
+connection_profiles:
+  http:
+    description: HTTP API access via Traefik ingress
+    prefix: API
+    env_vars:
+      - suffix: URL
+        default: "http://traefik.kube-system.svc.cluster.local"
+      - suffix: HOST
+        default: "{{upstream}}.{{upstream_ns}}.bluetext.localhost"

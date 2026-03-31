@@ -1,0 +1,62 @@
+name: Register Service with Config Manager
+description: Wire service-config-manager to an upstream service — injects connection env vars, registers in managed services, and creates the relationship
+tags: [database, service-config-manager]
+prerequisites:
+  - description: Service-config-manager exists
+    check: service_exists
+    params:
+      id: service-config-manager
+  - description: Upstream service exists
+    check: upstream_exists
+    params:
+      id: "{{service}}"
+variables:
+  - name: service
+    alias: s
+    description: Upstream service to register (e.g. couchbase, couchbase-sync-gateway)
+    type: string
+  - name: profile
+    alias: p
+    description: Connection profile to use
+    type: string
+    default: admin
+  - name: namespace
+    alias: n
+    description: Target namespace
+    type: string
+    default: main
+restarts: [service-config-manager]
+steps:
+  - name: Wire service-config-manager to {{service}}
+    tool: service_wire
+    params:
+      target: service-config-manager
+      upstream: "{{service}}"
+      profile: "{{profile}}"
+  - name: Add {{service}} to managed services
+    tool: file_patch
+    params:
+      file: config/service-config-manager/managed-services.yaml
+      operation: append_list
+      path: .
+      content: |
+        - name: "{{service}}"
+          type: "{{service}}"
+          config_dir: "service-config-manager/{{service}}"
+  - name: Register relationship
+    tool: file_patch
+    params:
+      file: config/bluetext.yaml
+      operation: append_list
+      path: relationships
+      content: |
+        - from: service-config-manager
+          to: "{{service}}"
+          type: configures
+          label: Manages
+          blueprint: database/service-config-manager-register
+  - name: Restart service-config-manager
+    tool: service_restart
+    params:
+      id: service-config-manager
+      namespace: "{{namespace}}"

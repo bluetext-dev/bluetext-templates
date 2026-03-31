@@ -7,3 +7,20 @@ ports:
 dev_mode: in-cluster
 dependencies:
   - couchbase
+connection_profiles:
+  admin:
+    description: Admin API (database creation, configuration)
+    prefix: COUCHBASE_SYNC_GATEWAY
+    env_vars:
+      - suffix: HOST
+        default: "{{upstream}}.{{upstream_ns}}.svc.cluster.local"
+      - suffix: ADMIN_PORT
+        default: "4985"
+  public:
+    description: Public API (document sync, authentication)
+    prefix: COUCHBASE_SYNC_GATEWAY
+    env_vars:
+      - suffix: HOST
+        default: "{{upstream}}.{{upstream_ns}}.svc.cluster.local"
+      - suffix: PORT
+        default: "4984"

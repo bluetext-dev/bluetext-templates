@@ -16,10 +16,44 @@ spec:
         - key: node-role.kubernetes.io/control-plane
           operator: Exists
           effect: NoSchedule
+      initContainers:
+        - name: config-templater
+          image: busybox:stable
+          command:
+            - sh
+            - -c
+            - |
+              for f in /config-template/*.xml; do
+                sed -e "s/__NAMESPACE__/$POD_NAMESPACE/g" \
+                    -e "s/__COUCHBASE_HOST__/$COUCHBASE_HOST/g" \
+                    -e "s/__COUCHBASE_TLS__/$COUCHBASE_TLS/g" \
+                    -e "s/__COUCHBASE_USERNAME__/$COUCHBASE_USERNAME/g" \
+                    -e "s/__COUCHBASE_PASSWORD__/$COUCHBASE_PASSWORD/g" \
+                    "$f" > "/config/$(basename $f)"
+              done
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: COUCHBASE_HOST
+              value: "couchbase-headless.{{NAMESPACE}}.svc.cluster.local"
+            - name: COUCHBASE_USERNAME
+              value: "Administrator"
+            - name: COUCHBASE_PASSWORD
+              value: "password"
+            - name: COUCHBASE_TLS
+              value: "false"
+          volumeMounts:
+            - name: config-template
+              mountPath: /config-template
+            - name: init-config
+              mountPath: /config
       containers:
         - name: curity
           image: bluetext-curity:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Never
+          command: ["idsvr"]
           args: ["--admin", "-s", "default"]
           env:
             - name: PASSWORD
@@ -44,10 +78,12 @@ spec:
               mountPath: /opt/idsvr/etc/init/license
               readOnly: true
       volumes:
-        - name: init-config
+        - name: config-template
           hostPath:
             path: /var/mnt/project/config/curity
             type: DirectoryOrCreate
+        - name: init-config
+          emptyDir: {}
         - name: license
           secret:
             secretName: curity-license

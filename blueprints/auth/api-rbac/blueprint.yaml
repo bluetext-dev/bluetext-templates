@@ -27,6 +27,11 @@ variables:
     description: Namespace where services are running
     type: string
     default: main
+  - name: datastore
+    alias: d
+    description: Data store backend (hsqldb or couchbase)
+    type: string
+    default: hsqldb
 restarts: [curity, kong, api]
 see_also: [auth/kong-phantom-token, auth/curity-oauth]
 steps:
@@ -35,6 +40,11 @@ steps:
     params:
       file: config/curity/roles-scope.xml
       content_file: files/roles-scope.xml
+  - name: Write roles claim provider for {{datastore}}
+    tool: file_write
+    params:
+      file: config/curity/roles-claims.xml
+      content_file: files/roles-claims-{{datastore}}.xml
   - name: Write claims mapper for access token and ID token
     tool: file_write
     params:

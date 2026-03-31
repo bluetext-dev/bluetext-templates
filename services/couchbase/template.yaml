@@ -9,3 +9,32 @@ ports:
   - 11210
 dev_mode: in-cluster
 dependencies: []
+connection_profiles:
+  admin:
+    description: Management API (cluster init, bucket CRUD)
+    prefix: COUCHBASE
+    env_vars:
+      - suffix: HOST
+        default: "{{upstream}}-headless.{{upstream_ns}}.svc.cluster.local"
+      - suffix: USERNAME
+        default: "Administrator"
+      - suffix: PASSWORD
+        default: "password"
+      - suffix: MGMT_PORT
+        default: "8091"
+      - suffix: TLS
+        default: "false"
+  data:
+    description: SDK operations (KV, query, search)
+    prefix: COUCHBASE
+    env_vars:
+      - suffix: HOST
+        default: "{{upstream}}-headless.{{upstream_ns}}.svc.cluster.local"
+      - suffix: USERNAME
+        default: "Administrator"
+      - suffix: PASSWORD
+        default: "password"
+      - suffix: BUCKET
+        default: "main"
+      - suffix: PROTOCOL
+        default: "couchbase"

@@ -1,5 +1,5 @@
 name: Curity Couchbase Data Store
-description: Switch Curity's data source from HSQLDB to Couchbase — accounts, tokens, sessions, credentials, all in one place
+description: Configure Curity with Couchbase for accounts, tokens, sessions, and credentials — custom image with Couchbase Data Access Provider plugin
 tags: [auth, curity, couchbase, database]
 prerequisites:
   - description: Curity service exists
@@ -57,11 +57,11 @@ steps:
     params:
       file: code/services/curity/Dockerfile
       content_file: files/Dockerfile
-  - name: Overwrite base-config.xml with Couchbase data source
+  - name: Write datasource config (Couchbase)
     tool: file_write
     params:
-      file: config/curity/base-config.xml
-      content_file: files/base-config.xml
+      file: config/curity/datasource.xml
+      content_file: files/datasource.xml
   - name: Register datasource relationship
     tool: file_patch
     params:

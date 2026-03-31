@@ -16,7 +16,7 @@ variables:
     description: Curity license key (get a free dev license at developer.curity.io)
     type: string
     required: true
-see_also: [auth/curity-configured, auth/curity-rbac, auth/curity-phantom-token]
+see_also: [auth/curity-rbac, auth/curity-phantom-token]
 steps:
   - name: Add curity service template
     tool: service_add

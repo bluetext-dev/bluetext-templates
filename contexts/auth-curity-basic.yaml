@@ -17,9 +17,9 @@ pitfalls:
 steps:
   - run: b service add curity --var license_key={{license_key}}
     description: Add the Curity Identity Server with license secret
-  - run: b service start curity
-    description: Start Curity with HSQLDB (admin UI available immediately)
+  - run: b bp run auth/curity-hsqldb --no-restart
+    description: Configure HSQLDB as the data store (accounts, tokens, sessions)
   - run: b bp run auth/curity-oauth --no-restart
     description: Configure OAuth2 profiles, clients (flutter-app), and scopes
-  - run: b service restart curity
-    description: Pick up OAuth2 configuration — restarts Curity once after all config is written
+  - run: b service start curity
+    description: Start Curity (picks up HSQLDB + OAuth2 config on first start)

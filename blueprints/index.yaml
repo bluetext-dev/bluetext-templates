@@ -16,10 +16,6 @@ blueprints:
     name: Curity Assign Roles
     description: Assign roles to existing user accounts via SCIM API
     tags: [auth, curity, rbac]
-  - id: auth/curity-configured
-    name: Curity Identity Server (Pre-Configured)
-    description: Deploy Curity with pre-configured OAuth2 profiles, clients, and scopes
-    tags: [auth, oidc, oauth]
   - id: auth/curity-couchbase
     name: Curity Couchbase Data Store
     description: "Switch Curity's data source from HSQLDB to Couchbase — accounts, tokens, sessions, credentials, all in one place"
@@ -28,6 +24,14 @@ blueprints:
     name: Curity Create Users
     description: Create user accounts with passwords via SCIM API
     tags: [auth, curity]
+  - id: auth/curity-hsqldb
+    name: Curity HSQLDB Data Store
+    description: Configure Curity with file-based HSQLDB for accounts, tokens, sessions, and credentials
+    tags: [auth, curity, hsqldb, database]
+  - id: auth/curity-couchbase
+    name: Curity Couchbase Data Store
+    description: Configure Curity with Couchbase for accounts, tokens, sessions, and credentials
+    tags: [auth, curity, couchbase, database]
   - id: auth/curity-oauth
     name: Curity OAuth2 Configuration
     description: Configure Curity with OAuth2 profiles, clients, and scopes

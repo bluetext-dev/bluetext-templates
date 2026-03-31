@@ -1,0 +1,38 @@
+name: Curity HSQLDB Data Store
+description: Configure Curity with file-based HSQLDB for accounts, tokens, sessions, and credentials — persisted in .bluetext/curity-db/
+tags: [auth, curity, hsqldb, database]
+prerequisites:
+  - description: Curity service exists
+    check: service_exists
+    params:
+      id: curity
+caveats:
+  - Accounts persisted in file-based HSQLDB (survives pod restarts, stored in .bluetext/curity-db/)
+  - Default credentials — change for non-dev environments
+variables:
+  - name: namespace
+    alias: n
+    description: Namespace where Curity is running
+    type: string
+    default: main
+restarts: [curity]
+see_also: [auth/curity-oauth, auth/curity-couchbase]
+steps:
+  - name: Add HSQLDB init container and data volume to Curity manifest
+    tool: file_patch
+    params:
+      file: config/services/k8s.curity.yaml
+      operation: merge
+      match_kind: Deployment
+      path: spec.template.spec
+      content_file: files/hsqldb-patch.yaml
+  - name: Write datasource config (HSQLDB)
+    tool: file_write
+    params:
+      file: config/curity/datasource.xml
+      content_file: files/datasource.xml
+  - name: Restart curity in {{namespace}}
+    tool: service_restart
+    params:
+      id: curity
+      namespace: "{{namespace}}"

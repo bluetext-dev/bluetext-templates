@@ -33,6 +33,8 @@ steps:
     description: Add the API service
   - run: b app add {{app_id}}
     description: Add the {{app_id}} app
+  - run: b bp run auth/curity-hsqldb --no-restart
+    description: Configure HSQLDB as the data store
   - run: b bp run auth/curity-oauth --no-restart
     description: Configure OAuth2 profiles, clients (flutter-app), and scopes
   - run: b bp run auth/kong-phantom-token --var targets=api --no-restart

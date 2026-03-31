@@ -24,7 +24,7 @@ variables:
     description: Comma-separated list of additional service IDs to protect (beyond the api)
     type: string
     default: ""
-see_also: [auth/curity-configured, auth/curity-phantom-token, gateway/kong]
+see_also: [auth/curity-phantom-token, gateway/kong]
 steps:
   - name: Add curity service template
     tool: service_add

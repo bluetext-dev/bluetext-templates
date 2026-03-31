@@ -1,0 +1,39 @@
+<config xmlns="http://tail-f.com/ns/config/1.0">
+  <facilities xmlns="https://curity.se/ns/conf/base">
+    <data-sources>
+      <data-source>
+        <id>default-datasource</id>
+        <jdbc xmlns="https://curity.se/ns/ext-conf/jdbc">
+          <connection-string>jdbc:hsqldb:file:/opt/idsvr/var/hsqldb/curity</connection-string>
+          <driver>org.hsqldb.jdbc.JDBCDriver</driver>
+          <standard-credentials-mode/>
+        </jdbc>
+      </data-source>
+    </data-sources>
+    <caching-services>
+      <default-caching-service>
+        <data-source>default-datasource</data-source>
+      </default-caching-service>
+    </caching-services>
+  </facilities>
+
+  <processing xmlns="https://curity.se/ns/conf/base">
+    <account-managers>
+      <account-manager>
+        <id>default-account-manager</id>
+        <account-data-source>default-datasource</account-data-source>
+        <enable-registration>
+          <account-verification-method>no-verification</account-verification-method>
+        </enable-registration>
+      </account-manager>
+    </account-managers>
+    <credential-managers>
+      <credential-manager>
+        <id>default-credential-manager</id>
+        <data-source-backed>
+          <data-source-id>default-datasource</data-source-id>
+        </data-source-backed>
+      </credential-manager>
+    </credential-managers>
+  </processing>
+</config>

@@ -1,5 +1,5 @@
 name: Curity Couchbase Data Store
-description: Configure Curity with Couchbase for accounts, tokens, sessions, and credentials — custom image with Couchbase Data Access Provider plugin
+description: Configure Curity with Couchbase via JDBC — accounts, tokens, sessions, and credentials backed by Couchbase
 tags: [auth, curity, couchbase, database]
 prerequisites:
   - description: Curity service exists
@@ -15,18 +15,18 @@ prerequisites:
     params:
       id: service-config-manager
 caveats:
-  - First build takes several minutes (downloads Gradle, JDK, and plugin dependencies for the Couchbase Data Access Provider)
+  - Overwrites Curity k8s manifest (custom image with Couchbase JDBC driver)
   - Curity may restart once or twice while Couchbase initializes — this is normal
-  - Overwrites Curity k8s manifest (switches to custom image with Couchbase plugin)
-  - "The Couchbase plugin (github.com/curityio/couchbase-data-access-provider) auto-creates collections on first startup"
   - Couchbase admin credentials are Administrator/password — change for non-dev environments
+  - Curity auto-creates required collections on first startup via JDBC
 variables:
   - name: namespace
+    alias: n
     description: Namespace where Curity and Couchbase are running
     type: string
     default: main
 restarts: [service-config-manager, curity]
-see_also: [auth/curity-oauth, auth/kong-phantom-token]
+see_also: [auth/curity-oauth, auth/curity-hsqldb, auth/kong-phantom-token]
 steps:
   - name: Add curity bucket to service-config-manager Couchbase config
     tool: file_patch
@@ -47,17 +47,17 @@ steps:
           scopes:
             _default:
               collections: {}
-  - name: Overwrite Curity k8s manifest with Couchbase-compatible version (custom image, no HSQLDB)
+  - name: Overwrite Curity k8s manifest (custom image with Couchbase JDBC driver)
     tool: file_write
     params:
       file: config/services/k8s.curity.yaml
       content_file: files/k8s.curity.yaml
-  - name: Write Dockerfile for Curity with Couchbase Data Access Provider plugin
+  - name: Write Dockerfile (Curity + Couchbase JDBC driver from Maven Central)
     tool: file_write
     params:
       file: code/services/curity/Dockerfile
       content_file: files/Dockerfile
-  - name: Write datasource config (Couchbase)
+  - name: Write datasource config (Couchbase via JDBC)
     tool: file_write
     params:
       file: config/curity/datasource.xml

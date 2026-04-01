@@ -3,15 +3,12 @@
     <data-sources>
       <data-source>
         <id>default-datasource</id>
-        <couchbase xmlns="https://curity.se/ns/ext-conf/couchbase">
-          <host>__COUCHBASE_HOST__</host>
-          <use-tls>__COUCHBASE_TLS__</use-tls>
-          <user-name>__COUCHBASE_USERNAME__</user-name>
+        <jdbc xmlns="https://curity.se/ns/ext-conf/jdbc">
+          <connection-string>jdbc:couchbase:query://__COUCHBASE_HOST__:8093?ssl=__COUCHBASE_TLS__</connection-string>
+          <driver>com.couchbase.client.jdbc.CouchbaseDriver</driver>
+          <username>__COUCHBASE_USERNAME__</username>
           <password>__COUCHBASE_PASSWORD__</password>
-          <bucket>curity</bucket>
-          <scope>_default</scope>
-          <claim-query>SELECT `curity-accounts`.* FROM `curity`.`_default`.`curity-accounts` WHERE META().id = :subject</claim-query>
-        </couchbase>
+        </jdbc>
       </data-source>
     </data-sources>
     <caching-services>

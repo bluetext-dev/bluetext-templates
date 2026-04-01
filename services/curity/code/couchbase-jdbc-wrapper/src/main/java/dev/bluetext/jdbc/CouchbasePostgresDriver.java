@@ -5,21 +5,22 @@ import java.util.Properties;
 import java.util.logging.Logger;
 
 /**
- * JDBC driver wrapper that presents Couchbase as a PostgreSQL-compatible datasource.
+ * JDBC driver wrapper that presents Couchbase as a PostgreSQL-dialect datasource to Curity.
  *
- * Curity's JDBC plugin detects the SQL dialect from the connection string prefix.
- * This wrapper accepts {@code jdbc:couchbase-postgresql://host:port/...} and delegates
- * to the Couchbase JDBC driver ({@code jdbc:couchbase:query://host:port/...}).
+ * Curity's JDBC plugin detects the SQL dialect by splitting the connection string on ":"
+ * and checking if the second token equals "postgresql". This wrapper uses the scheme
+ * {@code jdbc:postgresql:couchbase://host:port/catalog} which:
  *
- * The scheme {@code couchbase-postgresql} contains "postgresql" which triggers
- * Curity's PostgreSQL dialect, but is NOT accepted by the real PostgreSQL driver.
+ * 1. Passes Curity's dialect check (second token = "postgresql")
+ * 2. Is NOT accepted by the real PostgreSQL driver (which expects jdbc:postgresql://...)
+ * 3. Delegates to the Couchbase JDBC driver (jdbc:couchbase:query://...)
  *
  * Couchbase SQL++ is compatible with PostgreSQL SQL for the operations Curity uses
  * (accounts, tokens, sessions, credentials).
  */
 public class CouchbasePostgresDriver implements Driver {
 
-    private static final String PREFIX = "jdbc:couchbase-postgresql://";
+    private static final String PREFIX = "jdbc:postgresql:couchbase://";
     private static final String CB_PREFIX = "jdbc:couchbase:query://";
     private Driver couchbaseDriver;
 

@@ -8,18 +8,18 @@ import java.util.logging.Logger;
  * JDBC driver wrapper that presents Couchbase as a PostgreSQL-compatible datasource.
  *
  * Curity's JDBC plugin detects the SQL dialect from the connection string prefix.
- * This wrapper accepts {@code jdbc:postgresql://host:8093/...} and delegates to
- * the Couchbase JDBC driver ({@code jdbc:couchbase:query://host:8093/...}).
+ * This wrapper accepts {@code jdbc:couchbase-postgresql://host:port/...} and delegates
+ * to the Couchbase JDBC driver ({@code jdbc:couchbase:query://host:port/...}).
  *
- * It intercepts only connections to port 8093 (Couchbase query service) — standard
- * PostgreSQL connections (port 5432) pass through to the real PostgreSQL driver.
+ * The scheme {@code couchbase-postgresql} contains "postgresql" which triggers
+ * Curity's PostgreSQL dialect, but is NOT accepted by the real PostgreSQL driver.
  *
  * Couchbase SQL++ is compatible with PostgreSQL SQL for the operations Curity uses
  * (accounts, tokens, sessions, credentials).
  */
 public class CouchbasePostgresDriver implements Driver {
 
-    private static final String PG_PREFIX = "jdbc:postgresql://";
+    private static final String PREFIX = "jdbc:couchbase-postgresql://";
     private static final String CB_PREFIX = "jdbc:couchbase:query://";
     private Driver couchbaseDriver;
 
@@ -33,7 +33,7 @@ public class CouchbasePostgresDriver implements Driver {
 
     @Override
     public boolean acceptsURL(String url) {
-        return url != null && url.startsWith(PG_PREFIX) && url.contains(":8093");
+        return url != null && url.startsWith(PREFIX);
     }
 
     @Override
@@ -57,17 +57,17 @@ public class CouchbasePostgresDriver implements Driver {
     @Override public Logger getParentLogger() { return Logger.getLogger("dev.bluetext.jdbc"); }
 
     private String toCouchbaseUrl(String url) {
-        return CB_PREFIX + url.substring(PG_PREFIX.length());
+        return CB_PREFIX + url.substring(PREFIX.length());
     }
 
     private synchronized void ensureCouchbaseDriver() throws SQLException {
         if (couchbaseDriver == null) {
             try {
-                Class.forName("com.couchbase.client.jdbc.CouchbaseDriver");
-            } catch (ClassNotFoundException e) {
+                couchbaseDriver = (Driver) Class.forName("com.couchbase.client.jdbc.CouchbaseDriver")
+                        .getDeclaredConstructor().newInstance();
+            } catch (Exception e) {
                 throw new SQLException("Couchbase JDBC driver not found on classpath", e);
             }
-            couchbaseDriver = DriverManager.getDriver("jdbc:couchbase:query://localhost");
         }
     }
 }

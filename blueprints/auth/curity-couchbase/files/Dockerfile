@@ -5,12 +5,11 @@ RUN gradle wrapperJar
 
 FROM curity.azurecr.io/curity/idsvr:latest
 
-# Couchbase JDBC driver (official, from Maven Central)
+# Couchbase JDBC driver + wrapper go into the JDBC plugin directory (shared classloader)
 ADD --chown=10001:10000 \
     https://repo1.maven.org/maven2/com/couchbase/client/couchbase-jdbc-driver/1.0.5/couchbase-jdbc-driver-1.0.5.jar \
-    /opt/idsvr/lib/plugins/couchbase-jdbc/couchbase-jdbc-driver-1.0.5.jar
+    /opt/idsvr/lib/plugins/data.access.jdbc/couchbase-jdbc-driver-1.0.5.jar
 
-# PostgreSQL dialect wrapper (maps jdbc:postgresql+couchbase:// to jdbc:couchbase:query://)
 COPY --from=wrapper-builder --chown=10001:10000 \
     /wrapper/build/libs/couchbase-postgres-wrapper-1.0.0.jar \
-    /opt/idsvr/lib/plugins/couchbase-jdbc/couchbase-postgres-wrapper-1.0.0.jar
+    /opt/idsvr/lib/plugins/data.access.jdbc/couchbase-postgres-wrapper-1.0.0.jar

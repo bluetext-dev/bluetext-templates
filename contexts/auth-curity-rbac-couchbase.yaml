@@ -21,7 +21,7 @@ tips:
   - "Create users: b bp run auth/curity-create-users --var users=alice:Pass1,bob:Pass2"
   - "Assign roles: b bp run auth/curity-assign-roles --var users=alice:admin,bob:moderator"
   - Couchbase UI at couchbase.<namespace>.bluetext.localhost
-  - The Couchbase plugin auto-creates collections (curity-accounts, curity-tokens, etc.) on first startup
+  - service-config-manager creates the 15 Curity collections and enables Analytics on the curity bucket
   - b app start auto-configures ADB reverse (emulator:8888 → host:80) for ingress access
 pitfalls:
   - Don't skip auth/curity-oauth — phantom-token needs the introspect endpoint configured

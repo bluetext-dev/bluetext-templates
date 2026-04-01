@@ -17,7 +17,8 @@ from couchbase.exceptions import (
     BucketNotFoundException,
     BucketDoesNotExistException,
     ScopeNotFoundException,
-    CollectionNotFoundException
+    CollectionNotFoundException,
+    CouchbaseException
 )
 from couchbase.diagnostics import ServiceType
 from couchbase.management.buckets import CreateBucketSettings, BucketType
@@ -575,3 +576,64 @@ class CouchbaseController:
 
                     # Ensure collection exists
                     self.ensure_collection(bucket_name, scope_name, collection_name, collection_settings)
+
+            # Enable Analytics and primary indexes per collection if configured
+            if bucket_config.get('analytics', False):
+                for scope_name, scope_config in bucket_config.get('scopes', {}).items():
+                    for collection_name in scope_config.get('collections', {}).keys():
+                        self.ensure_primary_index(bucket_name, scope_name, collection_name)
+                        self.ensure_analytics_collection(bucket_name, scope_name, collection_name)
+
+    def ensure_primary_index(self, bucket_name: str, scope_name: str, collection_name: str) -> None:
+        """Create a primary index on a collection for N1QL query support."""
+        cluster = self.connect_with_retry()
+        fqn = f'`{bucket_name}`.`{scope_name}`.`{collection_name}`'
+        query = f'CREATE PRIMARY INDEX IF NOT EXISTS ON {fqn}'
+
+        max_retries = 10
+        for attempt in range(max_retries):
+            try:
+                cluster.query(query)
+                self.logger.info(f"✅ Primary index on {fqn}")
+                return
+            except CouchbaseException as e:
+                if attempt == max_retries - 1:
+                    self.logger.error(f"❌ Failed to create primary index on {fqn}: {e}")
+                    raise
+                self.logger.debug(f"⏳ Index creation retry for {fqn} (attempt {attempt + 1}): {e}")
+                time.sleep(2)
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    self.logger.error(f"❌ Unexpected error creating index on {fqn}: {e}")
+                    raise
+                time.sleep(2)
+
+    def ensure_analytics_collection(self, bucket_name: str, scope_name: str, collection_name: str) -> None:
+        """Enable Analytics on a single collection, linking it as an Analytics dataset."""
+        cluster = self.connect_with_retry()
+        fqn = f'`{bucket_name}`.`{scope_name}`.`{collection_name}`'
+        query = f'ALTER COLLECTION {fqn} ENABLE ANALYTICS'
+
+        max_retries = 15
+        for attempt in range(max_retries):
+            try:
+                cluster.analytics_query(query)
+                self.logger.info(f"✅ Analytics enabled for {fqn}")
+                return
+            except CouchbaseException as e:
+                error_msg = str(e)
+                # Already enabled — idempotent success (error 24040: dataset already exists)
+                if '24040' in error_msg or 'already exists' in error_msg.lower():
+                    self.logger.info(f"✅ Analytics already enabled for {fqn}")
+                    return
+                if attempt == max_retries - 1:
+                    self.logger.error(f"❌ Failed to enable Analytics for {fqn} after {max_retries} attempts: {e}")
+                    raise
+                self.logger.debug(f"⏳ Analytics not ready for {fqn}, retrying... (attempt {attempt + 1}/{max_retries}): {e}")
+                time.sleep(4)
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    self.logger.error(f"❌ Unexpected error enabling Analytics for {fqn}: {e}")
+                    raise
+                self.logger.debug(f"⏳ Analytics error for {fqn}, retrying... (attempt {attempt + 1}/{max_retries}): {e}")
+                time.sleep(4)

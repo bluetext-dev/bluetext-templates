@@ -18,7 +18,7 @@ caveats:
   - Overwrites Curity k8s manifest (custom image with Couchbase JDBC driver)
   - Curity may restart once or twice while Couchbase initializes — this is normal
   - Couchbase admin credentials are Administrator/password — change for non-dev environments
-  - Curity auto-creates required collections on first startup via JDBC
+  - Collections and Analytics datasets are provisioned by service-config-manager before Curity connects
 variables:
   - name: namespace
     alias: n
@@ -38,6 +38,7 @@ steps:
         curity:
           defaults:
             flush_enabled: true
+          analytics: true
           env_settings:
             dev:
               ram_quota_mb: 256
@@ -46,7 +47,22 @@ steps:
               num_replicas: 3
           scopes:
             _default:
-              collections: {}
+              collections:
+                accounts: {}
+                credentials: {}
+                sessions: {}
+                tokens: {}
+                delegations: {}
+                nonces: {}
+                linked_accounts: {}
+                devices: {}
+                audit: {}
+                dynamically_registered_clients: {}
+                database_clients: {}
+                buckets: {}
+                database_service_providers: {}
+                entities: {}
+                entity_relations: {}
   - name: Overwrite Curity k8s manifest (custom image with Couchbase JDBC driver)
     tool: file_write
     params:

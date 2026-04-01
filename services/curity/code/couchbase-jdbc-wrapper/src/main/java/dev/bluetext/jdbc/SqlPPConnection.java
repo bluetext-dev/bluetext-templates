@@ -14,11 +14,15 @@ import java.util.regex.Pattern;
  *
  * 1. ON CONFLICT DO UPDATE → UPSERT INTO
  * 2. Double-quoted identifiers → backtick-quoted
- * 3. Column aliases where SQL++ requires them
+ * 3. DDL statements (CREATE TABLE, etc.) → no-op (collections pre-created by SCM)
  */
 public class SqlPPConnection implements Connection {
 
     private final Connection delegate;
+    private final String catalog; // bucket name, e.g. "curity"
+    private final String host;    // Couchbase host for N1QL HTTP calls
+    private final String user;
+    private final String password;
 
     // Match: INSERT INTO "table" (...) VALUES (...) ON CONFLICT ("col") DO UPDATE SET ...
     private static final Pattern ON_CONFLICT = Pattern.compile(
@@ -26,18 +30,80 @@ public class SqlPPConnection implements Connection {
             Pattern.DOTALL
     );
 
-    public SqlPPConnection(Connection delegate) {
+    // DDL and session statements that Couchbase Analytics doesn't support.
+    // Collections are pre-created by service-config-manager, so these are safe to ignore.
+    private static final Pattern DDL_PATTERN = Pattern.compile(
+            "(?i)^\\s*(CREATE\\s+(TABLE|INDEX|UNIQUE\\s+INDEX|SEQUENCE)|ALTER\\s+TABLE|DROP\\s+(TABLE|INDEX|SEQUENCE)|TRUNCATE|SET\\s+).*"
+    );
+
+    // DML write statements that must go through N1QL Query service (Analytics is read-only)
+    private static final Pattern DML_WRITE = Pattern.compile(
+            "(?i)^\\s*(INSERT|UPDATE|DELETE|UPSERT|MERGE)\\s+.*"
+    );
+
+    // Matches a backtick-quoted table name that is NOT already qualified (no dots before it).
+    // Captures: FROM/INTO/UPDATE/JOIN followed by a single backtick-quoted identifier.
+    private static final Pattern UNQUALIFIED_TABLE = Pattern.compile(
+            "(?i)((?:FROM|INTO|UPDATE|JOIN)\\s+)(`[^`]+`)(?!\\s*\\.)"
+    );
+
+    public SqlPPConnection(Connection delegate, String catalog, String host, String user, String password) {
         this.delegate = delegate;
+        this.catalog = catalog;
+        this.host = host;
+        this.user = user;
+        this.password = password;
     }
 
-    private String translateSql(String sql) {
+    /**
+     * Returns true if the SQL is a DDL/session statement that should be no-op'd.
+     * Package-private so SqlPPStatement can reuse it.
+     */
+    static boolean isDdl(String sql) {
+        return sql != null && DDL_PATTERN.matcher(sql).matches();
+    }
+
+    /**
+     * Returns true if the SQL is a DML write (INSERT/UPDATE/DELETE/UPSERT).
+     * These must go through the N1QL Query service since Analytics is read-only.
+     */
+    static boolean isDmlWrite(String sql) {
+        return sql != null && DML_WRITE.matcher(sql).matches();
+    }
+
+    /**
+     * Translates PostgreSQL SQL to Couchbase SQL++ for Analytics (reads).
+     * Returns null for DDL statements (caller should use NoOpPreparedStatement).
+     * Package-private so SqlPPStatement can reuse it.
+     */
+    String translateSql(String sql) {
         if (sql == null) return null;
+        if (isDdl(sql)) return null;
 
         // Replace double-quoted identifiers with backtick-quoted (SQL++ style)
         sql = sql.replace('"', '`');
 
-        // Transform PostgreSQL UPSERT (INSERT ... ON CONFLICT ... DO UPDATE)
-        // to SQL++ UPSERT (UPSERT INTO ... VALUES ...)
+        // Qualify unqualified table names with bucket._default
+        if (catalog != null) {
+            sql = UNQUALIFIED_TABLE.matcher(sql).replaceAll(
+                    "$1`" + catalog + "`.`_default`.$2"
+            );
+        }
+
+        return sql;
+    }
+
+    /**
+     * Translates PostgreSQL SQL to N1QL for writes.
+     * Converts columnar INSERT to N1QL UPSERT with KEY/VALUE format.
+     */
+    String translateForN1ql(String sql) {
+        if (sql == null) return null;
+
+        // Replace double-quoted identifiers with backtick-quoted
+        sql = sql.replace('"', '`');
+
+        // Transform ON CONFLICT DO UPDATE → UPSERT
         var matcher = ON_CONFLICT.matcher(sql);
         if (matcher.matches()) {
             String table = matcher.group(1);
@@ -46,7 +112,48 @@ public class SqlPPConnection implements Connection {
             sql = "UPSERT INTO " + table + " (" + columns + ") VALUES (" + values + ")";
         }
 
+        // Qualify unqualified table names
+        if (catalog != null) {
+            sql = UNQUALIFIED_TABLE.matcher(sql).replaceAll(
+                    "$1`" + catalog + "`.`_default`.$2"
+            );
+        }
+
+        // Convert columnar INSERT INTO table (col1, col2) VALUES (v1, v2)
+        // to N1QL: UPSERT INTO table (KEY UUID(), VALUE {"col1": v1, "col2": v2})
+        sql = convertColumnarInsert(sql);
+
         return sql;
+    }
+
+    /**
+     * Converts columnar INSERT/UPSERT INTO table (`col1`, `col2`) VALUES (?, ?)
+     * to N1QL: UPSERT INTO table (KEY UUID(), VALUE {"col1": ?, "col2": ?})
+     */
+    private static final Pattern COLUMNAR_INSERT = Pattern.compile(
+            "(?i)(INSERT|UPSERT)\\s+INTO\\s+(\\S+)\\s*\\(([^)]+)\\)\\s*VALUES\\s*\\(([^)]+)\\)",
+            Pattern.DOTALL
+    );
+
+    private String convertColumnarInsert(String sql) {
+        var m = COLUMNAR_INSERT.matcher(sql);
+        if (!m.matches()) return sql;
+
+        String table = m.group(2);
+        String[] cols = m.group(3).split("\\s*,\\s*");
+        String[] vals = m.group(4).split("\\s*,\\s*");
+
+        // Build JSON object: {"col1": val1, "col2": val2, ...}
+        StringBuilder obj = new StringBuilder("{");
+        for (int i = 0; i < cols.length && i < vals.length; i++) {
+            if (i > 0) obj.append(", ");
+            // Strip backticks for JSON key
+            String key = cols[i].trim().replace("`", "");
+            obj.append("\"").append(key).append("\": ").append(vals[i].trim());
+        }
+        obj.append("}");
+
+        return "UPSERT INTO " + table + " (KEY, VALUE) VALUES (UUID(), " + obj + ")";
     }
 
     @Override
@@ -56,12 +163,16 @@ public class SqlPPConnection implements Connection {
 
     @Override
     public PreparedStatement prepareStatement(String sql) throws SQLException {
+        if (isDdl(sql)) return new NoOpPreparedStatement();
+        if (isDmlWrite(sql)) return new QueryPreparedStatement(host, user, password, translateForN1ql(sql));
         return delegate.prepareStatement(translateSql(sql));
     }
 
     @Override
     public CallableStatement prepareCall(String sql) throws SQLException {
-        return delegate.prepareCall(translateSql(sql));
+        String translated = translateSql(sql);
+        if (translated == null) return delegate.prepareCall("SELECT 1");
+        return delegate.prepareCall(translated);
     }
 
     @Override
@@ -70,14 +181,14 @@ public class SqlPPConnection implements Connection {
     }
 
     @Override public Statement createStatement(int resultSetType, int resultSetConcurrency) throws SQLException { return new SqlPPStatement(delegate.createStatement(resultSetType, resultSetConcurrency), this); }
-    @Override public PreparedStatement prepareStatement(String sql, int resultSetType, int resultSetConcurrency) throws SQLException { return delegate.prepareStatement(translateSql(sql), resultSetType, resultSetConcurrency); }
-    @Override public CallableStatement prepareCall(String sql, int resultSetType, int resultSetConcurrency) throws SQLException { return delegate.prepareCall(translateSql(sql), resultSetType, resultSetConcurrency); }
+    @Override public PreparedStatement prepareStatement(String sql, int resultSetType, int resultSetConcurrency) throws SQLException { if (isDdl(sql)) return new NoOpPreparedStatement(); if (isDmlWrite(sql)) return new QueryPreparedStatement(host, user, password, translateForN1ql(sql)); return delegate.prepareStatement(translateSql(sql), resultSetType, resultSetConcurrency); }
+    @Override public CallableStatement prepareCall(String sql, int resultSetType, int resultSetConcurrency) throws SQLException { String t = translateSql(sql); if (t == null) return delegate.prepareCall("SELECT 1", resultSetType, resultSetConcurrency); return delegate.prepareCall(t, resultSetType, resultSetConcurrency); }
     @Override public Statement createStatement(int resultSetType, int resultSetConcurrency, int resultSetHoldability) throws SQLException { return new SqlPPStatement(delegate.createStatement(resultSetType, resultSetConcurrency, resultSetHoldability), this); }
-    @Override public PreparedStatement prepareStatement(String sql, int resultSetType, int resultSetConcurrency, int resultSetHoldability) throws SQLException { return delegate.prepareStatement(translateSql(sql), resultSetType, resultSetConcurrency, resultSetHoldability); }
-    @Override public CallableStatement prepareCall(String sql, int resultSetType, int resultSetConcurrency, int resultSetHoldability) throws SQLException { return delegate.prepareCall(translateSql(sql), resultSetType, resultSetConcurrency, resultSetHoldability); }
-    @Override public PreparedStatement prepareStatement(String sql, int autoGeneratedKeys) throws SQLException { return delegate.prepareStatement(translateSql(sql), autoGeneratedKeys); }
-    @Override public PreparedStatement prepareStatement(String sql, int[] columnIndexes) throws SQLException { return delegate.prepareStatement(translateSql(sql), columnIndexes); }
-    @Override public PreparedStatement prepareStatement(String sql, String[] columnNames) throws SQLException { return delegate.prepareStatement(translateSql(sql), columnNames); }
+    @Override public PreparedStatement prepareStatement(String sql, int resultSetType, int resultSetConcurrency, int resultSetHoldability) throws SQLException { if (isDdl(sql)) return new NoOpPreparedStatement(); if (isDmlWrite(sql)) return new QueryPreparedStatement(host, user, password, translateForN1ql(sql)); return delegate.prepareStatement(translateSql(sql), resultSetType, resultSetConcurrency, resultSetHoldability); }
+    @Override public CallableStatement prepareCall(String sql, int resultSetType, int resultSetConcurrency, int resultSetHoldability) throws SQLException { String t = translateSql(sql); if (t == null) return delegate.prepareCall("SELECT 1", resultSetType, resultSetConcurrency, resultSetHoldability); return delegate.prepareCall(t, resultSetType, resultSetConcurrency, resultSetHoldability); }
+    @Override public PreparedStatement prepareStatement(String sql, int autoGeneratedKeys) throws SQLException { if (isDdl(sql)) return new NoOpPreparedStatement(); if (isDmlWrite(sql)) return new QueryPreparedStatement(host, user, password, translateForN1ql(sql)); return delegate.prepareStatement(translateSql(sql), autoGeneratedKeys); }
+    @Override public PreparedStatement prepareStatement(String sql, int[] columnIndexes) throws SQLException { if (isDdl(sql)) return new NoOpPreparedStatement(); if (isDmlWrite(sql)) return new QueryPreparedStatement(host, user, password, translateForN1ql(sql)); return delegate.prepareStatement(translateSql(sql), columnIndexes); }
+    @Override public PreparedStatement prepareStatement(String sql, String[] columnNames) throws SQLException { if (isDdl(sql)) return new NoOpPreparedStatement(); if (isDmlWrite(sql)) return new QueryPreparedStatement(host, user, password, translateForN1ql(sql)); return delegate.prepareStatement(translateSql(sql), columnNames); }
 
     // All other Connection methods delegate directly
     @Override public void setAutoCommit(boolean autoCommit) throws SQLException { delegate.setAutoCommit(autoCommit); }

@@ -43,8 +43,12 @@ public class CouchbasePostgresDriver implements Driver {
             return null;
         }
         ensureCouchbaseDriver();
+        String catalog = extractCatalog(url);
+        String host = extractHost(url);
+        String user = extractParam(url, "user");
+        String password = extractParam(url, "password");
         Connection raw = couchbaseDriver.connect(toCouchbaseUrl(url), info);
-        return raw != null ? new SqlPPConnection(raw) : null;
+        return raw != null ? new SqlPPConnection(raw, catalog, host, user, password) : null;
     }
 
     @Override
@@ -60,6 +64,34 @@ public class CouchbasePostgresDriver implements Driver {
 
     private String toCouchbaseUrl(String url) {
         return CB_PREFIX + url.substring(PREFIX.length());
+    }
+
+    /**
+     * Extract the host from the connection URL.
+     * URL format: jdbc:postgresql:couchbase://host?params
+     */
+    private String extractHost(String url) {
+        String after = url.substring(PREFIX.length()); // host?params
+        int qIdx = after.indexOf('?');
+        return qIdx >= 0 ? after.substring(0, qIdx) : after;
+    }
+
+    /**
+     * Extract a query parameter from the connection URL.
+     */
+    private String extractParam(String url, String name) {
+        int qIdx = url.indexOf('?');
+        if (qIdx < 0) return null;
+        for (String param : url.substring(qIdx + 1).split("&")) {
+            if (param.startsWith(name + "=")) {
+                return param.substring(name.length() + 1);
+            }
+        }
+        return null;
+    }
+
+    private String extractCatalog(String url) {
+        return extractParam(url, "catalog");
     }
 
     private synchronized void ensureCouchbaseDriver() throws SQLException {

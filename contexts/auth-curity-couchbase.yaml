@@ -13,7 +13,7 @@ caveats:
 tips:
   - Couchbase UI at couchbase.main.bluetext.localhost
   - Register test users at curity.main.bluetext.localhost/authn/registration
-  - The Couchbase plugin auto-creates collections (curity-accounts, curity-tokens, etc.) on first startup
+  - service-config-manager creates the 15 Curity collections and enables Analytics on the curity bucket
 pitfalls:
   - Couchbase must be fully initialized before Curity starts — the init Job handles this, but give it time
   - service-config-manager must be running for Couchbase bucket configuration

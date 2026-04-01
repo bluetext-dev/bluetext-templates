@@ -40,34 +40,42 @@ jdbc:postgresql:couchbase://couchbase-headless/curity?user=Administrator&passwor
 
 ## Architecture
 
+Hybrid read/write path: reads go through Analytics JDBC, writes go through N1QL HTTP.
+
 ```
 Curity JDBC Plugin
-  ↓ connection string: jdbc:postgresql:couchbase://host
+  ↓ connection string: jdbc:postgresql:couchbase://host?catalog=curity
   ↓ dialect detected: PostgreSQL ✓
   ↓ driver class: dev.bluetext.jdbc.CouchbasePostgresDriver
   ↓
 CouchbasePostgresDriver
-  ↓ transforms URL: jdbc:couchbase:analytics://host
-  ↓ delegates to: com.couchbase.client.jdbc.CouchbaseDriver
+  ↓ extracts: catalog, host, user, password from URL
+  ↓ delegates to: com.couchbase.client.jdbc.CouchbaseDriver (Analytics)
   ↓ wraps connection in: SqlPPConnection
   ↓
-SqlPPConnection
-  ↓ translates SQL: PostgreSQL → SQL++
-  ↓ double-quotes → backticks
-  ↓ ON CONFLICT DO UPDATE → UPSERT
-  ↓
-Couchbase Analytics Service (port 8095)
+SqlPPConnection (routes by statement type)
+  ├── DDL (CREATE TABLE, etc.) → NoOpPreparedStatement (silent no-op)
+  ├── SELECT → Analytics JDBC (3-part qualified: bucket.scope.collection)
+  └── INSERT/UPDATE/DELETE/UPSERT → QueryPreparedStatement
+       ↓ converts columnar INSERT to N1QL UPSERT (KEY, VALUE) format
+       ↓ executes via HTTP POST to port 8093 (N1QL Query service)
+       ↓ returns mutation count
 ```
+
+**Why hybrid?** The Couchbase JDBC driver v1.0.5 is Analytics-only (read-only).
+Analytics doesn't support INSERT/UPDATE/DELETE. Writes go through the N1QL Query
+service via HTTP REST API, which supports full DML with KEY/VALUE document syntax.
 
 ## Requirements
 
 - Couchbase Enterprise Edition with Analytics service enabled (`cbas`)
 - Analytics memory quota: minimum 1024MB
+- Primary indexes on all collections (for N1QL query support)
 - Couchbase JDBC driver: `com.couchbase.client:couchbase-jdbc-driver:1.0.5` (Maven Central)
 
-## Remaining Work
+## DDL Interception
 
-Curity expects 15 tables (collections) to exist before it can operate:
+Curity's PostgreSQL dialect sends DDL statements (CREATE TABLE, CREATE INDEX, ALTER TABLE, etc.) that Couchbase Analytics doesn't support. Since the 15 required collections are pre-created by service-config-manager:
 
 ```
 accounts, credentials, sessions, tokens, delegations, nonces,
@@ -76,11 +84,13 @@ database_clients, buckets, database_service_providers, entities,
 entity_relations
 ```
 
-These need to be:
-1. Created as Couchbase collections in the `curity` bucket
-2. Linked as Analytics datasets so the JDBC driver can query them
+...the wrapper intercepts all DDL and returns no-op results via `NoOpPreparedStatement`. DML (SELECT, INSERT, UPDATE, DELETE, UPSERT) passes through normally with SQL++ translation.
 
-This initialization step mirrors HSQLDB's `init-db` initContainer which runs `hsqldb-create_database.sql`.
+Intercepted statement types: `CREATE TABLE/INDEX/SEQUENCE`, `ALTER TABLE`, `DROP TABLE/INDEX/SEQUENCE`, `TRUNCATE`, `SET`.
+
+## Collection & Analytics Setup
+
+Collections are created by service-config-manager in the `curity` bucket (`_default` scope). Analytics is enabled on the bucket via `ALTER BUCKET ... ENABLE ANALYTICS`, which auto-links all collections as Analytics datasets. This is configured via the `analytics: true` flag in the couchbase.yaml bucket config (set by the `auth/curity-couchbase` blueprint).
 
 ## License
 

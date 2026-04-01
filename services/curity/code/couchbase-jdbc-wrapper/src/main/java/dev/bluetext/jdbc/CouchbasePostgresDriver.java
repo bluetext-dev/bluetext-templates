@@ -43,7 +43,8 @@ public class CouchbasePostgresDriver implements Driver {
             return null;
         }
         ensureCouchbaseDriver();
-        return couchbaseDriver.connect(toCouchbaseUrl(url), info);
+        Connection raw = couchbaseDriver.connect(toCouchbaseUrl(url), info);
+        return raw != null ? new SqlPPConnection(raw) : null;
     }
 
     @Override

@@ -1,0 +1,173 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: curity
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: curity
+  template:
+    metadata:
+      labels:
+        app: curity
+    spec:
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+      initContainers:
+        - name: config-templater
+          image: busybox:stable
+          command: ['sh', '-c', 'for f in /config-template/*.xml; do sed "s/__NAMESPACE__/$POD_NAMESPACE/g" "$f" > "/config/$(basename $f)"; done']
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          volumeMounts:
+            - name: config-template
+              mountPath: /config-template
+            - name: init-config
+              mountPath: /config
+        - name: init-db
+          image: curity.azurecr.io/curity/idsvr:latest
+          command:
+            - sh
+            - -c
+            - |
+              if [ ! -f /hsqldb/curity.script ] || ! grep -q "CREATE TABLE" /hsqldb/curity.script; then
+                echo "Initializing HSQLDB schema..."
+                java -cp "/opt/idsvr/lib/hsqldb-cli/sqltool-2.7.2.jar:/opt/idsvr/lib/hsqldb-cli/hsqldb-2.7.2.jar" \
+                  org.hsqldb.cmdline.SqlTool \
+                  --autoCommit \
+                  --inlineRc="url=jdbc:hsqldb:file:/hsqldb/curity,user=,password=" \
+                  /opt/idsvr/etc/hsqldb-create_database.sql
+                echo "Schema initialized."
+              else
+                echo "HSQLDB schema already exists, skipping."
+              fi
+          volumeMounts:
+            - name: hsqldb-data
+              mountPath: /hsqldb
+      containers:
+        - name: curity
+          image: curity.azurecr.io/curity/idsvr:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8443
+              name: runtime
+            - containerPort: 6749
+              name: admin
+          env:
+            - name: PASSWORD
+              value: admin
+          readinessProbe:
+            httpGet:
+              path: /admin/alive
+              port: 6749
+              scheme: HTTPS
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            failureThreshold: 12
+          volumeMounts:
+            - name: init-config
+              mountPath: /opt/idsvr/etc/init
+            - name: hsqldb-data
+              mountPath: /opt/idsvr/var/hsqldb
+            - name: license
+              mountPath: /opt/idsvr/etc/init/license
+              readOnly: true
+      volumes:
+        - name: config-template
+          hostPath:
+            path: /var/mnt/project/config/curity
+            type: DirectoryOrCreate
+        - name: init-config
+          emptyDir: {}
+        - name: hsqldb-data
+          hostPath:
+            path: /var/mnt/project/.bluetext/curity-db
+            type: DirectoryOrCreate
+        - name: license
+          secret:
+            secretName: curity-license
+            optional: true
+            items:
+              - key: license-key
+                path: default
+---
+apiVersion: traefik.io/v1alpha1
+kind: ServersTransport
+metadata:
+  name: curity-transport
+spec:
+  insecureSkipVerify: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: curity
+spec:
+  type: ClusterIP
+  selector:
+    app: curity
+  ports:
+    - name: runtime
+      port: 80
+      targetPort: 8443
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: curity-admin
+spec:
+  type: ClusterIP
+  selector:
+    app: curity
+  ports:
+    - name: admin
+      port: 80
+      targetPort: 6749
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: curity-headers
+spec:
+  headers:
+    customRequestHeaders:
+      X-Forwarded-Proto: "http"
+      X-Forwarded-Port: "8888"
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: curity
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`curity.{{NAMESPACE}}.bluetext.localhost`) || Host(`curity.{{NAMESPACE}}.bluetext.lvh.me`)
+      kind: Rule
+      middlewares:
+        - name: curity-headers
+      services:
+        - name: curity
+          port: 80
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: curity-admin
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`curity-admin.{{NAMESPACE}}.bluetext.localhost`)
+      kind: Rule
+      services:
+        - name: curity-admin
+          port: 80
+          scheme: https
+          serversTransport: curity-transport

@@ -31,6 +31,8 @@ spec:
               name: query
             - containerPort: 8094
               name: search
+            - containerPort: 8095
+              name: analytics
             - containerPort: 11210
               name: data
           readinessProbe:
@@ -81,6 +83,9 @@ spec:
     - name: search
       port: 8094
       targetPort: 8094
+    - name: analytics
+      port: 8095
+      targetPort: 8095
     - name: data
       port: 11210
       targetPort: 11210
@@ -106,6 +111,9 @@ spec:
     - name: search
       port: 8094
       targetPort: 8094
+    - name: analytics
+      port: 8095
+      targetPort: 8095
     - name: data
       port: 11210
       targetPort: 11210

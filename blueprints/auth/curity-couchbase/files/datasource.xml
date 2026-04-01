@@ -4,7 +4,7 @@
       <data-source>
         <id>default-datasource</id>
         <jdbc xmlns="https://curity.se/ns/ext-conf/jdbc">
-          <connection-string>jdbc:postgresql:couchbase://__COUCHBASE_HOST__:8093?catalog=curity&amp;user=__COUCHBASE_USERNAME__&amp;password=__COUCHBASE_PASSWORD__&amp;ssl=__COUCHBASE_TLS__</connection-string>
+          <connection-string>jdbc:postgresql:couchbase://__COUCHBASE_HOST__:8095?catalog=curity&amp;user=__COUCHBASE_USERNAME__&amp;password=__COUCHBASE_PASSWORD__&amp;ssl=__COUCHBASE_TLS__</connection-string>
           <driver>dev.bluetext.jdbc.CouchbasePostgresDriver</driver>
           <standard-credentials-mode/>
         </jdbc>

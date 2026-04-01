@@ -6,6 +6,7 @@ ports:
   - 8092
   - 8093
   - 8094
+  - 8095
   - 11210
 dev_mode: in-cluster
 dependencies: []

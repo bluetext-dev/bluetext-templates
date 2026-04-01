@@ -120,9 +120,10 @@ class CouchbaseController:
             'data': {
                 'username': self.username,
                 'password': self.password,
-                'services': 'kv,n1ql,index,fts,eventing',
+                'services': 'kv,n1ql,index,fts,eventing,cbas',
                 'hostname': '127.0.0.1',
                 'memoryQuota': '256',
+                'cbasMemoryQuota': '256',
                 'sendStats': 'false',
                 'clusterName': 'couchbase',
                 'setDefaultMemQuotas': 'true',

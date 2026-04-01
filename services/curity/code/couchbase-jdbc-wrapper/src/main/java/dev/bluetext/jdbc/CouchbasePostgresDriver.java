@@ -8,15 +8,19 @@ import java.util.logging.Logger;
  * JDBC driver wrapper that presents Couchbase as a PostgreSQL-compatible datasource.
  *
  * Curity's JDBC plugin detects the SQL dialect from the connection string prefix.
- * This wrapper accepts {@code jdbc:postgresql+couchbase://host:port/catalog} and
- * delegates to the Couchbase JDBC driver ({@code jdbc:couchbase:query://host:port}).
+ * This wrapper accepts {@code jdbc:postgresql://host:8093/...} and delegates to
+ * the Couchbase JDBC driver ({@code jdbc:couchbase:query://host:8093/...}).
+ *
+ * It intercepts only connections to port 8093 (Couchbase query service) — standard
+ * PostgreSQL connections (port 5432) pass through to the real PostgreSQL driver.
  *
  * Couchbase SQL++ is compatible with PostgreSQL SQL for the operations Curity uses
  * (accounts, tokens, sessions, credentials).
  */
 public class CouchbasePostgresDriver implements Driver {
 
-    private static final String PREFIX = "jdbc:postgresql+couchbase://";
+    private static final String PG_PREFIX = "jdbc:postgresql://";
+    private static final String CB_PREFIX = "jdbc:couchbase:query://";
     private Driver couchbaseDriver;
 
     static {
@@ -29,7 +33,7 @@ public class CouchbasePostgresDriver implements Driver {
 
     @Override
     public boolean acceptsURL(String url) {
-        return url != null && url.startsWith(PREFIX);
+        return url != null && url.startsWith(PG_PREFIX) && url.contains(":8093");
     }
 
     @Override
@@ -38,21 +42,23 @@ public class CouchbasePostgresDriver implements Driver {
             return null;
         }
         ensureCouchbaseDriver();
-        String couchbaseUrl = "jdbc:couchbase:query://" + url.substring(PREFIX.length());
-        return couchbaseDriver.connect(couchbaseUrl, info);
+        return couchbaseDriver.connect(toCouchbaseUrl(url), info);
     }
 
     @Override
     public DriverPropertyInfo[] getPropertyInfo(String url, Properties info) throws SQLException {
         ensureCouchbaseDriver();
-        String couchbaseUrl = "jdbc:couchbase:query://" + url.substring(PREFIX.length());
-        return couchbaseDriver.getPropertyInfo(couchbaseUrl, info);
+        return couchbaseDriver.getPropertyInfo(toCouchbaseUrl(url), info);
     }
 
     @Override public int getMajorVersion() { return 1; }
     @Override public int getMinorVersion() { return 0; }
     @Override public boolean jdbcCompliant() { return false; }
     @Override public Logger getParentLogger() { return Logger.getLogger("dev.bluetext.jdbc"); }
+
+    private String toCouchbaseUrl(String url) {
+        return CB_PREFIX + url.substring(PG_PREFIX.length());
+    }
 
     private synchronized void ensureCouchbaseDriver() throws SQLException {
         if (couchbaseDriver == null) {

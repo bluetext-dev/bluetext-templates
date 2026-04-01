@@ -21,7 +21,7 @@ import java.util.logging.Logger;
 public class CouchbasePostgresDriver implements Driver {
 
     private static final String PREFIX = "jdbc:postgresql:couchbase://";
-    private static final String CB_PREFIX = "jdbc:couchbase:query://";
+    private static final String CB_PREFIX = "jdbc:couchbase:analytics://";
     private Driver couchbaseDriver;
 
     static {

@@ -1,37 +1,30 @@
 package dev.bluetext.jdbc;
 
-import java.io.*;
 import java.math.BigDecimal;
-import java.net.HttpURLConnection;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.sql.*;
+import java.time.Duration;
 import java.util.Base64;
 import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * PreparedStatement that executes all SQL (reads and writes) via HTTP
- * against the Couchbase N1QL Query service (port 8093).
- *
- * Reads return a QueryResultSet parsed from the N1QL JSON response.
- * Writes return the mutation count from the N1QL metrics.
+ * PreparedStatement that executes all SQL via HTTP against the Couchbase N1QL
+ * Query service using the Connection's shared HttpClient for connection reuse.
  */
 public class QueryPreparedStatement extends NoOpPreparedStatement {
 
-    private final String host;
-    private final String user;
-    private final String password;
+    private final SqlPPConnection connection;
     private final String sql;
     private final Map<Integer, Object> params = new TreeMap<>();
 
-    // Cached results from last execute()
     private QueryResultSet lastResultSet;
     private int lastUpdateCount = -1;
 
-    public QueryPreparedStatement(String host, String user, String password, String sql) {
-        this.host = host;
-        this.user = user;
-        this.password = password;
+    public QueryPreparedStatement(SqlPPConnection connection, String sql) {
+        this.connection = connection;
         this.sql = sql;
     }
 
@@ -63,7 +56,7 @@ public class QueryPreparedStatement extends NoOpPreparedStatement {
 
     @Override public void clearParameters() { params.clear(); }
 
-    // --- Execute: reads ---
+    // --- Execute ---
 
     @Override
     public ResultSet executeQuery() throws SQLException {
@@ -75,11 +68,8 @@ public class QueryPreparedStatement extends NoOpPreparedStatement {
 
     @Override
     public ResultSet executeQuery(String sql) throws SQLException {
-        // Ad-hoc SQL (from Statement interface) — not typically used with PreparedStatement
-        return new QueryPreparedStatement(host, user, password, sql).executeQuery();
+        return new QueryPreparedStatement(connection, sql).executeQuery();
     }
-
-    // --- Execute: writes ---
 
     @Override
     public int executeUpdate() throws SQLException {
@@ -91,10 +81,8 @@ public class QueryPreparedStatement extends NoOpPreparedStatement {
 
     @Override
     public int executeUpdate(String sql) throws SQLException {
-        return new QueryPreparedStatement(host, user, password, sql).executeUpdate();
+        return new QueryPreparedStatement(connection, sql).executeUpdate();
     }
-
-    // --- Execute: generic ---
 
     @Override
     public boolean execute() throws SQLException {
@@ -113,87 +101,62 @@ public class QueryPreparedStatement extends NoOpPreparedStatement {
 
     @Override
     public boolean execute(String sql) throws SQLException {
-        return new QueryPreparedStatement(host, user, password, sql).execute();
+        return new QueryPreparedStatement(connection, sql).execute();
     }
 
-    // --- Result accessors ---
+    @Override public ResultSet getResultSet() { return lastResultSet; }
+    @Override public int getUpdateCount() { return lastUpdateCount; }
+    @Override public boolean getMoreResults() { lastResultSet = null; lastUpdateCount = -1; return false; }
+    @Override public Connection getConnection() { return connection; }
 
-    @Override
-    public ResultSet getResultSet() throws SQLException {
-        return lastResultSet;
-    }
-
-    @Override
-    public int getUpdateCount() throws SQLException {
-        return lastUpdateCount;
-    }
-
-    @Override
-    public boolean getMoreResults() throws SQLException {
-        lastResultSet = null;
-        lastUpdateCount = -1;
-        return false;
-    }
-
-    // --- HTTP execution ---
+    // --- N1QL HTTP execution via shared HttpClient ---
 
     private String executeHttp() throws SQLException {
         try {
             String n1ql = replacePositionalParams(sql);
+            String jsonBody = buildJsonBody(n1ql);
 
-            // Build JSON body with statement + args
-            StringBuilder json = new StringBuilder();
-            json.append("{\"statement\":").append(toJsonValue(n1ql));
-            if (!params.isEmpty()) {
-                json.append(",\"args\":[");
-                boolean first = true;
-                for (Map.Entry<Integer, Object> entry : params.entrySet()) {
-                    if (!first) json.append(",");
-                    json.append(toJsonValue(entry.getValue()));
-                    first = false;
-                }
-                json.append("]");
-            }
-            json.append("}");
+            HttpRequest request = HttpRequest.newBuilder(connection.n1qlUri)
+                    .timeout(Duration.ofSeconds(75))
+                    .header("Content-Type", "application/json")
+                    .header("Authorization", connection.authHeader)
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonBody, StandardCharsets.UTF_8))
+                    .build();
 
-            java.net.URL url = new java.net.URL("http://" + host + ":8093/query/service");
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestMethod("POST");
-            conn.setDoOutput(true);
-            conn.setConnectTimeout(10000);
-            conn.setReadTimeout(75000);
-            conn.setRequestProperty("Content-Type", "application/json");
-            String auth = Base64.getEncoder().encodeToString(
-                    (user + ":" + password).getBytes(StandardCharsets.UTF_8));
-            conn.setRequestProperty("Authorization", "Basic " + auth);
+            HttpResponse<String> response = connection.httpClient.send(
+                    request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
 
-            try (OutputStream os = conn.getOutputStream()) {
-                os.write(json.toString().getBytes(StandardCharsets.UTF_8));
+            String body = response.body();
+
+            // For non-SELECT: fail on HTTP errors
+            if (response.statusCode() >= 400 && !sql.trim().toUpperCase().startsWith("SELECT")) {
+                throw new SQLException("N1QL query failed (HTTP " + response.statusCode() + "): " + body);
             }
 
-            int httpCode = conn.getResponseCode();
-            InputStream is = httpCode >= 400 ? conn.getErrorStream() : conn.getInputStream();
-            String responseBody;
-            try (BufferedReader br = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
-                StringBuilder sb = new StringBuilder();
-                String line;
-                while ((line = br.readLine()) != null) sb.append(line);
-                responseBody = sb.toString();
-            }
-
-            // Let QueryResultSet handle error detection for SELECTs.
-            // For writes, check here.
-            if (httpCode >= 400 && !sql.trim().toUpperCase().startsWith("SELECT")) {
-                throw new SQLException("N1QL query failed (HTTP " + httpCode + "): " + responseBody);
-            }
-
-            return responseBody;
+            return body;
 
         } catch (SQLException e) {
             throw e;
         } catch (Exception e) {
             throw new SQLException("N1QL HTTP request failed: " + e.getMessage(), e);
         }
+    }
+
+    private String buildJsonBody(String n1ql) {
+        StringBuilder json = new StringBuilder();
+        json.append("{\"statement\":").append(jsonString(n1ql));
+        if (!params.isEmpty()) {
+            json.append(",\"args\":[");
+            boolean first = true;
+            for (Map.Entry<Integer, Object> entry : params.entrySet()) {
+                if (!first) json.append(",");
+                json.append(toJsonValue(entry.getValue()));
+                first = false;
+            }
+            json.append("]");
+        }
+        json.append("}");
+        return json.toString();
     }
 
     private int extractMutationCount(String response) {
@@ -212,9 +175,6 @@ public class QueryPreparedStatement extends NoOpPreparedStatement {
         return 1;
     }
 
-    /**
-     * Replace ? placeholders with $1, $2, ... for N1QL positional parameters.
-     */
     private String replacePositionalParams(String sql) {
         StringBuilder result = new StringBuilder();
         int paramIndex = 1;
@@ -233,20 +193,40 @@ public class QueryPreparedStatement extends NoOpPreparedStatement {
         return result.toString();
     }
 
-    private String toJsonValue(Object value) {
+    // --- JSON serialization (RFC 8259 compliant) ---
+
+    static String toJsonValue(Object value) {
         if (value == null) return "null";
-        if (value instanceof String) return "\"" + ((String) value)
-                .replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\n", "\\n")
-                .replace("\r", "\\r")
-                .replace("\t", "\\t") + "\"";
         if (value instanceof Number || value instanceof Boolean) return value.toString();
-        return "\"" + value.toString()
-                .replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\n", "\\n")
-                .replace("\r", "\\r")
-                .replace("\t", "\\t") + "\"";
+        return jsonString(value.toString());
+    }
+
+    /**
+     * Encode a string as a JSON string literal with full RFC 8259 escaping.
+     */
+    static String jsonString(String s) {
+        if (s == null) return "null";
+        StringBuilder sb = new StringBuilder(s.length() + 16);
+        sb.append('"');
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            switch (c) {
+                case '"':  sb.append("\\\""); break;
+                case '\\': sb.append("\\\\"); break;
+                case '\b': sb.append("\\b"); break;
+                case '\f': sb.append("\\f"); break;
+                case '\n': sb.append("\\n"); break;
+                case '\r': sb.append("\\r"); break;
+                case '\t': sb.append("\\t"); break;
+                default:
+                    if (c < 0x20) {
+                        sb.append(String.format("\\u%04x", (int) c));
+                    } else {
+                        sb.append(c);
+                    }
+            }
+        }
+        sb.append('"');
+        return sb.toString();
     }
 }

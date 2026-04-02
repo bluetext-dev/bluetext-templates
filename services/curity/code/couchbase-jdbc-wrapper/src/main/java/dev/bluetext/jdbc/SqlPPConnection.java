@@ -1,13 +1,21 @@
 package dev.bluetext.jdbc;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.sql.*;
+import java.time.Duration;
+import java.util.Base64;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Executor;
 import java.util.regex.Pattern;
 
 /**
- * Connection wrapper that routes all SQL through the Couchbase N1QL Query service.
+ * Self-contained JDBC Connection that routes all SQL through the Couchbase N1QL
+ * Query service via HTTP. No external JDBC driver dependency.
  *
  * Translates PostgreSQL SQL to Couchbase SQL++:
  * 1. Double-quoted identifiers → backtick-quoted
@@ -15,18 +23,25 @@ import java.util.regex.Pattern;
  * 3. Columnar INSERT → N1QL UPSERT (KEY, VALUE) format
  * 4. Table names qualified with bucket._default
  * 5. DDL (CREATE TABLE, etc.) → silent no-op
- *
- * All reads and writes go through N1QL HTTP (port 8093) for strong consistency.
  */
 public class SqlPPConnection implements Connection {
 
-    private final Connection delegate; // kept for lifecycle methods (isValid, close, etc.)
-    final String catalog;   // bucket name, e.g. "curity"
-    final String host;      // Couchbase host for N1QL HTTP
+    final String catalog;
+    final String host;
     final String user;
     final String password;
+    final HttpClient httpClient;
+    final String authHeader;
+    final URI n1qlUri;
 
-    // Match: INSERT INTO "table" (...) VALUES (...) ON CONFLICT ("col") DO UPDATE SET ...
+    private boolean closed = false;
+    private boolean autoCommit = true;
+    private boolean readOnly = false;
+    private int transactionIsolation = Connection.TRANSACTION_READ_COMMITTED;
+
+    // --- SQL translation patterns ---
+
+    // INSERT INTO "table" (...) VALUES (...) ON CONFLICT ("col") DO UPDATE SET ...
     private static final Pattern ON_CONFLICT = Pattern.compile(
             "(?i)INSERT\\s+INTO\\s+(\\S+)\\s*\\(([^)]+)\\)\\s*VALUES\\s*\\(([^)]+)\\)\\s*ON\\s+CONFLICT\\s*\\([^)]+\\)\\s*DO\\s+UPDATE\\s+SET\\s+(.*)",
             Pattern.DOTALL
@@ -48,17 +63,39 @@ public class SqlPPConnection implements Connection {
             Pattern.DOTALL
     );
 
-    public SqlPPConnection(Connection delegate, String catalog, String host, String user, String password) {
-        this.delegate = delegate;
+    public SqlPPConnection(String catalog, String host, String user, String password) throws SQLException {
         this.catalog = catalog;
         this.host = host;
         this.user = user;
         this.password = password;
+        this.n1qlUri = URI.create("http://" + host + ":8093/query/service");
+        this.authHeader = "Basic " + Base64.getEncoder().encodeToString(
+                (user + ":" + password).getBytes(StandardCharsets.UTF_8));
+        this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .build();
+
+        // Verify connectivity
+        try {
+            HttpRequest ping = HttpRequest.newBuilder(n1qlUri)
+                    .timeout(Duration.ofSeconds(10))
+                    .header("Content-Type", "application/json")
+                    .header("Authorization", authHeader)
+                    .POST(HttpRequest.BodyPublishers.ofString("{\"statement\":\"SELECT 1\"}"))
+                    .build();
+            HttpResponse<String> resp = httpClient.send(ping, HttpResponse.BodyHandlers.ofString());
+            if (resp.statusCode() >= 400) {
+                throw new SQLException("Cannot connect to Couchbase N1QL at " + host + ":8093 (HTTP " + resp.statusCode() + ")");
+            }
+        } catch (SQLException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new SQLException("Cannot connect to Couchbase N1QL at " + host + ":8093: " + e.getMessage(), e);
+        }
     }
 
-    /**
-     * Returns true if the SQL is DDL that should be silently no-op'd.
-     */
+    // --- SQL translation ---
+
     static boolean isDdl(String sql) {
         return sql != null && DDL_PATTERN.matcher(sql).matches();
     }
@@ -91,18 +128,11 @@ public class SqlPPConnection implements Connection {
         }
 
         // Columnar INSERT → N1QL UPSERT (KEY, VALUE) format
-        // Must come after table qualification so the table is already 3-part qualified
         sql = convertColumnarInsert(sql);
 
         return sql;
     }
 
-    /**
-     * Converts INSERT/UPSERT INTO table (`col1`, `col2`) VALUES (?, ?)
-     * to N1QL: UPSERT INTO table (KEY, VALUE) VALUES (UUID(), {"col1": ?, "col2": ?})
-     *
-     * Safe for Curity's usage where VALUES are always ? placeholders.
-     */
     private String convertColumnarInsert(String sql) {
         var m = COLUMNAR_INSERT.matcher(sql);
         if (!m.matches()) return sql;
@@ -122,13 +152,14 @@ public class SqlPPConnection implements Connection {
         return "UPSERT INTO " + table + " (KEY, VALUE) VALUES (UUID(), " + obj + ")";
     }
 
-    // --- PreparedStatement creation: all go through QueryPreparedStatement ---
+    // --- Statement/PreparedStatement creation ---
 
     @Override
     public PreparedStatement prepareStatement(String sql) throws SQLException {
+        checkClosed();
         String translated = translate(sql);
         if (translated == null) return new NoOpPreparedStatement();
-        return new QueryPreparedStatement(host, user, password, translated);
+        return new QueryPreparedStatement(this, translated);
     }
 
     @Override public PreparedStatement prepareStatement(String sql, int a, int b) throws SQLException { return prepareStatement(sql); }
@@ -137,65 +168,82 @@ public class SqlPPConnection implements Connection {
     @Override public PreparedStatement prepareStatement(String sql, int[] a) throws SQLException { return prepareStatement(sql); }
     @Override public PreparedStatement prepareStatement(String sql, String[] a) throws SQLException { return prepareStatement(sql); }
 
-    // --- Statement creation ---
-
-    @Override
-    public Statement createStatement() throws SQLException {
-        return new SqlPPStatement(this);
-    }
-
+    @Override public Statement createStatement() throws SQLException { checkClosed(); return new SqlPPStatement(this); }
     @Override public Statement createStatement(int a, int b) throws SQLException { return createStatement(); }
     @Override public Statement createStatement(int a, int b, int c) throws SQLException { return createStatement(); }
 
-    // --- CallableStatement (stored procedures — not used by Curity) ---
+    @Override public CallableStatement prepareCall(String sql) throws SQLException { throw new SQLFeatureNotSupportedException("Stored procedures not supported"); }
+    @Override public CallableStatement prepareCall(String sql, int a, int b) throws SQLException { throw new SQLFeatureNotSupportedException("Stored procedures not supported"); }
+    @Override public CallableStatement prepareCall(String sql, int a, int b, int c) throws SQLException { throw new SQLFeatureNotSupportedException("Stored procedures not supported"); }
 
-    @Override public CallableStatement prepareCall(String sql) throws SQLException { return delegate.prepareCall("SELECT 1"); }
-    @Override public CallableStatement prepareCall(String sql, int a, int b) throws SQLException { return delegate.prepareCall("SELECT 1", a, b); }
-    @Override public CallableStatement prepareCall(String sql, int a, int b, int c) throws SQLException { return delegate.prepareCall("SELECT 1", a, b, c); }
+    @Override public String nativeSQL(String sql) { return translate(sql); }
 
-    @Override public String nativeSQL(String sql) throws SQLException { return translate(sql); }
+    // --- Connection lifecycle (self-contained, no delegate) ---
 
-    // --- Lifecycle: delegate to the underlying Couchbase connection ---
+    @Override
+    public boolean isValid(int timeout) {
+        if (closed) return false;
+        try {
+            HttpRequest ping = HttpRequest.newBuilder(n1qlUri)
+                    .timeout(Duration.ofSeconds(Math.max(timeout, 1)))
+                    .header("Content-Type", "application/json")
+                    .header("Authorization", authHeader)
+                    .POST(HttpRequest.BodyPublishers.ofString("{\"statement\":\"SELECT 1\"}"))
+                    .build();
+            HttpResponse<String> resp = httpClient.send(ping, HttpResponse.BodyHandlers.ofString());
+            return resp.statusCode() < 400;
+        } catch (Exception e) {
+            return false;
+        }
+    }
 
-    @Override public void setAutoCommit(boolean autoCommit) throws SQLException { delegate.setAutoCommit(autoCommit); }
-    @Override public boolean getAutoCommit() throws SQLException { return delegate.getAutoCommit(); }
-    @Override public void commit() throws SQLException { delegate.commit(); }
-    @Override public void rollback() throws SQLException { delegate.rollback(); }
-    @Override public void close() throws SQLException { delegate.close(); }
-    @Override public boolean isClosed() throws SQLException { return delegate.isClosed(); }
-    @Override public DatabaseMetaData getMetaData() throws SQLException { return delegate.getMetaData(); }
-    @Override public void setReadOnly(boolean readOnly) throws SQLException { delegate.setReadOnly(readOnly); }
-    @Override public boolean isReadOnly() throws SQLException { return delegate.isReadOnly(); }
-    @Override public void setCatalog(String catalog) throws SQLException { delegate.setCatalog(catalog); }
-    @Override public String getCatalog() throws SQLException { return delegate.getCatalog(); }
-    @Override public void setTransactionIsolation(int level) throws SQLException { delegate.setTransactionIsolation(level); }
-    @Override public int getTransactionIsolation() throws SQLException { return delegate.getTransactionIsolation(); }
-    @Override public SQLWarning getWarnings() throws SQLException { return delegate.getWarnings(); }
-    @Override public void clearWarnings() throws SQLException { delegate.clearWarnings(); }
-    @Override public Map<String, Class<?>> getTypeMap() throws SQLException { return delegate.getTypeMap(); }
-    @Override public void setTypeMap(Map<String, Class<?>> map) throws SQLException { delegate.setTypeMap(map); }
-    @Override public void setHoldability(int holdability) throws SQLException { delegate.setHoldability(holdability); }
-    @Override public int getHoldability() throws SQLException { return delegate.getHoldability(); }
-    @Override public Savepoint setSavepoint() throws SQLException { return delegate.setSavepoint(); }
-    @Override public Savepoint setSavepoint(String name) throws SQLException { return delegate.setSavepoint(name); }
-    @Override public void rollback(Savepoint savepoint) throws SQLException { delegate.rollback(savepoint); }
-    @Override public void releaseSavepoint(Savepoint savepoint) throws SQLException { delegate.releaseSavepoint(savepoint); }
-    @Override public Clob createClob() throws SQLException { return delegate.createClob(); }
-    @Override public Blob createBlob() throws SQLException { return delegate.createBlob(); }
-    @Override public NClob createNClob() throws SQLException { return delegate.createNClob(); }
-    @Override public SQLXML createSQLXML() throws SQLException { return delegate.createSQLXML(); }
-    @Override public boolean isValid(int timeout) throws SQLException { return delegate.isValid(timeout); }
-    @Override public void setClientInfo(String name, String value) throws SQLClientInfoException { delegate.setClientInfo(name, value); }
-    @Override public void setClientInfo(Properties properties) throws SQLClientInfoException { delegate.setClientInfo(properties); }
-    @Override public String getClientInfo(String name) throws SQLException { return delegate.getClientInfo(name); }
-    @Override public Properties getClientInfo() throws SQLException { return delegate.getClientInfo(); }
-    @Override public Array createArrayOf(String typeName, Object[] elements) throws SQLException { return delegate.createArrayOf(typeName, elements); }
-    @Override public Struct createStruct(String typeName, Object[] attributes) throws SQLException { return delegate.createStruct(typeName, attributes); }
-    @Override public void setSchema(String schema) throws SQLException { delegate.setSchema(schema); }
-    @Override public String getSchema() throws SQLException { return delegate.getSchema(); }
-    @Override public void abort(Executor executor) throws SQLException { delegate.abort(executor); }
-    @Override public void setNetworkTimeout(Executor executor, int milliseconds) throws SQLException { delegate.setNetworkTimeout(executor, milliseconds); }
-    @Override public int getNetworkTimeout() throws SQLException { return delegate.getNetworkTimeout(); }
-    @Override public <T> T unwrap(Class<T> iface) throws SQLException { return delegate.unwrap(iface); }
-    @Override public boolean isWrapperFor(Class<?> iface) throws SQLException { return delegate.isWrapperFor(iface); }
+    @Override public void close() { closed = true; }
+    @Override public boolean isClosed() { return closed; }
+
+    @Override public void setAutoCommit(boolean ac) { autoCommit = ac; }
+    @Override public boolean getAutoCommit() { return autoCommit; }
+    @Override public void commit() {}
+    @Override public void rollback() {}
+    @Override public void rollback(Savepoint sp) {}
+
+    @Override public void setReadOnly(boolean ro) { readOnly = ro; }
+    @Override public boolean isReadOnly() { return readOnly; }
+
+    @Override public void setTransactionIsolation(int level) { transactionIsolation = level; }
+    @Override public int getTransactionIsolation() { return transactionIsolation; }
+
+    @Override public void setCatalog(String c) {}
+    @Override public String getCatalog() { return catalog; }
+    @Override public void setSchema(String s) {}
+    @Override public String getSchema() { return "_default"; }
+
+    @Override public DatabaseMetaData getMetaData() { return null; }
+    @Override public SQLWarning getWarnings() { return null; }
+    @Override public void clearWarnings() {}
+    @Override public Map<String, Class<?>> getTypeMap() { return Map.of(); }
+    @Override public void setTypeMap(Map<String, Class<?>> map) {}
+    @Override public void setHoldability(int h) {}
+    @Override public int getHoldability() { return ResultSet.HOLD_CURSORS_OVER_COMMIT; }
+    @Override public Savepoint setSavepoint() throws SQLException { throw new SQLFeatureNotSupportedException(); }
+    @Override public Savepoint setSavepoint(String name) throws SQLException { throw new SQLFeatureNotSupportedException(); }
+    @Override public void releaseSavepoint(Savepoint sp) {}
+    @Override public Clob createClob() throws SQLException { throw new SQLFeatureNotSupportedException(); }
+    @Override public Blob createBlob() throws SQLException { throw new SQLFeatureNotSupportedException(); }
+    @Override public NClob createNClob() throws SQLException { throw new SQLFeatureNotSupportedException(); }
+    @Override public SQLXML createSQLXML() throws SQLException { throw new SQLFeatureNotSupportedException(); }
+    @Override public void setClientInfo(String name, String value) {}
+    @Override public void setClientInfo(Properties properties) {}
+    @Override public String getClientInfo(String name) { return null; }
+    @Override public Properties getClientInfo() { return new Properties(); }
+    @Override public Array createArrayOf(String typeName, Object[] elements) throws SQLException { throw new SQLFeatureNotSupportedException(); }
+    @Override public Struct createStruct(String typeName, Object[] attributes) throws SQLException { throw new SQLFeatureNotSupportedException(); }
+    @Override public void abort(Executor executor) { closed = true; }
+    @Override public void setNetworkTimeout(Executor executor, int milliseconds) {}
+    @Override public int getNetworkTimeout() { return 0; }
+    @Override public <T> T unwrap(Class<T> iface) throws SQLException { throw new SQLException("Not a wrapper"); }
+    @Override public boolean isWrapperFor(Class<?> iface) { return false; }
+
+    private void checkClosed() throws SQLException {
+        if (closed) throw new SQLException("Connection is closed");
+    }
 }

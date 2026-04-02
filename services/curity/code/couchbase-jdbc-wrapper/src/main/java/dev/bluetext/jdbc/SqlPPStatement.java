@@ -21,8 +21,7 @@ public class SqlPPStatement implements Statement {
     public ResultSet executeQuery(String sql) throws SQLException {
         String translated = connection.translate(sql);
         if (translated == null) return new NoOpPreparedStatement.NoOpResultSet();
-        QueryPreparedStatement ps = new QueryPreparedStatement(
-                connection.host, connection.user, connection.password, translated);
+        QueryPreparedStatement ps = new QueryPreparedStatement(connection, translated);
         lastResultSet = ps.executeQuery();
         lastUpdateCount = -1;
         return lastResultSet;
@@ -32,8 +31,7 @@ public class SqlPPStatement implements Statement {
     public int executeUpdate(String sql) throws SQLException {
         String translated = connection.translate(sql);
         if (translated == null) return 0;
-        QueryPreparedStatement ps = new QueryPreparedStatement(
-                connection.host, connection.user, connection.password, translated);
+        QueryPreparedStatement ps = new QueryPreparedStatement(connection, translated);
         lastUpdateCount = ps.executeUpdate();
         lastResultSet = null;
         return lastUpdateCount;
@@ -43,8 +41,7 @@ public class SqlPPStatement implements Statement {
     public boolean execute(String sql) throws SQLException {
         String translated = connection.translate(sql);
         if (translated == null) return false;
-        QueryPreparedStatement ps = new QueryPreparedStatement(
-                connection.host, connection.user, connection.password, translated);
+        QueryPreparedStatement ps = new QueryPreparedStatement(connection, translated);
         boolean hasResultSet = ps.execute();
         if (hasResultSet) {
             lastResultSet = ps.getResultSet();

@@ -160,11 +160,12 @@ public class SqlPPConnection implements Connection {
     record TranslatedSql(String sql, PkInfo pkInfo) {}
 
     /**
-     * PK info for document KEY computation at execution time.
+     * PK and column info for document KEY computation and uniqueness checks at execution time.
      * pkParamIndices: 1-based indices into the original parameter list for PK columns.
+     * colParamMap: column name → 1-based param index (for all columns in an INSERT).
      */
-    record PkInfo(PkStrategy strategy, int[] pkParamIndices) {
-        static final PkInfo NONE = new PkInfo(PkStrategy.PROVIDED, new int[0]);
+    record PkInfo(PkStrategy strategy, int[] pkParamIndices, Map<String, Integer> colParamMap) {
+        static final PkInfo NONE = new PkInfo(PkStrategy.PROVIDED, new int[0], Map.of());
     }
 
     // --- SQL translation ---
@@ -247,9 +248,14 @@ public class SqlPPConnection implements Connection {
         // KEY is __KEY__ placeholder — resolved by QueryPreparedStatement at execution time
         String result = verb + " INTO " + table + " (KEY, VALUE) VALUES (\"__KEY__\", " + obj + ")";
 
+        // Build full column→param index mapping (1-based)
+        Map<String, Integer> colParamMap = new LinkedHashMap<>();
+        for (int i = 0; i < colNames.length; i++) {
+            colParamMap.put(colNames[i], i + 1);
+        }
+
         if (meta == null) {
-            // Unknown table — PkInfo tells QueryPreparedStatement to use UUID
-            return new TranslatedSql(result, new PkInfo(PkStrategy.ALWAYS_UUID, new int[0]));
+            return new TranslatedSql(result, new PkInfo(PkStrategy.ALWAYS_UUID, new int[0], colParamMap));
         }
 
         // Find 1-based parameter indices for PK columns
@@ -258,13 +264,13 @@ public class SqlPPConnection implements Connection {
             pkIndices[p] = -1;
             for (int c = 0; c < colNames.length; c++) {
                 if (colNames[c].equals(meta.pkColumns[p])) {
-                    pkIndices[p] = c + 1; // 1-based
+                    pkIndices[p] = c + 1;
                     break;
                 }
             }
         }
 
-        return new TranslatedSql(result, new PkInfo(meta.strategy, pkIndices));
+        return new TranslatedSql(result, new PkInfo(meta.strategy, pkIndices, colParamMap));
     }
 
     /**

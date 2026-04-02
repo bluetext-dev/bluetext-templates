@@ -9,12 +9,16 @@ import java.time.Duration;
 import java.util.Base64;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * PreparedStatement that executes all SQL via HTTP against the Couchbase N1QL
  * Query service using the Connection's shared HttpClient for connection reuse.
  */
 public class QueryPreparedStatement extends NoOpPreparedStatement {
+
+    private static final Logger LOG = Logger.getLogger("dev.bluetext.jdbc");
 
     private final SqlPPConnection connection;
     private final String sql;
@@ -167,9 +171,12 @@ public class QueryPreparedStatement extends NoOpPreparedStatement {
     /**
      * Before executing an INSERT on a constrained table, check if the uniqueness
      * constraints would be violated. Throws SQLSTATE 23505 if so.
+     *
+     * Uses the colParamMap from PkInfo to look up constraint column values from the params.
      */
     private void checkUniquenessConstraints() throws SQLException {
         if (!sql.trim().toUpperCase().startsWith("INSERT")) return;
+        if (pkInfo.colParamMap().isEmpty()) return;
 
         String collection = SqlPPConnection.extractCollection(sql);
         if (collection == null) return;
@@ -177,20 +184,71 @@ public class QueryPreparedStatement extends NoOpPreparedStatement {
         var constraints = SqlPPConnection.UNIQUE_CONSTRAINTS.get(collection);
         if (constraints == null) return;
 
-        // Build column→param index mapping from the original SQL
-        // The SQL looks like: INSERT INTO `curity`.`_default`.`accounts` (KEY ..., VALUE {"col1": $1, "col2": $2, ...})
-        // We need to extract the column names and their parameter references from the VALUE JSON object
-        // Simpler approach: use the params map directly — params are ordered by the column list
-        // But we don't know which param maps to which column from the translated SQL alone.
-        // For now, we skip the pre-check and rely on the application-level uniqueness
-        // (Curity handles "user already exists" at the application layer for most flows).
-        // The N1QL INSERT (not UPSERT) + document KEY based on PK already prevents PK-level duplicates.
-        //
-        // Full uniqueness enforcement would require parsing the VALUE JSON to extract column→param mappings,
-        // building a SELECT query, executing it, and checking results. This is non-trivial for parameterized
-        // queries where the values aren't known until execution time.
-        //
-        // TODO: Implement full uniqueness pre-checks if Curity's auth flow depends on them.
+        String catalog = connection.catalog;
+        if (catalog == null) return;
+
+        for (var constraint : constraints) {
+            // Build WHERE clause from constraint columns
+            StringBuilder where = new StringBuilder();
+            boolean hasNullableSkip = false;
+
+            for (String col : constraint.columns()) {
+                Integer paramIdx = pkInfo.colParamMap().get(col);
+                Object val = paramIdx != null ? params.get(paramIdx) : null;
+
+                // Skip nullable columns that are null (matches HSQLDB trigger behavior:
+                // phone/email uniqueness only checked when NOT NULL)
+                if (val == null && !"tenant_id".equals(col)) {
+                    hasNullableSkip = true;
+                    break;
+                }
+
+                if (!where.isEmpty()) where.append(" AND ");
+                if (val == null) {
+                    where.append("`").append(col).append("` IS NULL");
+                } else {
+                    where.append("`").append(col).append("` = ").append(jsonString(val.toString()));
+                }
+            }
+
+            if (hasNullableSkip) continue;
+
+            // Execute the check query
+            String checkSql = "SELECT COUNT(*) AS cnt FROM `" + catalog + "`.`_default`.`" + collection + "` WHERE " + where;
+            try {
+                String checkBody = "{\"statement\":" + jsonString(checkSql) + "}";
+                HttpRequest req = HttpRequest.newBuilder(connection.n1qlUri)
+                        .timeout(Duration.ofSeconds(10))
+                        .header("Content-Type", "application/json")
+                        .header("Authorization", connection.authHeader)
+                        .POST(HttpRequest.BodyPublishers.ofString(checkBody, StandardCharsets.UTF_8))
+                        .build();
+                HttpResponse<String> resp = SqlPPConnection.HTTP_CLIENT.send(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+                String body = resp.body();
+
+                if (body.contains("\"cnt\":") || body.contains("\"cnt\": ")) {
+                    int cntIdx = body.indexOf("\"cnt\":");
+                    if (cntIdx >= 0) {
+                        String after = body.substring(cntIdx + 6).trim();
+                        int end = after.indexOf(',');
+                        if (end < 0) end = after.indexOf('}');
+                        if (end > 0) {
+                            int count = Integer.parseInt(after.substring(0, end).trim());
+                            if (count > 0) {
+                                throw new SQLException(
+                                        "integrity constraint violation: unique constraint or index violation: " + constraint.name(),
+                                        "23505", 0);
+                            }
+                        }
+                    }
+                }
+            } catch (SQLException e) {
+                throw e;
+            } catch (Exception e) {
+                LOG.log(Level.WARNING, "Uniqueness check failed for " + constraint.name() + ": " + e.getMessage());
+                // Don't block the INSERT if the check itself fails
+            }
+        }
     }
 
     // --- N1QL HTTP execution via shared HttpClient ---
@@ -204,6 +262,10 @@ public class QueryPreparedStatement extends NoOpPreparedStatement {
             if (n1ql.contains("\"__KEY__\"")) {
                 String key = resolveDocumentKey();
                 n1ql = n1ql.replace("\"__KEY__\"", jsonString(key));
+            }
+
+            if (LOG.isLoggable(Level.FINE)) {
+                LOG.fine("[N1QL] " + n1ql.substring(0, Math.min(n1ql.length(), 200)));
             }
 
             String jsonBody = buildJsonBody(n1ql);

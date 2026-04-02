@@ -1,0 +1,47 @@
+plugins {
+    id 'java'
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
+
+dependencies {
+    implementation group: 'com.couchbase.client', name: 'java-client', version:'3.4.2'
+    implementation group: 'com.fasterxml.jackson.datatype', name:'jackson-datatype-jsr310', version:'2.17.2'
+    implementation group: 'com.fasterxml.jackson.module', name:'jackson-module-parameter-names', version:'2.17.2'
+    implementation group: 'com.fasterxml.jackson.module', name: 'jackson-module-paranamer', version: '2.17.2'
+    compileOnly group: 'se.curity.identityserver', name: 'identityserver.sdk', version:'11.0.2'
+    compileOnly group: 'org.slf4j', name: 'slf4j-api', version: '2.0.12'
+
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testImplementation 'org.mockito:mockito-core:5.11.0'
+    testImplementation 'org.mockito:mockito-junit-jupiter:5.11.0'
+    testImplementation group: 'se.curity.identityserver', name: 'identityserver.sdk', version:'11.0.2'
+    testImplementation group: 'org.slf4j', name: 'slf4j-api', version: '2.0.12'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+group = 'dev.bluetext.curity.couchbase'
+version = '1.0.0-SNAPSHOT'
+description = 'Couchbase Data Source plugin'
+java.sourceCompatibility = JavaVersion.VERSION_21
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
+
+tasks.withType(Javadoc) {
+    options.encoding = 'UTF-8'
+}
+
+task createPluginDir(type: Copy, dependsOn: jar) {
+    from configurations.runtimeClasspath
+    from jar
+    into layout.buildDirectory.file(project.name)
+}
+

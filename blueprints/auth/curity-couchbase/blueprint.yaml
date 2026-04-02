@@ -26,8 +26,18 @@ variables:
     type: string
     default: main
 restarts: [service-config-manager, curity]
-see_also: [auth/curity-oauth, auth/curity-hsqldb, auth/kong-phantom-token]
+see_also: [auth/curity-oauth, auth/kong-phantom-token]
 steps:
+  - name: Copy Couchbase JDBC wrapper source
+    tool: tree_copy
+    params:
+      source: files/couchbase-jdbc-wrapper
+      destination: code/services/curity/couchbase-jdbc-wrapper
+  - name: Copy Couchbase DAP plugin source
+    tool: tree_copy
+    params:
+      source: files/couchbase-plugin
+      destination: code/services/curity/couchbase-plugin
   - name: Add curity bucket to service-config-manager Couchbase config
     tool: file_patch
     params:

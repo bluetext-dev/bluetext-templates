@@ -92,6 +92,10 @@ Intercepted statement types: `CREATE TABLE/INDEX/SEQUENCE`, `ALTER TABLE`, `DROP
 
 Collections are created by service-config-manager in the `curity` bucket (`_default` scope). Analytics is enabled on the bucket via `ALTER BUCKET ... ENABLE ANALYTICS`, which auto-links all collections as Analytics datasets. This is configured via the `analytics: true` flag in the couchbase.yaml bucket config (set by the `auth/curity-couchbase` blueprint).
 
-## License
+## Curity Image and License
 
-Works within Curity's `jdbc[1]` license restriction — counts as a single JDBC datasource.
+The Bluetext Curity template ships with the **Enterprise Edition image** (`curity.azurecr.io/curity/idsvr`). The image is the runtime binary. The **license key** determines which features and data source types are enabled.
+
+Curity licenses specify which **data source types** are available and how many instances of each type. A `jdbc[1]` license grants one data source of type JDBC. This wrapper fits Couchbase into that single JDBC slot — Curity sees a standard JDBC data source.
+
+For licenses that include the Plugin SDK and custom data source types, see the native [Couchbase DAP plugin](../couchbase-plugin/).

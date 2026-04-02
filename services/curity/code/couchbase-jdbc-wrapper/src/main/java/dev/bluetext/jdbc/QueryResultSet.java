@@ -183,7 +183,16 @@ public class QueryResultSet extends NoOpPreparedStatement.NoOpResultSet {
         JsonElement val = getCurrentValue(columnLabel);
         if (val == null || val.isJsonNull()) { lastWasNull = true; return false; }
         lastWasNull = false;
-        return val.getAsBoolean();
+        if (val.isJsonPrimitive()) {
+            JsonPrimitive p = val.getAsJsonPrimitive();
+            // JDBC spec: getBoolean on numeric column returns true for non-zero
+            if (p.isNumber()) return p.getAsDouble() != 0;
+            if (p.isBoolean()) return p.getAsBoolean();
+            // String: "true"/"1"/"yes" → true
+            String s = p.getAsString();
+            return "true".equalsIgnoreCase(s) || "1".equals(s) || "yes".equalsIgnoreCase(s);
+        }
+        return false;
     }
 
     // --- Bytes (Base64 decode for binary data like session_data) ---

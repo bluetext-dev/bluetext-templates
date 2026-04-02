@@ -19,9 +19,9 @@ public class SqlPPStatement implements Statement {
 
     @Override
     public ResultSet executeQuery(String sql) throws SQLException {
-        String translated = connection.translate(sql);
+        var translated = connection.translate(sql);
         if (translated == null) return new NoOpPreparedStatement.NoOpResultSet();
-        QueryPreparedStatement ps = new QueryPreparedStatement(connection, translated);
+        QueryPreparedStatement ps = new QueryPreparedStatement(connection, translated.sql(), translated.pkInfo());
         lastResultSet = ps.executeQuery();
         lastUpdateCount = -1;
         return lastResultSet;
@@ -29,9 +29,9 @@ public class SqlPPStatement implements Statement {
 
     @Override
     public int executeUpdate(String sql) throws SQLException {
-        String translated = connection.translate(sql);
+        var translated = connection.translate(sql);
         if (translated == null) return 0;
-        QueryPreparedStatement ps = new QueryPreparedStatement(connection, translated);
+        QueryPreparedStatement ps = new QueryPreparedStatement(connection, translated.sql(), translated.pkInfo());
         lastUpdateCount = ps.executeUpdate();
         lastResultSet = null;
         return lastUpdateCount;
@@ -39,9 +39,9 @@ public class SqlPPStatement implements Statement {
 
     @Override
     public boolean execute(String sql) throws SQLException {
-        String translated = connection.translate(sql);
+        var translated = connection.translate(sql);
         if (translated == null) return false;
-        QueryPreparedStatement ps = new QueryPreparedStatement(connection, translated);
+        QueryPreparedStatement ps = new QueryPreparedStatement(connection, translated.sql(), translated.pkInfo());
         boolean hasResultSet = ps.execute();
         if (hasResultSet) {
             lastResultSet = ps.getResultSet();

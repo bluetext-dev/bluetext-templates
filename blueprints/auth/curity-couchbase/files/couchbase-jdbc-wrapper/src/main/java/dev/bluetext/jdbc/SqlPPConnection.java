@@ -59,6 +59,13 @@ public class SqlPPConnection implements Connection {
             "(?i)((?:FROM|INTO|UPDATE|JOIN)\\s+)(`[^`]+`)(?!\\s*\\.)"
     );
 
+    // Unqualified backtick-quoted column name: `col` NOT preceded by `.`
+    // Matches standalone `col` but not `table`.`col`
+    // Covers both sides of comparisons, ON clauses, WHERE, AND/OR conditions
+    private static final Pattern UNQUALIFIED_COLUMN = Pattern.compile(
+            "(?<!\\.\\s{0,0})(?<!\\.)(`[^`]+`)(?![`.])"
+    );
+
     // Columnar INSERT/UPSERT: INSERT INTO table (`col1`, `col2`) VALUES (?, ?)
     private static final Pattern COLUMNAR_INSERT = Pattern.compile(
             "(?i)(INSERT|UPSERT)\\s+INTO\\s+(\\S+)\\s*\\(([^)]+)\\)\\s*VALUES\\s*\\(([^)]+)\\)",
@@ -127,6 +134,74 @@ public class SqlPPConnection implements Connection {
         )
     );
 
+    // -----------------------------------------------------------------------
+    // Column → table mapping for qualifying unqualified column refs in JOINs.
+    // Only columns unique to one table — shared columns (tenant_id, id, created,
+    // updated, attributes, status, expires, type) are already qualified by Curity.
+    // -----------------------------------------------------------------------
+
+    static final Map<String, String> COLUMN_TABLE = Map.ofEntries(
+        // accounts
+        Map.entry("account_id", "accounts"), Map.entry("username", "accounts"),
+        Map.entry("email", "accounts"), Map.entry("phone", "accounts"),
+        Map.entry("active", "accounts"),
+        // credentials
+        Map.entry("subject", "credentials"), Map.entry("password", "credentials"),
+        // sessions
+        Map.entry("session_data", "sessions"),
+        // delegations
+        Map.entry("owner", "delegations"), Map.entry("scope", "delegations"),
+        Map.entry("scope_claims", "delegations"), Map.entry("client_id", "delegations"),
+        Map.entry("redirect_uri", "delegations"), Map.entry("claims", "delegations"),
+        Map.entry("authentication_attributes", "delegations"),
+        Map.entry("authorization_code_hash", "delegations"),
+        // tokens
+        Map.entry("token_hash", "tokens"), Map.entry("delegations_id", "tokens"),
+        Map.entry("purpose", "tokens"), Map.entry("usage", "tokens"),
+        Map.entry("format", "tokens"), Map.entry("issuer", "tokens"),
+        Map.entry("audience", "tokens"), Map.entry("not_before", "tokens"),
+        Map.entry("meta_data", "tokens"),
+        // nonces
+        Map.entry("token", "nonces"), Map.entry("reference_data", "nonces"),
+        Map.entry("ttl", "nonces"), Map.entry("consumed", "nonces"),
+        // devices
+        Map.entry("device_id", "devices"), Map.entry("external_id", "devices"),
+        Map.entry("alias", "devices"), Map.entry("form_factor", "devices"),
+        Map.entry("device_type", "devices"),
+        // audit
+        Map.entry("instant", "audit"), Map.entry("event_instant", "audit"),
+        Map.entry("server", "audit"), Map.entry("message", "audit"),
+        Map.entry("event_type", "audit"), Map.entry("endpoint", "audit"),
+        Map.entry("session", "audit"), Map.entry("resource", "audit"),
+        Map.entry("authenticated_subject", "audit"), Map.entry("authenticated_client", "audit"),
+        Map.entry("acr", "audit"),
+        // dynamically_registered_clients
+        Map.entry("client_secret", "dynamically_registered_clients"),
+        Map.entry("instance_of_client", "dynamically_registered_clients"),
+        Map.entry("initial_client", "dynamically_registered_clients"),
+        Map.entry("authenticated_user", "dynamically_registered_clients"),
+        Map.entry("grant_types", "dynamically_registered_clients"),
+        Map.entry("redirect_uris", "dynamically_registered_clients"),
+        // database_clients
+        Map.entry("profile_id", "database_clients"),
+        Map.entry("client_name", "database_clients"),
+        Map.entry("client_metadata", "database_clients"),
+        Map.entry("configuration_references", "database_clients"),
+        // entities
+        Map.entry("context_id", "entities"), Map.entry("value", "entities"),
+        Map.entry("display_name", "entities"), Map.entry("versions", "entities"),
+        Map.entry("deleted", "entities"), Map.entry("version", "entities"),
+        // linked_accounts
+        Map.entry("linked_account_id", "linked_accounts"),
+        Map.entry("linked_account_domain_name", "linked_accounts"),
+        Map.entry("linking_account_manager", "linked_accounts"),
+        // entity_relations
+        Map.entry("source_entity_id", "entity_relations"),
+        Map.entry("target_entity_id", "entity_relations"),
+        // buckets
+        Map.entry("purpose_bucket", "buckets") // "purpose" shared with tokens — use alias
+    );
+
     public SqlPPConnection(String catalog, String host, String user, String password) throws SQLException {
         this.catalog = catalog;
         this.host = host;
@@ -174,6 +249,55 @@ public class SqlPPConnection implements Connection {
         return sql != null && DDL_PATTERN.matcher(sql).matches();
     }
 
+    /**
+     * Qualify unqualified column references in JOIN queries.
+     * N1QL requires explicit table.column when multiple tables are in scope.
+     *
+     * Scans for backtick-quoted identifiers that are known column names and NOT
+     * already preceded by a dot (which indicates table.column qualification).
+     */
+    /**
+     * Add explicit AS aliases to 3-part table names in JOINs and qualify
+     * unqualified column references. N1QL requires explicit aliases for
+     * multi-part keyspace names when multiple tables are in scope.
+     */
+    static String qualifyColumns(String sql) {
+        // Step 1: Add AS aliases to 3-part table names that don't have one.
+        // `bucket`.`scope`.`collection` → `bucket`.`scope`.`collection` AS `collection`
+        sql = sql.replaceAll(
+                "(`[^`]+`\\.`[^`]+`\\.`([^`]+)`)(?!\\s+AS\\b)",
+                "$1 AS `$2`"
+        );
+
+        // Step 2: Qualify unqualified column references using COLUMN_TABLE map.
+        // Standalone `col` → `table`.`col` (only if not already preceded by `.`)
+        // Process all columns in a single pass to avoid interference between replacements.
+        var result = new StringBuilder();
+        int i = 0;
+        while (i < sql.length()) {
+            if (sql.charAt(i) == '`') {
+                int end = sql.indexOf('`', i + 1);
+                if (end < 0) { result.append(sql, i, sql.length()); break; }
+                String ident = sql.substring(i + 1, end); // content between backticks
+                boolean precededByDot = i > 0 && sql.charAt(i - 1) == '.';
+                if (!precededByDot) {
+                    String table = COLUMN_TABLE.get(ident);
+                    if (table != null) {
+                        result.append('`').append(table).append("`.`").append(ident).append('`');
+                        i = end + 1;
+                        continue;
+                    }
+                }
+                result.append(sql, i, end + 1);
+                i = end + 1;
+            } else {
+                result.append(sql.charAt(i));
+                i++;
+            }
+        }
+        return result.toString();
+    }
+
     /** Instance method for convenience — delegates to static. */
     TranslatedSql translate(String sql) {
         return translateSql(sql, catalog);
@@ -206,6 +330,11 @@ public class SqlPPConnection implements Connection {
             sql = UNQUALIFIED_TABLE.matcher(sql).replaceAll(
                     "$1`" + catalog + "`.`_default`.$2"
             );
+        }
+
+        // Qualify unqualified column refs in JOIN queries (N1QL requires explicit table.column)
+        if (sql.toUpperCase().contains("JOIN")) {
+            sql = qualifyColumns(sql);
         }
 
         // Columnar INSERT/UPSERT → N1QL KEY/VALUE format with proper document KEY

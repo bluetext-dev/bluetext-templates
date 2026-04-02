@@ -208,6 +208,49 @@ class SqlTranslationTest {
         }
     }
 
+    // --- JOIN column qualification ---
+
+    @Nested class JoinColumnQualification {
+
+        @Test void qualifiesCredentialsJoinAccounts() {
+            var r = t("SELECT \"credentials\".\"password\" FROM \"credentials\" JOIN \"accounts\" ON \"subject\" = \"username\" WHERE \"subject\" = ?");
+            assertNotNull(r);
+            String sql = r.sql();
+            // subject should be qualified as credentials.subject
+            assertTrue(sql.contains("`credentials`.`subject`"), "subject not qualified in: " + sql);
+            // username should be qualified as accounts.username
+            assertTrue(sql.contains("`accounts`.`username`"), "username not qualified in: " + sql);
+        }
+
+        @Test void leavesAlreadyQualifiedColumnsAlone() {
+            var r = t("SELECT \"credentials\".\"password\" FROM \"credentials\" JOIN \"accounts\" ON \"credentials\".\"subject\" = \"accounts\".\"username\"");
+            assertNotNull(r);
+            // Should not double-qualify the column (credentials.credentials would be wrong)
+            long count = r.sql().split("`credentials`\\.`credentials`", -1).length - 1;
+            assertEquals(0, count, "Should not double-qualify: " + r.sql());
+        }
+
+        @Test void addsAsAliases() {
+            var r = t("SELECT * FROM \"credentials\" JOIN \"accounts\" ON \"subject\" = \"username\"");
+            assertNotNull(r);
+            assertTrue(r.sql().contains("AS `credentials`"), "Missing AS alias: " + r.sql());
+            assertTrue(r.sql().contains("AS `accounts`"), "Missing AS alias: " + r.sql());
+        }
+
+        @Test void noQualificationWithoutJoin() {
+            var r = t("SELECT \"password\" FROM \"credentials\" WHERE \"subject\" = ?");
+            assertNotNull(r);
+            // Without JOIN, columns stay unqualified (N1QL resolves from single table)
+            assertFalse(r.sql().contains("`credentials`.`subject`"));
+        }
+
+        @Test void qualifiesWhereClauseInJoin() {
+            var r = t("SELECT * FROM \"credentials\" JOIN \"accounts\" ON \"subject\" = \"username\" WHERE \"active\" = 1");
+            assertNotNull(r);
+            assertTrue(r.sql().contains("`accounts`.`active`"), "active should be qualified: " + r.sql());
+        }
+    }
+
     // --- All 17 tables ---
 
     @Test void allTablesRecognized() {

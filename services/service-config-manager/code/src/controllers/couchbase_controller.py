@@ -577,12 +577,11 @@ class CouchbaseController:
                     # Ensure collection exists
                     self.ensure_collection(bucket_name, scope_name, collection_name, collection_settings)
 
-            # Enable Analytics and primary indexes per collection if configured
+            # Create primary indexes for N1QL query support
             if bucket_config.get('analytics', False):
                 for scope_name, scope_config in bucket_config.get('scopes', {}).items():
                     for collection_name in scope_config.get('collections', {}).keys():
                         self.ensure_primary_index(bucket_name, scope_name, collection_name)
-                        self.ensure_analytics_collection(bucket_name, scope_name, collection_name)
 
     def ensure_primary_index(self, bucket_name: str, scope_name: str, collection_name: str) -> None:
         """Create a primary index on a collection for N1QL query support."""

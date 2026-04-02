@@ -40,7 +40,7 @@ jdbc:postgresql:couchbase://couchbase-headless/curity?user=Administrator&passwor
 
 ## Architecture
 
-Hybrid read/write path: reads go through Analytics JDBC, writes go through N1QL HTTP.
+All SQL goes through the N1QL Query service (port 8093) via HTTP for strong consistency.
 
 ```
 Curity JDBC Plugin
@@ -50,28 +50,26 @@ Curity JDBC Plugin
   ↓
 CouchbasePostgresDriver
   ↓ extracts: catalog, host, user, password from URL
-  ↓ delegates to: com.couchbase.client.jdbc.CouchbaseDriver (Analytics)
   ↓ wraps connection in: SqlPPConnection
   ↓
-SqlPPConnection (routes by statement type)
+SqlPPConnection (translates SQL, routes to N1QL)
   ├── DDL (CREATE TABLE, etc.) → NoOpPreparedStatement (silent no-op)
-  ├── SELECT → Analytics JDBC (3-part qualified: bucket.scope.collection)
-  └── INSERT/UPDATE/DELETE/UPSERT → QueryPreparedStatement
+  └── All other SQL → QueryPreparedStatement
+       ↓ translates PostgreSQL → SQL++ (backticks, table qualification)
        ↓ converts columnar INSERT to N1QL UPSERT (KEY, VALUE) format
        ↓ executes via HTTP POST to port 8093 (N1QL Query service)
-       ↓ returns mutation count
+       ↓ SELECT returns QueryResultSet (parsed from N1QL JSON)
+       ↓ INSERT/UPDATE/DELETE returns mutation count
 ```
 
-**Why hybrid?** The Couchbase JDBC driver v1.0.5 is Analytics-only (read-only).
-Analytics doesn't support INSERT/UPDATE/DELETE. Writes go through the N1QL Query
-service via HTTP REST API, which supports full DML with KEY/VALUE document syntax.
+All reads and writes use the same N1QL path — no eventual consistency issues.
 
 ## Requirements
 
-- Couchbase Enterprise Edition with Analytics service enabled (`cbas`)
-- Analytics memory quota: minimum 1024MB
-- Primary indexes on all collections (for N1QL query support)
-- Couchbase JDBC driver: `com.couchbase.client:couchbase-jdbc-driver:1.0.5` (Maven Central)
+- Couchbase Enterprise Edition with Query service enabled (`n1ql`)
+- Primary indexes on all collections (created by service-config-manager)
+- Couchbase JDBC driver: `com.couchbase.client:couchbase-jdbc-driver:1.0.5` (used for connection lifecycle only)
+- Gson: `com.google.code.gson:gson:2.11.0` (bundled in fat JAR for JSON parsing)
 
 ## DDL Interception
 

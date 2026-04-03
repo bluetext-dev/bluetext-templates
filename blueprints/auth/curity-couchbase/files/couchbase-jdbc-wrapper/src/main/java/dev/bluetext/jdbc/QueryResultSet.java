@@ -67,10 +67,14 @@ public class QueryResultSet extends NoOpPreparedStatement.NoOpResultSet {
             rows.add(row);
         }
 
-        // Derive column names from first row (preserves insertion order via Gson's LinkedTreeMap)
+        // Derive column names from first row, or from N1QL signature if results are empty
         if (!rows.isEmpty()) {
             for (String key : rows.get(0).keySet()) {
                 columnNames.add(key);
+            }
+        } else if (root.has("signature") && root.get("signature").isJsonObject()) {
+            for (String key : root.getAsJsonObject("signature").keySet()) {
+                if (!"*".equals(key)) columnNames.add(key);
             }
         }
     }

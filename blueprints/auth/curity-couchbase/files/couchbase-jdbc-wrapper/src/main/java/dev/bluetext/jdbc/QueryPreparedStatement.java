@@ -67,7 +67,15 @@ public class QueryPreparedStatement extends NoOpPreparedStatement {
     @Override
     public ResultSet executeQuery() throws SQLException {
         String response = executeHttp();
-        lastResultSet = new QueryResultSet(response);
+        try {
+            lastResultSet = new QueryResultSet(response);
+        } catch (Exception e) {
+            try { java.nio.file.Files.writeString(java.nio.file.Path.of("/tmp/jdbc.log"),
+                    "RS-ERR: " + e.getMessage() + " | response: " + response.substring(0, Math.min(response.length(), 300)) + "\n",
+                    java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
+            } catch (Exception ignored) {}
+            throw e;
+        }
         lastUpdateCount = -1;
         return lastResultSet;
     }
@@ -262,11 +270,14 @@ public class QueryPreparedStatement extends NoOpPreparedStatement {
             if (n1ql.contains("\"__KEY__\"")) {
                 String key = resolveDocumentKey();
                 n1ql = n1ql.replace("\"__KEY__\"", jsonString(key));
+                // Also replace __PK_VAL__ for auto-generated PK fields in VALUE
+                n1ql = n1ql.replace("\"__PK_VAL__\"", jsonString(key));
             }
 
-            if (LOG.isLoggable(Level.FINE)) {
-                LOG.fine("[N1QL] " + n1ql.substring(0, Math.min(n1ql.length(), 200)));
-            }
+            try { java.nio.file.Files.writeString(java.nio.file.Path.of("/tmp/jdbc.log"),
+                    n1ql.substring(0, Math.min(n1ql.length(), 500)) + "\n",
+                    java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
+            } catch (Exception ignored) {}
 
             String jsonBody = buildJsonBody(n1ql);
 
@@ -288,8 +299,16 @@ public class QueryPreparedStatement extends NoOpPreparedStatement {
             return body;
 
         } catch (SQLException e) {
+            try { java.nio.file.Files.writeString(java.nio.file.Path.of("/tmp/jdbc.log"),
+                    "ERR: " + e.getMessage().substring(0, Math.min(e.getMessage().length(), 500)) + "\n",
+                    java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
+            } catch (Exception ignored) {}
             throw e;
         } catch (Exception e) {
+            try { java.nio.file.Files.writeString(java.nio.file.Path.of("/tmp/jdbc.log"),
+                    "ERR: " + e.getMessage() + "\n",
+                    java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
+            } catch (Exception ignored) {}
             throw new SQLException("N1QL HTTP request failed: " + e.getMessage(), e);
         }
     }

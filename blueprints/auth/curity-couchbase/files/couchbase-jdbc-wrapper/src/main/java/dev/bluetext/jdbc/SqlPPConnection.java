@@ -372,10 +372,20 @@ public class SqlPPConnection implements Connection {
         for (int i = 0; i < cols.length; i++) colNames[i] = cols[i].trim().replace("`", "");
 
         // Build JSON object for VALUE (same ? placeholders as original)
+        // For COALESCE_UUID/ALWAYS_UUID: add the PK column with __PK_VAL__ placeholder
+        // if Curity didn't include it in the INSERT columns (DB would auto-generate it)
         StringBuilder obj = new StringBuilder("{");
+        boolean pkIncluded = false;
         for (int i = 0; i < colNames.length && i < vals.length; i++) {
             if (i > 0) obj.append(", ");
             obj.append("\"").append(colNames[i]).append("\": ").append(vals[i].trim());
+            if (meta != null && meta.pkColumns().length > 0 && colNames[i].equals(meta.pkColumns()[0])) {
+                pkIncluded = true;
+            }
+        }
+        if (!pkIncluded && meta != null
+                && (meta.strategy() == PkStrategy.COALESCE_UUID || meta.strategy() == PkStrategy.ALWAYS_UUID)) {
+            obj.append(", \"").append(meta.pkColumns()[0]).append("\": \"__PK_VAL__\"");
         }
         obj.append("}");
 

@@ -43,9 +43,9 @@ public class SqlPPConnection implements Connection {
 
     // --- SQL translation patterns ---
 
-    // INSERT INTO "table" (...) VALUES (...) ON CONFLICT ("col") DO UPDATE SET ...
+    // INSERT INTO "table" (...) VALUES (...) ON CONFLICT ("col") [WHERE ...] DO UPDATE SET ...
     private static final Pattern ON_CONFLICT = Pattern.compile(
-            "(?i)INSERT\\s+INTO\\s+(\\S+)\\s*\\(([^)]+)\\)\\s*VALUES\\s*\\(([^)]+)\\)\\s*ON\\s+CONFLICT\\s*\\([^)]+\\)\\s*DO\\s+UPDATE\\s+SET\\s+(.*)",
+            "(?i)INSERT\\s+INTO\\s+(\\S+)\\s*\\(([^)]+)\\)\\s*VALUES\\s*\\(([^)]+)\\)\\s*ON\\s+CONFLICT\\s*\\([^)]+\\)(?:\\s+WHERE\\s+.*?)?\\s*DO\\s+UPDATE\\s+SET\\s+(.*)",
             Pattern.DOTALL
     );
 
@@ -298,6 +298,25 @@ public class SqlPPConnection implements Connection {
         return result.toString();
     }
 
+    // N1QL reserved words that Curity uses as column aliases
+    private static final java.util.Set<String> RESERVED_ALIASES = java.util.Set.of(
+            "value", "type", "key", "index", "offset", "limit", "order",
+            "group", "having", "where", "from", "select", "insert",
+            "update", "delete", "set", "all", "any", "some", "join"
+    );
+
+    /**
+     * Quote unquoted column aliases that are N1QL reserved words.
+     * `AS value` → `AS \`value\``
+     */
+    static String quoteReservedAliases(String sql) {
+        for (String word : RESERVED_ALIASES) {
+            // Match: AS <word> (case-insensitive, not already backtick-quoted)
+            sql = sql.replaceAll("(?i)\\bAS\\s+" + word + "\\b", "AS `" + word + "`");
+        }
+        return sql;
+    }
+
     /** Instance method for convenience — delegates to static. */
     TranslatedSql translate(String sql) {
         return translateSql(sql, catalog);
@@ -336,6 +355,10 @@ public class SqlPPConnection implements Connection {
         if (sql.toUpperCase().contains("JOIN")) {
             sql = qualifyColumns(sql);
         }
+
+        // Quote N1QL reserved words used as column aliases
+        // Curity uses `AS value`, `AS type` etc. which are reserved in SQL++
+        sql = quoteReservedAliases(sql);
 
         // Columnar INSERT/UPSERT → N1QL KEY/VALUE format with proper document KEY
         return convertColumnarInsert(sql, isUpsert);

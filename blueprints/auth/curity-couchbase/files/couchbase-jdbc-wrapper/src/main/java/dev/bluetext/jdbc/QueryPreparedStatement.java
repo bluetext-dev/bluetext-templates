@@ -293,6 +293,21 @@ public class QueryPreparedStatement extends NoOpPreparedStatement {
 
             String body = response.body();
 
+            // Log the full JSON body for credential UPSERTs
+            if (n1ql.contains("credentials") && (n1ql.contains("UPSERT") || n1ql.contains("INSERT"))) {
+                try { java.nio.file.Files.writeString(java.nio.file.Path.of("/tmp/jdbc.log"),
+                        "BODY: " + jsonBody.substring(0, Math.min(jsonBody.length(), 500)) + "\n",
+                        java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
+                } catch (Exception ignored) {}
+            }
+            // Log credential responses for debugging
+            if (n1ql.contains("credentials") && (body.contains("error") || body.contains("fatal") || n1ql.contains("UPSERT") || n1ql.contains("INSERT"))) {
+                try { java.nio.file.Files.writeString(java.nio.file.Path.of("/tmp/jdbc.log"),
+                        "RESP[" + response.statusCode() + "]: " + body.substring(0, Math.min(body.length(), 300)) + "\n",
+                        java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
+                } catch (Exception ignored) {}
+            }
+
             // Check for N1QL errors in the response body (Couchbase returns HTTP 200 for many errors)
             checkN1qlErrors(body);
 
@@ -316,13 +331,20 @@ public class QueryPreparedStatement extends NoOpPreparedStatement {
     private String buildJsonBody(String n1ql) {
         StringBuilder json = new StringBuilder();
         json.append("{\"statement\":").append(jsonString(n1ql));
-        if (!params.isEmpty()) {
+
+        // Find the highest $N in the SQL to determine required args count
+        int maxParam = params.isEmpty() ? 0 : ((TreeMap<Integer, Object>) params).lastKey();
+        java.util.regex.Matcher pm = java.util.regex.Pattern.compile("\\$(\\d+)").matcher(n1ql);
+        while (pm.find()) {
+            int n = Integer.parseInt(pm.group(1));
+            if (n > maxParam) maxParam = n;
+        }
+
+        if (maxParam > 0) {
             json.append(",\"args\":[");
-            boolean first = true;
-            for (Map.Entry<Integer, Object> entry : params.entrySet()) {
-                if (!first) json.append(",");
-                json.append(toJsonValue(entry.getValue()));
-                first = false;
+            for (int i = 1; i <= maxParam; i++) {
+                if (i > 1) json.append(",");
+                json.append(toJsonValue(params.get(i)));
             }
             json.append("]");
         }

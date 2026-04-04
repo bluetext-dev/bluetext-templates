@@ -52,7 +52,7 @@ public final class CouchbaseDatabaseClientDataAccessProvider implements Database
         _logger.debug("getClientById clientId={}, profileId={}", clientId, profileId);
         try {
             Map<String, Object> doc = _collection.get(clientKey(profileId, clientId)).contentAsObject().toMap();
-            return DatabaseClientAttributes.fromMap(doc);
+            return (DatabaseClientAttributes) DatabaseClientAttributes.fromMap(doc);
         } catch (DocumentNotFoundException e) {
             return null;
         }
@@ -124,7 +124,7 @@ public final class CouchbaseDatabaseClientDataAccessProvider implements Database
         List<Map<String, Object>> rows = _couchbaseExecutor.executeParameterizedQuery(query.toString(), params);
         List<DatabaseClientAttributes> clients = new ArrayList<>();
         for (var row : rows) {
-            clients.add(DatabaseClientAttributes.fromMap(row));
+            clients.add((DatabaseClientAttributes) DatabaseClientAttributes.fromMap(row));
         }
 
         String nextCursor = rows.size() < limit ? null : String.valueOf(offset + rows.size());

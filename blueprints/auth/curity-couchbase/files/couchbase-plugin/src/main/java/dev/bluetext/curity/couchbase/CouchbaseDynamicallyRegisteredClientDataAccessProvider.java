@@ -50,7 +50,7 @@ public class CouchbaseDynamicallyRegisteredClientDataAccessProvider
         _logger.debug("getByClientId clientId={}", clientId);
         try {
             Map<String, Object> doc = _collection.get(dcrKey(clientId)).contentAsObject().toMap();
-            return DynamicallyRegisteredClientAttributes.fromMap(doc);
+            return (DynamicallyRegisteredClientAttributes) DynamicallyRegisteredClientAttributes.fromMap(doc);
         } catch (DocumentNotFoundException e) {
             return null;
         }

@@ -28,16 +28,6 @@ variables:
 restarts: [service-config-manager, curity]
 see_also: [auth/curity-oauth, auth/kong-phantom-token]
 steps:
-  - name: Copy Couchbase JDBC wrapper source
-    tool: tree_copy
-    params:
-      source: files/couchbase-jdbc-wrapper
-      destination: code/services/curity/couchbase-jdbc-wrapper
-  - name: Copy Couchbase DAP plugin source
-    tool: tree_copy
-    params:
-      source: files/couchbase-plugin
-      destination: code/services/curity/couchbase-plugin
   - name: Add curity bucket to service-config-manager Couchbase config
     tool: file_patch
     params:
@@ -78,7 +68,7 @@ steps:
     params:
       file: config/services/k8s.curity.yaml
       content_file: files/k8s.curity.yaml
-  - name: Write Dockerfile (Curity + Couchbase JDBC driver from Maven Central)
+  - name: Write Dockerfile (Curity + pre-built Couchbase JDBC wrapper from GCS)
     tool: file_write
     params:
       file: code/services/curity/Dockerfile

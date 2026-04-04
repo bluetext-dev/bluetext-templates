@@ -58,7 +58,7 @@ public final class CouchbaseDeviceDataAccessProvider implements DeviceDataAccess
         try {
             Map<String, Object> doc = _collection.get(deviceKey(deviceId)).contentAsObject().toMap();
             if (accountId.equals(doc.get("accountId"))) {
-                return DeviceAttributes.fromMap(doc);
+                return (DeviceAttributes) DeviceAttributes.fromMap(doc);
             }
             return null;
         } catch (DocumentNotFoundException e) {
@@ -80,7 +80,7 @@ public final class CouchbaseDeviceDataAccessProvider implements DeviceDataAccess
         _logger.debug("getById deviceId={}", deviceId);
         try {
             Map<String, Object> doc = _collection.get(deviceKey(deviceId)).contentAsObject().toMap();
-            return DeviceAttributes.fromMap(doc);
+            return (DeviceAttributes) DeviceAttributes.fromMap(doc);
         } catch (DocumentNotFoundException e) {
             return null;
         }
@@ -106,7 +106,7 @@ public final class CouchbaseDeviceDataAccessProvider implements DeviceDataAccess
         List<Map<String, Object>> rows = _couchbaseExecutor.executeParameterizedQuery(query, params);
         List<DeviceAttributes> devices = new ArrayList<>();
         for (var row : rows) {
-            devices.add(DeviceAttributes.fromMap(row));
+            devices.add((DeviceAttributes) DeviceAttributes.fromMap(row));
         }
         return devices;
     }
@@ -160,7 +160,7 @@ public final class CouchbaseDeviceDataAccessProvider implements DeviceDataAccess
         List<Map<String, Object>> rows = _couchbaseExecutor.executeQuery(query);
         List<DeviceAttributes> devices = new ArrayList<>();
         for (var row : rows) {
-            devices.add(DeviceAttributes.fromMap(row));
+            devices.add((DeviceAttributes) DeviceAttributes.fromMap(row));
         }
         return new ResourceQueryResult(devices, devices.size(), startIndex, count);
     }
@@ -171,6 +171,6 @@ public final class CouchbaseDeviceDataAccessProvider implements DeviceDataAccess
             Set<String> allowed = enumeration.getAttributes();
             map.keySet().retainAll(allowed);
         }
-        return DeviceAttributes.fromMap(map);
+        return (DeviceAttributes) DeviceAttributes.fromMap(map);
     }
 }

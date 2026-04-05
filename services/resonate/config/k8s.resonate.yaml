@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: resonate
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: resonate
+  template:
+    metadata:
+      labels:
+        app: resonate
+    spec:
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: resonate
+          image: us-central1-docker.pkg.dev/arched-inkwell-420116/bluetext/resonate:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8001
+              name: api
+            - containerPort: 9090
+              name: metrics
+          readinessProbe:
+            tcpSocket:
+              port: 8001
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 12
+          env:
+            - name: RUST_LOG
+              value: "info"
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          hostPath:
+            path: /var/mnt/project/.bluetext/cache/resonate
+            type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: resonate
+spec:
+  type: ClusterIP
+  selector:
+    app: resonate
+  ports:
+    - name: api
+      port: 80
+      targetPort: 8001
+    - name: metrics
+      port: 9090
+      targetPort: 9090
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: resonate
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: resonate.{{NAMESPACE}}.bluetext.localhost
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: resonate
+                port:
+                  number: 80

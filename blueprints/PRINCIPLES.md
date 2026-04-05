@@ -4,7 +4,7 @@
 
 **Blueprints** are atomic configuration steps. Each one configures a single service for a single capability. They are the building blocks.
 
-**Contexts** are workflows — ordered sequences of CLI commands and blueprints that together achieve a goal. They provide the story and discoverability. A developer picks a context ("I want RBAC auth with Curity") and follows the steps.
+**Contexts** are guided sequences — ordered sequences of CLI commands and blueprints that together achieve a goal. They provide the story and discoverability. A developer picks a context ("I want RBAC auth with Curity") and follows the steps.
 
 ## Principle 1: Services work out of the box
 
@@ -111,7 +111,7 @@ Blueprints restart services after writing config files. This is within scope of 
 
 Blueprints show related blueprints after execution via `see_also`. There is no `next_steps` field.
 
-**Why:** A `next_steps` field implies ordering and dependency — "after this, do that." That contradicts composability (principle 4). Blueprints are independent; they don't know or care what comes next. `see_also` is a lateral suggestion ("you might also want"), not a sequential instruction. Ordering belongs in contexts (principle 7), where the full workflow is explicitly designed.
+**Why:** A `next_steps` field implies ordering and dependency — "after this, do that." That contradicts composability (principle 4). Blueprints are independent; they don't know or care what comes next. `see_also` is a lateral suggestion ("you might also want"), not a sequential instruction. Ordering belongs in contexts (principle 7), where the full sequence is explicitly designed.
 
 ## Principle 13: `service_wire` for cross-service wiring
 

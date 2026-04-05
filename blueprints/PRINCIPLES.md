@@ -6,11 +6,13 @@
 
 **Contexts** are guided sequences — ordered sequences of CLI commands and blueprints that together achieve a goal. They provide the story and discoverability. A developer picks a context ("I want RBAC auth with Curity") and follows the steps.
 
-## Principle 1: Services work out of the box
+## Principle 1: Services work once their requirements are met
 
-Service templates include sensible defaults. `b service add X && b service start X` gives you a working service. No "init" or "setup" blueprint required.
+A service that has been successfully added and has its declared requirements satisfied starts and functions. Services declare their requirements via `start_prerequisites` — verifiable checks that the CLI runs before starting. When a check fails, the error is actionable: it tells the developer exactly which blueprint to run.
 
-Blueprints exist to add capabilities, connect services, or wire cross-cutting concerns — not to make a service functional.
+Services that have no external requirements work immediately after adding. Services that depend on a capability (e.g., a data store) declare this dependency and guide the developer to the right blueprint.
+
+Blueprints exist to add capabilities, connect services, or wire cross-cutting concerns. A service template ships only what the service itself needs — integration code for specific capabilities belongs with the blueprint that provides that capability.
 
 ## Principle 2: Blueprints configure — they never add
 

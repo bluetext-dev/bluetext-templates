@@ -46,6 +46,15 @@ ports:
 dev_mode: in-cluster # One of: in-cluster, mirrord, host-forward
 dependencies:        # Other template ids this template depends on
   - <dependency-id>
+start_prerequisites: # Verifiable checks run before `b service start` (optional)
+  - description: Human-readable requirement
+    check: xml_element_exists  # Check type (extensible)
+    params:
+      file: config/<id>/datasource.xml
+      element: data-source
+    hint: |                    # Actionable guidance when check fails
+      Configure a data store:
+        b bp run auth/curity-hsqldb
 connection_profiles: # What information is needed to reach this service (used by b service wire)
   <profile-name>:
     description: What this profile is for

@@ -1,4 +1,15 @@
 <config xmlns="http://tail-f.com/ns/config/1.0">
+  <facilities xmlns="https://curity.se/ns/conf/base">
+    <data-sources>
+      <data-source>
+        <id>default-datasource</id>
+        <jdbc xmlns="https://curity.se/ns/ext-conf/jdbc">
+          <attribute-query>SELECT "attributes" FROM "accounts" WHERE "username" = :subject</attribute-query>
+        </jdbc>
+      </data-source>
+    </data-sources>
+  </facilities>
+
   <profiles xmlns="https://curity.se/ns/conf/base">
     <profile>
       <id>token-service</id>

@@ -1,5 +1,15 @@
 name: Curity Identity Server
 description: OAuth 2.0 and OpenID Connect Identity Server
+start_prerequisites:
+  - description: Data store configured
+    check: xml_element_exists
+    params:
+      file: config/curity/datasource.xml
+      element: data-source
+    hint: |
+      Configure a data store for Curity:
+        b bp run auth/curity-hsqldb      (embedded file-based, for development)
+        b bp run auth/curity-couchbase   (Couchbase via JDBC)
 variables:
   - name: license_key
     description: Curity license key (free dev license at developer.curity.io)

@@ -1,0 +1,31 @@
+plugins {
+    id 'java'
+}
+
+java.sourceCompatibility = JavaVersion.VERSION_21
+
+group = 'dev.bluetext'
+version = '1.0.0'
+description = 'Couchbase JDBC wrapper for Curity PostgreSQL dialect compatibility'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'com.google.code.gson:gson:2.11.0'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+task wrapperJar(type: Jar) {
+    archiveBaseName = 'couchbase-postgres-wrapper'
+    from sourceSets.main.output
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}

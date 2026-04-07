@@ -40,7 +40,7 @@ spec:
       volumes:
         - name: data
           hostPath:
-            path: /var/mnt/project/.bluetext/cache/resonate
+            path: /var/mnt/workspace/.bluetext/cache/resonate
             type: DirectoryOrCreate
 ---
 apiVersion: v1

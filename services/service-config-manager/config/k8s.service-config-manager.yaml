@@ -46,5 +46,5 @@ spec:
             type: Directory
         - name: pip-cache
           hostPath:
-            path: /var/mnt/project/.bluetext/cache/service-config-manager/pip
+            path: /var/mnt/workspace/.bluetext/cache/service-config-manager/pip
             type: DirectoryOrCreate

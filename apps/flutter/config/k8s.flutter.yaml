@@ -39,15 +39,15 @@ spec:
             type: Directory
         - name: pub-cache
           hostPath:
-            path: /var/mnt/project/.flutter-cache/pub
+            path: /var/mnt/workspace/.bluetext/cache/flutter/pub
             type: DirectoryOrCreate
         - name: gradle-cache
           hostPath:
-            path: /var/mnt/project/.flutter-cache/gradle
+            path: /var/mnt/workspace/.bluetext/cache/flutter/gradle
             type: DirectoryOrCreate
         - name: sdk-cache
           hostPath:
-            path: /var/mnt/project/.flutter-cache/sdk
+            path: /var/mnt/workspace/.bluetext/cache/flutter/sdk
             type: DirectoryOrCreate
 ---
 apiVersion: v1

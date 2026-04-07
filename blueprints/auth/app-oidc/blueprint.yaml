@@ -10,7 +10,7 @@ caveats:
   - Patches pubspec.yaml — existing comments will be stripped (serde_yaml limitation)
   - Replaces main.dart with a login screen — back up your main.dart if you have custom code
   - "iOS: add CFBundleURLTypes to Info.plist for com.bluetext.app scheme"
-  - Uses url_launcher (external browser) for auth — Chrome Custom Tab causes process death on emulators
+  - Uses Chrome Custom Tab for auth — process death on emulators is handled by persisted PKCE state
 variables:
   - name: app_id
     description: ID of the existing app to add OIDC to

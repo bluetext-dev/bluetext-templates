@@ -12,9 +12,9 @@ import '../config/auth_config.dart';
 
 /// OIDC auth service using url_launcher + app_links.
 ///
-/// Opens the authorization URL in an external browser (not Chrome Custom Tab)
-/// so the Flutter process stays alive during the login flow. Persists PKCE
-/// state in secure storage to survive Android process death.
+/// Opens the authorization URL in a Chrome Custom Tab (in-app browser view).
+/// Chrome Custom Tab handles custom scheme redirects correctly for OAuth.
+/// PKCE state is persisted in secure storage to survive Android process death.
 class AuthService {
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
   final AppLinks _appLinks = AppLinks();
@@ -74,7 +74,7 @@ class AuthService {
         },
       );
 
-      await launchUrl(authUrl, mode: LaunchMode.externalApplication);
+      await launchUrl(authUrl, mode: LaunchMode.inAppBrowserView);
 
       final callbackUri = await callbackFuture;
       return _handleCallback(callbackUri);

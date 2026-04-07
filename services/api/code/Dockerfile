@@ -1,7 +1,6 @@
 FROM rust:bookworm AS builder
 WORKDIR /app
 COPY clients/ ./clients/
-COPY models/ ./models/
 COPY services/api/ ./services/api/
 WORKDIR /app/services/api
 RUN cargo build --release

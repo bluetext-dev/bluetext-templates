@@ -118,6 +118,7 @@ class _HomePageState extends State<HomePage> {
           if (_loggedIn)
             IconButton(
               icon: const Icon(Icons.logout),
+              tooltip: 'Logout',
               onPressed: _logout,
             ),
         ],

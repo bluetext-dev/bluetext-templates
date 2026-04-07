@@ -1,0 +1,37 @@
+name: JWT Authentication for Rust Services
+description: Add JWT auth middleware to a Rust Axum service (phantom-token pattern)
+tags: [auth, oidc, rust, jwt, axum]
+prerequisites:
+  - description: Target service exists
+    check: service_exists
+    params:
+      id: "{{service}}"
+caveats:
+  - Adds the jwt-auth client crate and wires it as a Cargo dependency
+  - "Service must use Axum — the middleware is an axum::middleware::from_fn"
+  - "No signature verification — designed for the phantom-token pattern where Kong validates tokens upstream"
+variables:
+  - name: service
+    alias: s
+    description: Rust service to add JWT auth to
+    type: string
+    required: true
+restarts: ["{{service}}"]
+see_also: [auth/curity-oauth, auth/kong-phantom-token, auth/api-rbac]
+steps:
+  - name: Add jwt-auth client library
+    tool: shell_exec
+    params:
+      command: "b client add jwt-auth"
+  - name: Add clients dependency to service
+    tool: file_patch
+    params:
+      file: "code/services/{{service}}/Cargo.toml"
+      operation: merge
+      path: dependencies
+      content: |
+        clients = { path = "../../clients" }
+  - name: Restart service
+    tool: service_restart
+    params:
+      id: "{{service}}"

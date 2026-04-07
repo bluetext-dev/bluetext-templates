@@ -1,0 +1,4 @@
+id: jwt-auth
+name: JWT Authentication
+description: JWT token decoding and Axum auth middleware for the phantom-token pattern
+dependencies: []

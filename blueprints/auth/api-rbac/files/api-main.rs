@@ -1,83 +1,12 @@
 use axum::{
     Json, Router, routing::get,
     extract::Request,
-    http::StatusCode,
-    middleware::{self, Next},
+    middleware,
     response::{IntoResponse, Response},
 };
-use serde::{Deserialize, Serialize};
+use clients::jwt_auth::{self, Claims, require_role};
+use serde::Serialize;
 use std::net::SocketAddr;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct Claims {
-    sub: String,
-    #[serde(default)]
-    scope: String,
-    #[serde(default)]
-    roles: Vec<String>,
-    #[serde(default)]
-    email: String,
-    #[serde(default)]
-    name: String,
-}
-
-impl Claims {
-    fn has_role(&self, role: &str) -> bool {
-        self.roles.iter().any(|r| r == role)
-    }
-}
-
-fn decode_jwt_payload(token: &str) -> Result<Claims, String> {
-    let parts: Vec<&str> = token.split('.').collect();
-    if parts.len() != 3 {
-        return Err("invalid JWT format".to_string());
-    }
-    let payload = base64::Engine::decode(
-        &base64::engine::general_purpose::URL_SAFE_NO_PAD,
-        parts[1],
-    )
-    .or_else(|_| {
-        base64::Engine::decode(&base64::engine::general_purpose::STANDARD, parts[1])
-    })
-    .map_err(|e| format!("base64 decode error: {e}"))?;
-    serde_json::from_slice(&payload).map_err(|e| format!("JSON parse error: {e}"))
-}
-
-async fn auth_middleware(mut req: Request, next: Next) -> Response {
-    let auth_header = req
-        .headers()
-        .get("authorization")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("");
-
-    let token = if let Some(t) = auth_header.strip_prefix("Bearer ") {
-        t
-    } else {
-        return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({"error": "missing bearer token"}))).into_response();
-    };
-
-    match decode_jwt_payload(token) {
-        Ok(claims) => {
-            req.extensions_mut().insert(claims);
-            next.run(req).await
-        }
-        Err(e) => {
-            (StatusCode::UNAUTHORIZED, Json(serde_json::json!({"error": e}))).into_response()
-        }
-    }
-}
-
-fn require_role(claims: &Claims, role: &str) -> Result<(), Response> {
-    if claims.has_role(role) {
-        Ok(())
-    } else {
-        Err((
-            StatusCode::FORBIDDEN,
-            Json(serde_json::json!({"error": format!("{role} role required")})),
-        )
-            .into_response())
-    }
-}
 
 // --- Handlers ---
 
@@ -127,9 +56,7 @@ async fn admin_users(req: Request) -> Response {
 async fn moderate(req: Request) -> Response {
     let claims = req.extensions().get::<Claims>().unwrap();
     if let Err(resp) = require_role(claims, "moderator") {
-        // Allow admin to access moderator routes too
-        if let Err(resp2) = require_role(claims, "admin") {
-            let _ = resp2;
+        if let Err(_) = require_role(claims, "admin") {
             return resp;
         }
     }
@@ -152,7 +79,7 @@ async fn main() {
         .route("/me", get(me))
         .route("/admin/users", get(admin_users))
         .route("/moderate", get(moderate))
-        .layer(middleware::from_fn(auth_middleware));
+        .layer(middleware::from_fn(jwt_auth::middleware));
 
     let app = Router::new()
         .route("/", get(|| async { "bluetext api" }))

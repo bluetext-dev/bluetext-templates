@@ -20,7 +20,7 @@ prerequisites:
       file: config/curity/oauth-config.xml
 caveats:
   - API trusts the JWT from Kong without signature verification (Kong already validated it)
-  - Overwrites API source code (main.rs, Cargo.toml) — back up custom code first
+  - Adds the jwt-auth client crate and rewrites API source (main.rs, Cargo.toml)
   - Kong pre-function plugins decode JWT base64 payload to check roles
 variables:
   - name: namespace
@@ -33,8 +33,12 @@ variables:
     type: string
     default: hsqldb
 restarts: [curity, kong, api]
-see_also: [auth/kong-phantom-token, auth/curity-oauth]
+see_also: [auth/kong-phantom-token, auth/curity-oauth, auth/service-jwt]
 steps:
+  - name: Add jwt-auth client library
+    tool: shell_exec
+    params:
+      command: "b client add jwt-auth"
   - name: Write roles scope and roles on flutter-app client for Curity
     tool: file_write
     params:

@@ -114,8 +114,12 @@ async fn admin_users(req: Request) -> Response {
         return resp;
     }
     Json(serde_json::json!({
-        "users": ["admin", "moderator", "user"],
         "requested_by": claims.sub,
+        "users": [
+            {"username": "alice", "email": "alice@example.com", "roles": ["admin"]},
+            {"username": "bob", "email": "bob@example.com", "roles": ["moderator"]},
+            {"username": "carol", "email": "carol@example.com", "roles": []},
+        ],
     }))
     .into_response()
 }

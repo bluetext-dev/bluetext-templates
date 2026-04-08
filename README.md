@@ -1,6 +1,6 @@
 # Bluetext Templates
 
-This repo contains reusable service and app templates for [Bluetext CLI](https://gitlab.com/2hero/bluetext/bluetext-cli) (`b`). Projects add templates via `b service add <template-name>...` or `b app add <template-name>...` (both accept multiple names).
+This repo contains reusable service and app templates for [Bluetext CLI](https://github.com/bluetext-dev/bluetext-cli) (`b`). Projects add templates via `b service add <template-name>...` or `b app add <template-name>...` (both accept multiple names).
 
 By default, the CLI auto-fetches this repo from GitHub and caches it at `~/.cache/bluetext/templates/`. Override with `--from` / `-f` flag or `templates_dir` in `~/.config/bluetext/config.yaml`.
 

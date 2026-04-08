@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: resonate
+spec:
+  type: ClusterIP
+  selector:
+    app: resonate
+  ports:
+    - name: api
+      port: 80
+      targetPort: 8001
+    - name: metrics
+      port: 9090
+      targetPort: 9090

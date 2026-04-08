@@ -1,0 +1,17 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: couchbase-edge-server
+  annotations:
+    bluetext.io/port-forwards: "couchbase-edge-server:59840:80"
+spec:
+  template:
+    spec:
+      containers:
+        - name: couchbase-edge-server
+          imagePullPolicy: IfNotPresent
+      volumes:
+        - name: config-template
+          hostPath:
+            path: /var/mnt/project/config/couchbase-edge-server
+            type: Directory

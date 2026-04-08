@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kong
+spec:
+  template:
+    spec:
+      containers:
+        - name: kong
+          imagePullPolicy: Never
+          volumeMounts:
+            - name: project
+              mountPath: /app
+      volumes:
+        - name: project
+          hostPath:
+            path: /var/mnt/project/code/services/kong
+            type: Directory
+        - name: kong-config
+          hostPath:
+            path: /var/mnt/project/config/kong
+            type: Directory

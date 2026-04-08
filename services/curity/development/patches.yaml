@@ -1,0 +1,15 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: curity
+spec:
+  template:
+    spec:
+      containers:
+        - name: curity
+          imagePullPolicy: IfNotPresent
+      volumes:
+        - name: config-template
+          hostPath:
+            path: /var/mnt/project/config/curity
+            type: DirectoryOrCreate

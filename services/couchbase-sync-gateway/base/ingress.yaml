@@ -1,0 +1,16 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: couchbase-sync-gateway
+spec:
+  rules:
+    - host: couchbase-sync-gateway.PLACEHOLDER
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: couchbase-sync-gateway
+                port:
+                  number: 80

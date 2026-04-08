@@ -1,0 +1,17 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: couchbase-sync-gateway
+  annotations:
+    bluetext.io/port-forwards: "couchbase-sync-gateway:4984:80"
+spec:
+  template:
+    spec:
+      containers:
+        - name: couchbase-sync-gateway
+          imagePullPolicy: IfNotPresent
+      volumes:
+        - name: config-template
+          hostPath:
+            path: /var/mnt/project/config/couchbase-sync-gateway
+            type: Directory

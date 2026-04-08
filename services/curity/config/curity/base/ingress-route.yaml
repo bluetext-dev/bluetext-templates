@@ -1,0 +1,15 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: curity
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`curity.{{NAMESPACE}}.bluetext.localhost`) || Host(`curity.{{NAMESPACE}}.bluetext.lvh.me`)
+      kind: Rule
+      middlewares:
+        - name: curity-headers
+      services:
+        - name: curity
+          port: 80

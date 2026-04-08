@@ -18,11 +18,11 @@ variables:
 restarts: [curity]
 see_also: [auth/curity-oauth, auth/curity-couchbase]
 steps:
-  - name: Overwrite Curity manifest with HSQLDB version (init container + data volume)
+  - name: Overwrite Curity deployment with HSQLDB version (init container + data volume)
     tool: file_write
     params:
-      file: config/services/k8s.curity.yaml
-      content_file: files/k8s.curity.yaml
+      file: config/services/curity/base/deployment.yaml
+      content_file: files/deployment.yaml
   - name: Write datasource config (HSQLDB)
     tool: file_write
     params:

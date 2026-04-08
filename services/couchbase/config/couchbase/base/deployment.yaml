@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: couchbase
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: couchbase
+  template:
+    metadata:
+      labels:
+        app: couchbase
+    spec:
+      hostname: couchbase
+      subdomain: couchbase-headless
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: couchbase
+          image: couchbase:enterprise-7.6.6
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8091
+              name: web-ui
+            - containerPort: 8092
+              name: views
+            - containerPort: 8093
+              name: query
+            - containerPort: 8094
+              name: search
+            - containerPort: 8095
+              name: analytics
+            - containerPort: 11210
+              name: data
+          readinessProbe:
+            httpGet:
+              path: /ui/index.html
+              port: 8091
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 12
+          volumeMounts:
+            - name: couchbase-data
+              mountPath: /opt/couchbase/var
+      volumes:
+        - name: couchbase-data
+          persistentVolumeClaim:
+            claimName: couchbase-data

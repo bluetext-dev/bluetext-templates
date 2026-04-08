@@ -45,33 +45,3 @@ spec:
           hostPath:
             path: /var/mnt/project/code/models
             type: Directory
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: api
-spec:
-  type: ClusterIP
-  selector:
-    app: api
-  ports:
-    - port: 80
-      targetPort: 3030
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: api
-spec:
-  ingressClassName: traefik
-  rules:
-    - host: api.{{NAMESPACE}}.bluetext.localhost
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: api
-                port:
-                  number: 80

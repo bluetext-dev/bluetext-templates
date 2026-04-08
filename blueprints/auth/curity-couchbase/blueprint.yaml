@@ -15,7 +15,7 @@ prerequisites:
     params:
       id: service-config-manager
 caveats:
-  - Overwrites Curity k8s manifest (custom image with Couchbase JDBC driver)
+  - Overwrites Curity deployment (custom image with Couchbase JDBC driver)
   - Curity may restart once or twice while Couchbase initializes — this is normal
   - Couchbase admin credentials are Administrator/password — change for non-dev environments
   - Collections and Analytics datasets are provisioned by service-config-manager before Curity connects
@@ -63,11 +63,11 @@ steps:
                 database_service_providers: {}
                 entities: {}
                 entity_relations: {}
-  - name: Overwrite Curity k8s manifest (custom image with Couchbase JDBC driver)
+  - name: Overwrite Curity deployment (custom image with Couchbase JDBC driver)
     tool: file_write
     params:
-      file: config/services/k8s.curity.yaml
-      content_file: files/k8s.curity.yaml
+      file: config/services/curity/base/deployment.yaml
+      content_file: files/deployment.yaml
   - name: Write Dockerfile (Curity + pre-built Couchbase JDBC wrapper from GCS)
     tool: file_write
     params:

@@ -56,3 +56,7 @@ blueprints:
     name: Kong Gateway
     description: Deploy Kong Gateway in DB-less declarative mode
     tags: [gateway]
+  - id: gateway/kong-proxy
+    name: Kong Proxy
+    description: Wire target services through Kong as a plain reverse proxy — no auth, no plugins
+    tags: [gateway, kong]

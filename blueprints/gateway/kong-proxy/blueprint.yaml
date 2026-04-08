@@ -1,0 +1,76 @@
+name: Kong Proxy
+description: Wire target services through Kong as a plain reverse proxy — no auth, no plugins
+tags: [gateway, kong]
+prerequisites:
+  - description: Kong service exists
+    check: service_exists
+    params:
+      id: kong
+variables:
+  - name: namespace
+    alias: n
+    description: Namespace where Kong and target services are running
+    type: string
+    default: main
+  - name: targets
+    alias: t
+    description: Comma-separated list of service IDs to route through Kong
+    type: string
+    required: true
+restarts: [kong]
+see_also: [auth/kong-phantom-token]
+steps:
+  - name: Write Kong declarative config
+    tool: file_write
+    params:
+      file: config/kong/kong.yaml
+      content_file: files/kong-declarative.yaml
+  - name: Route target services through Kong
+    for_each: targets
+    steps:
+      - name: "Remove direct ingress for {{item}}"
+        tool: file_patch
+        params:
+          file: "config/services/k8s.{{item}}.yaml"
+          operation: remove_document
+          match_kind: Ingress
+      - name: "Add gateway annotation to {{item}}"
+        tool: file_patch
+        params:
+          file: "config/services/k8s.{{item}}.yaml"
+          operation: merge
+          match_kind: Deployment
+          path: spec.template.metadata.annotations
+          content: |
+            bluetext.io/gateway: kong
+      - name: "Add Kong route for {{item}}"
+        tool: file_patch
+        params:
+          file: config/kong/kong.yaml
+          operation: append_list
+          path: services
+          content: |
+            - name: "{{item}}"
+              url: "http://{{item}}.{{namespace}}.svc.cluster.local"
+              routes:
+                - name: "{{item}}-route"
+                  paths:
+                    - "/{{item}}"
+                  strip_path: true
+      - name: "Register gateway relationship for {{item}}"
+        tool: file_patch
+        params:
+          file: config/bluetext.yaml
+          operation: append_list
+          path: relationships
+          content: |
+            - from: kong
+              to: "{{item}}"
+              type: gateway
+              label: Routes traffic to
+              blueprint: gateway/kong-proxy
+  - name: Restart kong in {{namespace}}
+    tool: service_restart
+    params:
+      id: kong
+      namespace: "{{namespace}}"

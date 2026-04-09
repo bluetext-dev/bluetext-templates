@@ -1,0 +1,16 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: couchbase-edge-server
+spec:
+  rules:
+    - host: couchbase-edge-server.PLACEHOLDER
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: couchbase-edge-server
+                port:
+                  number: 80

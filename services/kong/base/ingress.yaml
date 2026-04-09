@@ -1,0 +1,16 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kong
+spec:
+  rules:
+    - host: kong.PLACEHOLDER
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kong
+                port:
+                  number: 80

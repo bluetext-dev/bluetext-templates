@@ -1,0 +1,8 @@
+resources:
+  - deployment.yaml
+  - service.yaml
+  - service-admin.yaml
+  - servers-transport.yaml
+  - middleware.yaml
+  - ingress-route.yaml
+  - ingress-route-admin.yaml

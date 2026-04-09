@@ -1,0 +1,16 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: resonate
+spec:
+  rules:
+    - host: resonate.PLACEHOLDER
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: resonate
+                port:
+                  number: 80

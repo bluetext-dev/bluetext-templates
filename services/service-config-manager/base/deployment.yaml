@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: service-config-manager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: service-config-manager
+  template:
+    metadata:
+      labels:
+        app: service-config-manager
+    spec:
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: service-config-manager
+          image: python:3.11.8-slim-bookworm
+          command: ["./bin/run"]
+          workingDir: /app
+          env:
+            - name: ENVIRONMENT
+              value: development
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace

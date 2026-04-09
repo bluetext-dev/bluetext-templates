@@ -1,0 +1,2 @@
+name: Service Config Manager
+description: Init service that configures Couchbase buckets and Sync Gateway databases

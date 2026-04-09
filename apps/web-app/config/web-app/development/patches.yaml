@@ -7,6 +7,9 @@ spec:
     spec:
       containers:
         - name: app
+          env:
+            - name: API_URL
+              value: "http://api.{{NS:main}}.svc.cluster.local"
           volumeMounts:
             - name: project
               mountPath: /app

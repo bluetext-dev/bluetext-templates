@@ -27,7 +27,19 @@ steps:
       file: config/kong/kong.yaml
       content: |
         _format_version: "3.0"
-        services: []
+        services:
+          - name: catch-all
+            url: http://localhost
+            routes:
+              - name: catch-all
+                paths:
+                  - /
+            plugins:
+              - name: request-termination
+                config:
+                  status_code: 404
+                  content_type: application/json
+                  body: '{"message":"No routes configured","hint":"b bp run gateway/kong-proxy --var targets=<service-id>"}'
   - name: Start kong in {{namespace}}
     tool: service_start
     params:

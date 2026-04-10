@@ -29,7 +29,7 @@ blueprints:
       - description: Flutter app exists
         check: app_exists
         params:
-          id: {{app_id}}
+          id: "{{app_id}}"
   - id: auth/curity
     name: Curity Identity Server
     description: Deploy a standalone Curity Identity Server for OAuth 2.0 and OpenID Connect
@@ -135,7 +135,7 @@ blueprints:
       - description: Target service exists
         check: service_exists
         params:
-          id: {{service}}
+          id: "{{service}}"
   - id: database/service-config-manager-register
     name: Register Service with Config Manager
     description: Wire service-config-manager to an upstream service — injects connection env vars, registers in managed services, and creates the relationship
@@ -148,7 +148,7 @@ blueprints:
       - description: Upstream service exists
         check: upstream_exists
         params:
-          id: {{service}}
+          id: "{{service}}"
   - id: gateway/kong-proxy
     name: Kong Proxy
     description: Wire frontend and API services through Kong — same-origin routing, no auth

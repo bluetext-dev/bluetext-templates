@@ -29,15 +29,13 @@ steps:
     for_each: targets
     steps:
       - name: "Remove direct ingress for {{item}}"
-        tool: file_patch
+        tool: file_delete
         params:
-          file: "config/services/k8s.{{item}}.yaml"
-          operation: remove_document
-          match_kind: Ingress
+          file: "config/services/{{item}}/base/ingress.yaml"
       - name: "Add gateway annotation to {{item}}"
         tool: file_patch
         params:
-          file: "config/services/k8s.{{item}}.yaml"
+          file: "config/services/{{item}}/base/deployment.yaml"
           operation: merge
           match_kind: Deployment
           path: spec.template.metadata.annotations

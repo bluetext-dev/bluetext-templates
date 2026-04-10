@@ -9,3 +9,11 @@ connection_profiles:
         default: "{{upstream}}.{{upstream_ns}}.svc.cluster.local"
       - suffix: PORT
         default: "8000"
+  frontend:
+    description: Frontend proxy — provides API_URL and API_HOST for Vite/Next.js dev servers
+    prefix: API
+    env_vars:
+      - suffix: URL
+        default: "http://{{upstream}}.{{upstream_ns}}.svc.cluster.local"
+      - suffix: HOST
+        default: "{{upstream}}.{{upstream_ns}}.bluetext.localhost"

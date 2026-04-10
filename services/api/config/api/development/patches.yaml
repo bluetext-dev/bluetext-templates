@@ -26,4 +26,4 @@ spec:
         - name: models
           hostPath:
             path: /var/mnt/project/code/models
-            type: Directory
+            type: DirectoryOrCreate

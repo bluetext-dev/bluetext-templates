@@ -1,5 +1,5 @@
 name: Kong Proxy
-description: Wire target services through Kong as a plain reverse proxy — no auth, no plugins
+description: Wire frontend and API services through Kong — same-origin routing, no auth
 tags: [gateway, kong]
 prerequisites:
   - description: Kong service exists
@@ -9,12 +9,17 @@ prerequisites:
 variables:
   - name: namespace
     alias: n
-    description: Namespace where Kong and target services are running
+    description: Namespace where services are running
     type: string
     default: main
   - name: targets
     alias: t
-    description: Comma-separated list of service IDs to route through Kong
+    description: Comma-separated list of backend service IDs to route through Kong
+    type: string
+    required: true
+  - name: frontend
+    alias: f
+    description: Frontend service to wire through Kong (updates ingress + API URL)
     type: string
     required: true
 restarts: [kong]
@@ -49,7 +54,7 @@ steps:
           path: services
           content: |
             - name: "{{item}}"
-              url: "http://{{item}}.{{namespace}}.svc.cluster.local"
+              url: "http://{{item}}"
               routes:
                 - name: "{{item}}-route"
                   paths:
@@ -67,8 +72,35 @@ steps:
               type: gateway
               label: Routes traffic to
               blueprint: gateway/kong-proxy
-  - name: Restart kong in {{namespace}}
+  - name: "Update frontend ingress — route /api to Kong"
+    tool: file_write
+    params:
+      file: "config/services/{{frontend}}/base/ingress.yaml"
+      content_file: files/frontend-ingress.yaml
+  - name: "Update frontend dev overlay — point API to Kong"
+    tool: file_write
+    params:
+      file: "config/services/{{frontend}}/development/patches.yaml"
+      content_file: files/frontend-dev-patches.yaml
+  - name: "Register frontend-kong relationship"
+    tool: file_patch
+    params:
+      file: config/bluetext.yaml
+      operation: append_list
+      path: relationships
+      content: |
+        - from: "{{frontend}}"
+          to: kong
+          type: gateway
+          label: Routes API calls through
+          blueprint: gateway/kong-proxy
+  - name: Restart kong
     tool: service_restart
     params:
       id: kong
+      namespace: "{{namespace}}"
+  - name: "Restart frontend"
+    tool: service_restart
+    params:
+      id: "{{frontend}}"
       namespace: "{{namespace}}"

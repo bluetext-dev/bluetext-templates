@@ -149,15 +149,9 @@ blueprints:
         check: upstream_exists
         params:
           id: {{service}}
-  - id: gateway/kong
-    name: Kong Gateway
-    description: Deploy Kong Gateway in DB-less declarative mode
-    tags: [gateway]
-    prerequisites:
-      - description: A running cluster (b start)
   - id: gateway/kong-proxy
     name: Kong Proxy
-    description: Wire target services through Kong as a plain reverse proxy — no auth, no plugins
+    description: Wire frontend and API services through Kong — same-origin routing, no auth
     tags: [gateway, kong]
     prerequisites:
       - description: Kong service exists

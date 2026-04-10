@@ -17,7 +17,7 @@ variables:
     type: string
     default: main
 restarts: [kong]
-see_also: [gateway/kong, gateway/kong-proxy]
+see_also: [gateway/kong-proxy]
 steps:
   - name: Write request-logger handler.lua
     tool: file_write

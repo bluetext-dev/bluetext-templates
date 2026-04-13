@@ -2,6 +2,11 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: kong
+  labels:
+    app: kong
+  annotations:
+    bluetext.io/reload-command: kong reload
+    bluetext.io/reload-watch: config/kong
 spec:
   replicas: 1
   selector:
@@ -33,7 +38,7 @@ spec:
             - name: KONG_DATABASE
               value: "off"
             - name: KONG_DECLARATIVE_CONFIG
-              value: /etc/kong/kong.yaml
+              value: /config/kong/kong.yaml
             - name: KONG_PROXY_LISTEN
               value: "0.0.0.0:8000"
             - name: KONG_ADMIN_LISTEN
@@ -51,8 +56,7 @@ spec:
             - name: project
               mountPath: /app
             - name: kong-config
-              mountPath: /etc/kong/kong.yaml
-              subPath: kong.yaml
+              mountPath: /config/kong
       volumes:
         - name: project
           hostPath:

@@ -94,8 +94,8 @@ steps:
           type: gateway
           label: Routes API calls through
           blueprint: gateway/kong-proxy
-  - name: Restart kong
-    tool: service_restart
+  - name: Reload kong
+    tool: service_reload
     params:
       id: kong
       namespace: "{{namespace}}"

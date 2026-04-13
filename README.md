@@ -279,6 +279,21 @@ The CLI reads annotations from `metadata.annotations` on the **Deployment** reso
 - **PIDs:** Saved to `.bluetext/pids/<service-id>/<target-service>.port-forward.pid` and cleaned up on `b service stop`.
 - **Use case:** Services (e.g. Flutter on Android emulator) that need to connect to other cluster services from the host. The emulator can reach forwarded ports via `10.0.2.2:<local-port>`.
 
+### `bluetext.io/reload-command`
+
+- **Parsed from:** `Deployment.metadata.annotations`
+- **Effect:** Declares how to reload the service's configuration without a full restart. When the `service_reload` blueprint tool is used, the CLI execs this command inside the running pod via `kubectl exec`. If the annotation is absent, `service_reload` falls back to a full restart.
+- **Example:** `"kong reload"` — sends SIGHUP to the Kong master process, re-reading the declarative config file.
+- **Use case:** Gateway services (Kong) whose config files are mounted via hostPath. Config changes are visible inside the pod immediately, but the service needs a signal to re-read them.
+
+### `bluetext.io/reload-watch`
+
+- **Parsed from:** `Deployment.metadata.annotations`
+- **Requires:** `bluetext.io/reload-command` must also be set.
+- **Effect:** The host agent watches the specified directory (relative to project root) for file changes. When a change is detected, it automatically execs the reload command inside the running pod. Polling interval: 2 seconds.
+- **Example:** `"config/kong"` — watches the `config/kong/` directory; when `kong.yaml` is modified (by a blueprint or manually), Kong is automatically reloaded.
+- **Use case:** Hot reload during development — edit config, see changes immediately without running a command.
+
 ### How the CLI Extracts Config
 
 The CLI parses each `k8s.<id>.yaml` and extracts from the Deployment:

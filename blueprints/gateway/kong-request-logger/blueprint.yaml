@@ -50,8 +50,8 @@ steps:
       content: |
         - name: request-logger
           config: {}
-  - name: Restart kong in {{namespace}}
-    tool: service_restart
+  - name: Reload kong in {{namespace}}
+    tool: service_reload
     params:
       id: kong
       namespace: "{{namespace}}"

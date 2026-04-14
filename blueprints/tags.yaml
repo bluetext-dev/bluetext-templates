@@ -42,3 +42,5 @@ tags:
         description: Kong API Gateway
       flutter:
         description: Flutter mobile apps
+  demo:
+    description: Demo models and example configurations

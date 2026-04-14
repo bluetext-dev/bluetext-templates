@@ -1,0 +1,16 @@
+name: AI Governance Model
+description: Demo data model for an AI governance platform — users, models, policies, usage tracking
+tags: [demo]
+prerequisites: []
+caveats:
+  - Overwrites existing model source files in model/src/
+  - Uses in-memory HashMap state (no database required)
+variables: []
+restarts: []
+see_also: []
+steps:
+  - name: Copy AI governance model sources
+    tool: tree_copy
+    params:
+      source: files/model/src
+      destination: model/src

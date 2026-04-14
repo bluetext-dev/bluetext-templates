@@ -45,8 +45,8 @@ steps:
     params:
       id: curity
       namespace: "{{namespace}}"
-  - name: Restart kong in {{namespace}}
-    tool: service_restart
+  - name: Reload kong in {{namespace}}
+    tool: service_reload
     params:
       id: kong
       namespace: "{{namespace}}"

@@ -1,0 +1,57 @@
+name: Kong Request Logger Plugin
+description: Add a custom Lua plugin to Kong that logs intercepted requests
+tags: [gateway, kong]
+prerequisites:
+  - description: Kong service exists
+    check: service_exists
+    params:
+      id: kong
+caveats:
+  - Adds KONG_LUA_PACKAGE_PATH to Kong deployment (required for local Lua plugins)
+  - Appends request-logger to the KONG_PLUGINS whitelist
+  - Logs at notice level — visible via b service logs kong
+variables:
+  - name: namespace
+    alias: n
+    description: Namespace where Kong is running
+    type: string
+    default: main
+restarts: [kong]
+see_also: [gateway/kong-proxy]
+steps:
+  - name: Write request-logger handler.lua
+    tool: file_write
+    params:
+      file: code/services/kong/lua/kong/plugins/request-logger/handler.lua
+      content_file: files/handler.lua
+  - name: Write request-logger schema.lua
+    tool: file_write
+    params:
+      file: code/services/kong/lua/kong/plugins/request-logger/schema.lua
+      content_file: files/schema.lua
+  - name: Add request-logger to KONG_PLUGINS and set Lua package path
+    tool: shell_exec
+    params:
+      command: >-
+        F=config/services/kong/base/deployment.yaml &&
+        awk 'prev ~ /name: KONG_PLUGINS/ && /value:/ {
+          sub(/"$/, ",request-logger\"");
+          print;
+          print "            - name: KONG_LUA_PACKAGE_PATH";
+          print "              value: \"/app/lua/?.lua;/app/lua/?/init.lua;;\"";
+          prev=$0; next
+        } { prev=$0; print }' "$F" > "$F.tmp" && mv "$F.tmp" "$F"
+  - name: Enable request-logger plugin in Kong declarative config
+    tool: file_patch
+    params:
+      file: config/kong/kong.yaml
+      operation: append_list
+      path: plugins
+      content: |
+        - name: request-logger
+          config: {}
+  - name: Reload kong in {{namespace}}
+    tool: service_reload
+    params:
+      id: kong
+      namespace: "{{namespace}}"

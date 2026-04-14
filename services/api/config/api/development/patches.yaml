@@ -2,14 +2,18 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: api
-  annotations:
-    bluetext.io/dev-command: "cargo watch -x run"
 spec:
   template:
     spec:
       containers:
         - name: api
-          imagePullPolicy: Never
+          volumeMounts:
+            - name: project
+              mountPath: /app
+            - name: clients
+              mountPath: /clients
+            - name: models
+              mountPath: /models
       volumes:
         - name: project
           hostPath:

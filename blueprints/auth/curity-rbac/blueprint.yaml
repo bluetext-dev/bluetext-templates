@@ -2,7 +2,18 @@ name: Curity RBAC Stack
 description: Full-stack RBAC — Curity (IdP) + Kong (gateway enforcement) + API (service-level role guards)
 tags: [auth, oidc, security, gateway, phantom-token, rbac]
 prerequisites:
-  - A running cluster (b start)
+  - description: Curity service exists
+    check: service_exists
+    params:
+      id: curity
+  - description: Kong service exists
+    check: service_exists
+    params:
+      id: kong
+  - description: API service exists
+    check: service_exists
+    params:
+      id: api
 caveats:
   - Requires a Curity license key — get a free trial at developer.curity.io (on a bluetext VM, it is pre-set as $CURITY_LICENSE_KEY)
   - Uses default admin password "admin" — change for non-dev environments
@@ -26,10 +37,6 @@ variables:
     default: ""
 see_also: [auth/curity-phantom-token, gateway/kong]
 steps:
-  - name: Add curity service template
-    tool: service_add
-    params:
-      name: curity
   - name: Gitignore service secret files
     tool: file_write
     params:
@@ -47,14 +54,6 @@ steps:
         type: Opaque
         stringData:
           license-key: '{"License":"{{license_key}}"}'
-  - name: Add kong service template
-    tool: service_add
-    params:
-      name: kong
-  - name: Add api service template
-    tool: service_add
-    params:
-      name: api
   - name: Write Curity base configuration with OAuth2 profiles, clients, and scopes
     tool: file_write
     params:

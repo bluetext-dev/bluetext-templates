@@ -2,8 +2,14 @@ name: Curity Phantom Token Pattern
 description: Deploy Curity + Kong with phantom token introspection to protect target services
 tags: [auth, phantom-token, gateway, security]
 prerequisites:
-  - A running cluster (b start)
-  - At least one existing service to protect (already added via b service add)
+  - description: Curity service exists
+    check: service_exists
+    params:
+      id: curity
+  - description: Kong service exists
+    check: service_exists
+    params:
+      id: kong
 caveats:
   - Requires a Curity license key — get a free trial at developer.curity.io (on a bluetext VM, it is pre-set as $CURITY_LICENSE_KEY)
   - Kong phantom-token plugin version must match Kong version
@@ -25,10 +31,6 @@ variables:
     required: true
 see_also: [auth/curity, auth/curity-rbac, gateway/kong]
 steps:
-  - name: Add curity service template
-    tool: service_add
-    params:
-      name: curity
   - name: Gitignore service secret files
     tool: file_write
     params:
@@ -46,10 +48,6 @@ steps:
         type: Opaque
         stringData:
           license-key: '{"License":"{{license_key}}"}'
-  - name: Add kong service template
-    tool: service_add
-    params:
-      name: kong
   - name: Create {{namespace}} namespace
     tool: namespace_create
     params:

@@ -2,7 +2,10 @@ name: Curity Identity Server
 description: Deploy a standalone Curity Identity Server for OAuth 2.0 and OpenID Connect
 tags: [auth, oidc, oauth]
 prerequisites:
-  - A running cluster (b start)
+  - description: Curity service exists
+    check: service_exists
+    params:
+      id: curity
 caveats:
   - Requires a Curity license key — get a free trial at developer.curity.io (on a bluetext VM, it is pre-set as $CURITY_LICENSE_KEY)
   - Uses default admin password "admin" — change for non-dev environments
@@ -18,10 +21,6 @@ variables:
     required: true
 see_also: [auth/curity-rbac, auth/curity-phantom-token]
 steps:
-  - name: Add curity service template
-    tool: service_add
-    params:
-      name: curity
   - name: Gitignore service secret files
     tool: file_write
     params:

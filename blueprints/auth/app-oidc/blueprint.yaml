@@ -2,8 +2,8 @@ name: App OIDC Authentication
 description: Add OpenID Connect authentication to an existing Flutter app
 tags: [auth, oidc, mobile, curity, flutter]
 prerequisites:
-  - description: Flutter app exists
-    check: app_exists
+  - description: Flutter service exists
+    check: service_exists
     params:
       id: "{{app_id}}"
 caveats:
@@ -25,7 +25,7 @@ steps:
   - name: Add OIDC dependencies to pubspec.yaml
     tool: file_patch
     params:
-      file: "code/apps/{{app_id}}/pubspec.yaml"
+      file: "code/services/{{app_id}}/pubspec.yaml"
       operation: merge
       path: dependencies
       content: |
@@ -37,25 +37,25 @@ steps:
   - name: Write auth config with Curity endpoints
     tool: file_write
     params:
-      file: "code/apps/{{app_id}}/lib/config/auth_config.dart"
+      file: "code/services/{{app_id}}/lib/config/auth_config.dart"
       content_file: files/auth-config.dart
   - name: Write OIDC auth service
     tool: file_write
     params:
-      file: "code/apps/{{app_id}}/lib/services/auth_service.dart"
+      file: "code/services/{{app_id}}/lib/services/auth_service.dart"
       content_file: files/auth-service.dart
   - name: Write authenticated API client
     tool: file_write
     params:
-      file: "code/apps/{{app_id}}/lib/services/api_client.dart"
+      file: "code/services/{{app_id}}/lib/services/api_client.dart"
       content_file: files/api-client.dart
   - name: Write main.dart with login screen
     tool: file_write
     params:
-      file: "code/apps/{{app_id}}/lib/main.dart"
+      file: "code/services/{{app_id}}/lib/main.dart"
       content_file: files/main.dart
   - name: Add OIDC redirect URI receiver to Android manifest
     tool: file_write
     params:
-      file: "code/apps/{{app_id}}/android/app/src/main/AndroidManifest.xml"
+      file: "code/services/{{app_id}}/android/app/src/main/AndroidManifest.xml"
       content_file: files/AndroidManifest.xml

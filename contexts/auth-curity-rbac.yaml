@@ -18,7 +18,7 @@ caveats:
 tips:
   - "Create users: b bp run auth/curity-create-users --var users=alice:Pass1,bob:Pass2"
   - "Assign roles: b bp run auth/curity-assign-roles --var users=alice:admin,bob:moderator"
-  - b app start auto-configures ADB reverse (emulator:8888 → host:80) for ingress access
+  - b service start auto-configures ADB reverse (emulator:8888 → host:80) for ingress access
   - "If Chrome Custom Tab fails after wiping HSQLDB, clear Chrome data: adb shell pm clear com.android.chrome"
 pitfalls:
   - Don't skip auth/curity-oauth — phantom-token needs the introspect endpoint configured
@@ -31,8 +31,8 @@ steps:
     description: Add the Kong API Gateway
   - run: b service add api
     description: Add the API service
-  - run: b app add {{app_id}}
-    description: Add the {{app_id}} app
+  - run: b service add {{app_id}}
+    description: Add the {{app_id}} service
   - run: b bp run auth/curity-hsqldb --no-restart
     description: Configure HSQLDB as the data store
   - run: b bp run auth/curity-oauth --no-restart
@@ -45,8 +45,8 @@ steps:
     description: Add OIDC login flow to the app
   - run: b service start curity kong api
     description: Start all services (picks up all config at once)
-  - run: b app start {{app_id}}
-    description: Start app (builds image, sets up ADB reverse for emulator)
+  - run: b service start {{app_id}}
+    description: Start {{app_id}} (builds image, sets up ADB reverse for emulator)
   - run: b bp run auth/curity-create-users --var users=alice:Password1,bob:Password1
     description: Create test user accounts with passwords
   - run: b bp run auth/curity-assign-roles --var users=alice:admin,bob:moderator

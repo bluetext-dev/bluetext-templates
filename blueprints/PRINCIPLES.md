@@ -37,7 +37,7 @@ Blueprints are independent building blocks. No blueprint assumes another was run
 
 ## Principle 5: Blueprints validate and fail early
 
-Prerequisites are machine-checked before execution (`cluster_running`, `service_exists`, `app_exists`). If anything is missing, the blueprint fails with an actionable error ("Run: b service add X").
+Prerequisites are machine-checked before execution (`cluster_running`, `service_exists`). If anything is missing, the blueprint fails with an actionable error ("Run: b service add X").
 
 The git flow (branch → execute → squash merge) stays intact. File changes are auto-committed. On failure, the branch is left for inspection.
 

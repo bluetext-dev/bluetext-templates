@@ -22,7 +22,7 @@ tips:
   - "Assign roles: b bp run auth/curity-assign-roles --var users=alice:admin,bob:moderator"
   - Couchbase UI at couchbase.<namespace>.bluetext.localhost
   - service-config-manager creates the 15 Curity collections and enables Analytics on the curity bucket
-  - b app start auto-configures ADB reverse (emulator:8888 → host:80) for ingress access
+  - b service start auto-configures ADB reverse (emulator:8888 → host:80) for ingress access
 pitfalls:
   - Don't skip auth/curity-oauth — phantom-token needs the introspect endpoint configured
   - Couchbase must be fully initialized before Curity connects — service-config-manager handles this
@@ -38,8 +38,8 @@ steps:
     description: Add the Kong API Gateway
   - run: b service add api
     description: Add the API service
-  - run: b app add {{app_id}}
-    description: Add the {{app_id}} app
+  - run: b service add {{app_id}}
+    description: Add the {{app_id}} service
   - run: b bp run database/service-config-manager-register --var service=couchbase --no-restart
     description: Wire service-config-manager to Couchbase (injects connection env vars)
   - run: b service start couchbase
@@ -62,8 +62,8 @@ steps:
     description: Pick up curity bucket config — creates bucket in Couchbase
   - run: b service restart curity kong api
     description: Pick up all configuration changes (Couchbase datasource, OAuth2, RBAC)
-  - run: b app start {{app_id}}
-    description: Start app (builds image, sets up ADB reverse for emulator)
+  - run: b service start {{app_id}}
+    description: Start {{app_id}} (builds image, sets up ADB reverse for emulator)
   - run: b bp run auth/curity-create-users --var users=alice:Password1,bob:Password1
     description: Create test user accounts with passwords
   - run: b bp run auth/curity-assign-roles --var users=alice:admin,bob:moderator

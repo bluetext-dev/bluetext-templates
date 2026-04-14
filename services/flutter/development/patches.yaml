@@ -21,7 +21,7 @@ spec:
       volumes:
         - name: project
           hostPath:
-            path: /var/mnt/project/code/apps/flutter
+            path: /var/mnt/project/code/services/flutter
             type: Directory
         - name: pub-cache
           hostPath:

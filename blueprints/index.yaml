@@ -26,8 +26,8 @@ blueprints:
     description: Add OpenID Connect authentication to an existing Flutter app
     tags: [auth, oidc, mobile, curity, flutter]
     prerequisites:
-      - description: Flutter app exists
-        check: app_exists
+      - description: Flutter service exists
+        check: service_exists
         params:
           id: "{{app_id}}"
   - id: auth/curity

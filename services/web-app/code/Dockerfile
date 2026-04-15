@@ -1,5 +1,5 @@
-# Multi-stage build for production-ready React Router (v7) app
-# Stage 1: build optimized bundle with Bun (fast installer + bundler)
+# Multi-stage build for production-ready React Router (v7) app on Bun
+# Stage 1: install deps + build optimized bundle with Bun
 FROM oven/bun:latest AS builder
 WORKDIR /app
 
@@ -12,17 +12,20 @@ RUN bun install
 COPY . .
 RUN bun run build
 
-# Stage 2: Node.js runtime — react-router-serve relies on node-only APIs
-# (renderToPipeableStream is not exposed by Bun's react-dom/server.bun.js)
-FROM node:22-slim
+# Stage 2: slim Bun runtime
+# Custom entry.server.tsx uses renderToReadableStream (Web Standard API,
+# exported by react-dom/server.bun.js). server.ts wires Bun.serve to
+# React Router's createRequestHandler — no Node runtime or
+# @react-router/serve needed.
+FROM oven/bun:slim
 WORKDIR /app
 
 COPY --from=builder /app/build ./build
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./
+COPY --from=builder /app/server.ts ./server.ts
 
 ENV NODE_ENV=production
 ENV PORT=3000
 EXPOSE 3000
-# Runs `react-router-serve ./build/server/index.js` (production server, not Vite dev)
-CMD ["npm", "run", "start"]
+CMD ["bun", "run", "server.ts"]

@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "react-router dev --host",
     "build": "react-router build",
-    "start": "react-router-serve ./build/server/index.js",
+    "start": "bun run server.ts",
     "typecheck": "react-router typegen && tsc"
   },
   "dependencies": {

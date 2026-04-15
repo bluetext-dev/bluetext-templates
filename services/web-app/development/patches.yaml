@@ -2,11 +2,19 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: web-app
+  annotations:
+    bluetext.io/dev-command: "bun install && bun run dev --host"
 spec:
   template:
     spec:
       containers:
         - name: app
+          # Local dev: override production image with Bun runtime + run Vite dev server (HMR)
+          image: oven/bun:latest
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c", "cd /app && bun install && bun run dev --host"]
+          ports:
+            - containerPort: 5173
           volumeMounts:
             - name: project
               mountPath: /app

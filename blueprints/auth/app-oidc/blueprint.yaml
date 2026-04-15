@@ -14,7 +14,7 @@ caveats:
 variables:
   - name: app_id
     description: ID of the existing app to add OIDC to
-    type: string
+    type: service
     required: true
   - name: namespace
     description: Namespace where Curity is running (for endpoint URLs)

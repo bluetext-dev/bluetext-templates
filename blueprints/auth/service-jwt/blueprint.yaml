@@ -14,7 +14,7 @@ variables:
   - name: service
     alias: s
     description: Rust service to add JWT auth to
-    type: string
+    type: service
     required: true
 restarts: ["{{service}}"]
 see_also: [auth/curity-oauth, auth/kong-phantom-token, auth/api-rbac]

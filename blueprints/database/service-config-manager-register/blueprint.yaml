@@ -14,7 +14,7 @@ variables:
   - name: service
     alias: s
     description: Upstream service to register (e.g. couchbase, couchbase-sync-gateway)
-    type: string
+    type: service
   - name: profile
     alias: p
     description: Connection profile to use

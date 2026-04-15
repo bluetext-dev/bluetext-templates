@@ -27,7 +27,7 @@ variables:
     required: true
   - name: target_services
     description: Comma-separated list of service IDs to protect with phantom tokens
-    type: string
+    type: service
     required: true
 see_also: [auth/curity, auth/curity-rbac, gateway/kong]
 steps:

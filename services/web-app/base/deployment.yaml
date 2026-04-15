@@ -18,7 +18,6 @@ spec:
           effect: NoSchedule
       containers:
         - name: app
-          image: oven/bun:latest
-          command: ["sh", "-c", "cd /app && bun install && bun run dev --host"]
+          image: web-app:latest
           ports:
-            - containerPort: 5173
+            - containerPort: 3000

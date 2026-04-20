@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kong-enterprise
+  labels:
+    app: kong-enterprise
+  annotations:
+    bluetext.io/reload-command: kong reload
+    bluetext.io/reload-watch: config/kong-enterprise
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kong-enterprise
+  template:
+    metadata:
+      labels:
+        app: kong-enterprise
+    spec:
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: kong
+          image: kong/kong-gateway:3.12
+          ports:
+            - containerPort: 8000
+              name: proxy
+            - containerPort: 8001
+              name: admin
+          env:
+            - name: KONG_DATABASE
+              value: "off"
+            - name: KONG_DECLARATIVE_CONFIG
+              value: /config/kong/kong.yaml
+            - name: KONG_PROXY_LISTEN
+              value: "0.0.0.0:8000"
+            - name: KONG_ADMIN_LISTEN
+              value: "0.0.0.0:8001"
+            - name: KONG_LICENSE_DATA
+              valueFrom:
+                secretKeyRef:
+                  name: kong-enterprise-license
+                  key: license-data
+                  optional: true
+          readinessProbe:
+            httpGet:
+              path: /status
+              port: 8001
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 12
+          volumeMounts:
+            - name: project
+              mountPath: /app
+            - name: kong-config
+              mountPath: /config/kong
+      volumes:
+        - name: project
+          hostPath:
+            path: /var/mnt/project/code/services/kong-enterprise
+            type: DirectoryOrCreate
+        - name: kong-config
+          hostPath:
+            path: /var/mnt/project/config/kong-enterprise
+            type: Directory

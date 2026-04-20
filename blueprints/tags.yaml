@@ -42,3 +42,9 @@ tags:
         description: Kong API Gateway
       flutter:
         description: Flutter mobile apps
+  ai:
+    description: AI / LLM integrations
+    children:
+      mcp:
+        description: Model Context Protocol
+        aliases: [model-context-protocol]

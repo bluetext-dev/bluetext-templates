@@ -169,7 +169,7 @@ blueprints:
   - id: gateway/kong-mcp-proxy
     name: Kong AI MCP Proxy
     description: "Expose an HTTP API's endpoints as MCP tools via the Kong ai-mcp-proxy plugin (Kong Enterprise 3.12+ required)"
-    tags: [gateway, kong, mcp, ai]
+    tags: [gateway, kong]
     prerequisites:
       - description: Kong (Enterprise) service exists
         check: service_exists

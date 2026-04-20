@@ -8,6 +8,9 @@ export default defineConfig({
   clearScreen: false,
   server: {
     allowedHosts: ['.bluetext.localhost'],
+    // inotify doesn't propagate through hostPath mounts on macOS→k3d, so file
+    // changes on the host never fire HMR. Polling is the workaround.
+    watch: { usePolling: true, interval: 500 },
     proxy: {
       '/api': {
         target: process.env.API_URL || 'http://api',

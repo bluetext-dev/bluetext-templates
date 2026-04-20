@@ -136,6 +136,23 @@ blueprints:
         check: service_exists
         params:
           id: "{{service}}"
+  - id: database/couchbase-wire
+    name: Wire Service to Couchbase
+    description: "Inject Couchbase connection env vars (HOST, USERNAME, PASSWORD, BUCKET, etc.) into a target service's deployment so it can read them at runtime via the couchbase client library"
+    tags: [database, couchbase]
+    prerequisites:
+      - description: Target service exists
+        check: service_exists
+        params:
+          id: "{{target}}"
+      - description: Upstream exists (internal couchbase service or external couchbase-capella)
+        check: upstream_exists
+        params:
+          id: "{{upstream}}"
+      - description: Couchbase client crate is scaffolded (run `b client add couchbase` first)
+        check: file_exists
+        params:
+          file: code/clients/src/couchbase.rs
   - id: database/service-config-manager-register
     name: Register Service with Config Manager
     description: Wire service-config-manager to an upstream service — injects connection env vars, registers in managed services, and creates the relationship

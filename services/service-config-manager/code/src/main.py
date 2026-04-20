@@ -36,6 +36,26 @@ def is_service_reachable(service_name):
     except socket.gaierror:
         return False
 
+def wait_for_service(service_name, logger, timeout=300, interval=5):
+    """Wait up to `timeout` seconds for a service's host to resolve. Returns
+    True if it became reachable, False if it timed out or the env var is missing."""
+    prefix = service_name.upper().replace('-', '_')
+    host = os.environ.get(f'{prefix}_HOST')
+    if not host:
+        return False
+    if is_service_reachable(service_name):
+        return True
+    logger.info(f"⏳ Waiting for {service_name} ({host}) to become reachable...")
+    start = time.time()
+    while time.time() - start < timeout:
+        if is_service_reachable(service_name):
+            elapsed = int(time.time() - start)
+            logger.info(f"✅ {service_name} reachable after {elapsed}s")
+            return True
+        time.sleep(interval)
+    logger.warning(f"⚠️  Timed out after {timeout}s waiting for {service_name}")
+    return False
+
 def main():
     """Main entry point for the init module."""
     logger = get_logger('config-manager')
@@ -77,8 +97,8 @@ def main():
                 failed_count += 1
                 continue
 
-            if not is_service_reachable(name):
-                logger.info(f"⏭️  Skipping {name} — host not found in cluster")
+            if not wait_for_service(name, logger):
+                logger.info(f"⏭️  Skipping {name} — host not reachable")
                 skipped_count += 1
                 continue
 

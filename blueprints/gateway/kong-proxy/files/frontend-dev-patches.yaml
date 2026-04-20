@@ -9,9 +9,9 @@ spec:
         - name: app
           env:
             - name: API_URL
-              value: "http://kong"
+              value: "http://{{gateway}}"
             - name: API_HOST
-              value: "kong.{{NAMESPACE}}.bluetext.localhost"
+              value: "{{gateway}}.{{NAMESPACE}}.bluetext.localhost"
           volumeMounts:
             - name: project
               mountPath: /app

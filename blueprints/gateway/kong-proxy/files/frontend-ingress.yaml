@@ -19,6 +19,6 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: kong
+                name: {{gateway}}
                 port:
                   number: 80

@@ -30,6 +30,8 @@ spec:
             - containerPort: 8001
               name: admin
           env:
+            - name: KONG_PLUGINS
+              value: "bundled"
             - name: KONG_DATABASE
               value: "off"
             - name: KONG_DECLARATIVE_CONFIG

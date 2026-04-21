@@ -1,2 +1,3 @@
 name: Rust API
 description: Backend API with Axum
+language: rust

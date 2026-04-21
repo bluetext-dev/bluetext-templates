@@ -1,6 +1,7 @@
 id: couchbase
 name: Couchbase Client
 description: Rust Couchbase client library with generic CRUD entity trait
+language: rust
 dependencies: []
 default_prefix: COUCHBASE
 env_vars:

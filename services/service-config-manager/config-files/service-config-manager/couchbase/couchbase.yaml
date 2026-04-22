@@ -35,13 +35,18 @@ buckets:
         compression_mode: active
     scopes:
       _default:
-        collections:
-          users:
-            defaults:
-              max_ttl: 3600
-            env_settings:
-              staging:
-                max_ttl: 7200
-              prod:
-                max_ttl: 7200
-          sessions: {}
+        collections: {}
+        # Collections live under a scope. `{}` above is an empty map — SCM
+        # will create the scope but no collections. Uncomment the example
+        # below to add one, or copy the shape for each collection the app
+        # needs:
+        #
+        # collections:
+        #   notes:                      # collection name (Couchbase key)
+        #     defaults:
+        #       max_ttl: 0              # 0 = no TTL; override per env below
+        #     env_settings:
+        #       staging:
+        #         max_ttl: 86400
+        #       prod:
+        #         max_ttl: 0

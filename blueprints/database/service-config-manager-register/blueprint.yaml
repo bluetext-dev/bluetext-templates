@@ -13,13 +13,15 @@ prerequisites:
 variables:
   - name: service
     alias: s
-    description: Upstream service to register (e.g. couchbase, couchbase-sync-gateway)
-    type: service
+    description: Upstream to register — must be a service or external service scaffolded from one of the accepted templates
+    type: upstream
+    accepts: [couchbase, couchbase-sync-gateway]
   - name: profile
     alias: p
-    description: Connection profile to use
-    type: string
-    default: admin
+    description: Connection profile on the chosen upstream used to wire service-config-manager
+    type: connection-profile
+    depends_on: service
+    accepts: [admin]
   - name: namespace
     alias: n
     description: Target namespace

@@ -7,23 +7,46 @@ spec:
     spec:
       containers:
         - name: api
+          # Dev image with the full Rust toolchain so cargo-watch can rebuild
+          # inside the container when source files change. The base image
+          # (debian-slim with just the compiled binary) is used in prod.
+          image: rust:bookworm
+          # Mount the whole project at /app so path-deps in Cargo.toml
+          # (`../../../model`, `../../clients`) resolve against the real
+          # on-host source.
+          workingDir: /app/code/services/api
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -e
+              if ! command -v cargo-watch >/dev/null 2>&1; then
+                echo "Installing cargo-watch (one-time, cached under /usr/local/cargo)"
+                cargo install --locked cargo-watch
+              fi
+              exec cargo watch -q -x run
           volumeMounts:
             - name: project
               mountPath: /app
-            - name: clients
-              mountPath: /clients
-            - name: models
-              mountPath: /models
+            - name: cargo-cache
+              mountPath: /usr/local/cargo/registry
+            - name: target-cache
+              mountPath: /app/code/services/api/target
       volumes:
+        # Mount the whole project root, not just the service dir — Cargo
+        # workspace path-deps (`models`, `clients`, `bluetext-model`) need
+        # to resolve above the service directory.
         - name: project
           hostPath:
-            path: /var/mnt/project/code/services/api
+            path: /var/mnt/project
             type: Directory
-        - name: clients
+        # Persistent registry + target caches under the workspace-level
+        # cache dir. Survives pod restarts and rebuilds; first build is
+        # slow, subsequent rebuilds are incremental.
+        - name: cargo-cache
           hostPath:
-            path: /var/mnt/project/code/clients
-            type: Directory
-        - name: models
+            path: /var/mnt/workspace/.bluetext/cache/api/cargo-registry
+            type: DirectoryOrCreate
+        - name: target-cache
           hostPath:
-            path: /var/mnt/project/code/models
+            path: /var/mnt/workspace/.bluetext/cache/api/target
             type: DirectoryOrCreate

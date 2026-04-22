@@ -21,9 +21,15 @@ external_services/
     template.yaml    # External service metadata (name, description, connection_profiles)
     icon.svg         # Optional icon
 
+clients/
+  <client-id>/
+    template.yaml    # Client metadata (id, name, description, language, accepts)
+    icon.svg         # Optional icon
+    <source files>   # Library source copied into the project's code/clients/<id>/
+                     # (or a single .rs file dropped into code/clients/src/<id>.rs for Rust)
 ```
 
-Each template is a directory under `services/` named by its id.
+Each template is a directory under `services/`, `external_services/`, or `clients/` named by its id.
 
 ### template.yaml
 
@@ -137,6 +143,37 @@ config/external_services/
 ```
 
 Collaborators run `b secret init <id>` to create the actual secrets file from samples, then fill in real values.
+
+## Client Templates
+
+Client templates package reusable library code (e.g. a Couchbase SDK wrapper) along with a declaration of which upstream connection profiles they consume. `b client add <id>` copies the library into the project; `b client configure <id>` injects the right environment variables into a target service by reading the upstream's `connection_profiles`.
+
+### Client `template.yaml`
+
+```yaml
+id: couchbase
+name: Couchbase Client
+description: Rust Couchbase client library with generic CRUD entity trait
+language: rust                    # One of: rust, typescript, go, python, ...
+accepts:                          # Which (upstream, profile) pairs the client can wire against
+  - upstream: couchbase           # Matches a service template id OR an external-service template id
+    profile: data                 # Connection profile name defined on that upstream
+```
+
+The `accepts` list is authoritative: `b client configure -u <upstream>` only succeeds when `<upstream>` appears in the list. If the list has multiple profiles for the same upstream, `-c <profile>` picks one. The prefix and env-var shape come entirely from the upstream's `connection_profiles` — the client never duplicates them.
+
+### What `b client add <name>` copies
+
+- `clients/<name>/` → `code/clients/<name>/` for multi-file clients (TypeScript, etc.).
+- `clients/<name>/<name>.rs` → `code/clients/src/<name>.rs` for single-file Rust clients that slot into a shared `clients` crate.
+
+### What `b client configure <name>` writes
+
+1. Reads `<name>/template.yaml` → resolves the `(upstream, profile)` pair to use.
+2. Reads the upstream's `connection_profiles.<profile>` from the service or external-service template.
+3. Substitutes `{{upstream}}` / `{{upstream_ns}}` (internal services only) and injects the env vars into the target service's Deployment container.
+4. Records a `connection` relationship in the project's relationship graph.
+5. For JS/TS clients, adds a `file:/clients/<name>` dependency to the target's `package.json`.
 
 ## How the CLI Discovers Services
 

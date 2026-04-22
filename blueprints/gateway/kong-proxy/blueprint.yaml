@@ -14,13 +14,15 @@ variables:
     default: main
   - name: targets
     alias: t
-    description: Comma-separated list of backend service IDs to route through Kong
+    description: Backend services to route through Kong
     type: service
+    multiple: true
     required: true
   - name: frontend
     alias: f
     description: Frontend service to wire through Kong (updates ingress + API URL)
     type: service
+    accepts: [web-app, flutter]
     required: true
 restarts: [kong]
 see_also: [auth/kong-phantom-token]

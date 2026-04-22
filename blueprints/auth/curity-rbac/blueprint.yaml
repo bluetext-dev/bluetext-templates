@@ -32,8 +32,9 @@ variables:
     type: string
     required: true
   - name: target_services
-    description: Comma-separated list of additional service IDs to protect (beyond the api)
+    description: Additional services to protect (beyond the api)
     type: service
+    multiple: true
     default: ""
 see_also: [auth/curity-phantom-token, gateway/kong]
 steps:

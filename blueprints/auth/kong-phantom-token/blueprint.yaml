@@ -24,8 +24,9 @@ variables:
     type: string
     default: main
   - name: targets
-    description: Comma-separated list of service IDs to protect with phantom tokens
+    description: Services to protect with phantom tokens
     type: service
+    multiple: true
     required: true
 restarts: [curity, kong]
 see_also: [auth/curity-oauth, auth/api-rbac]

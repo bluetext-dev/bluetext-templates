@@ -29,13 +29,11 @@ connection_profiles:
     description: SDK operations (KV, query, search)
     prefix: COUCHBASE
     env_vars:
-      - suffix: HOST
-        default: "{{upstream}}-headless.{{upstream_ns}}.svc.cluster.local"
+      - suffix: URL
+        default: "couchbase://{{upstream}}-headless.{{upstream_ns}}.svc.cluster.local"
       - suffix: USERNAME
         default: "Administrator"
       - suffix: PASSWORD
         default: "password"
       - suffix: BUCKET
         default: "main"
-      - suffix: PROTOCOL
-        default: "couchbase"

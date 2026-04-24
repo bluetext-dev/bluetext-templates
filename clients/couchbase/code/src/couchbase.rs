@@ -16,24 +16,26 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone)]
 pub struct CouchbaseConf {
-    pub host: String,
+    /// Full connection URL including protocol (e.g. `couchbase://host`,
+    /// `couchbases://host:18091`). The macro-generated `__connect()` and
+    /// this client library both read this as a single opaque string.
+    pub url: String,
     pub username: String,
     pub password: String,
     pub bucket: String,
-    pub protocol: String,
 }
 
 impl CouchbaseConf {
     /// Build config from environment variables using a prefix.
-    /// e.g. prefix "COUCHBASE" reads COUCHBASE_HOST, COUCHBASE_USERNAME, etc.
+    /// e.g. prefix "COUCHBASE" reads COUCHBASE_URL, COUCHBASE_USERNAME, etc.
     ///
-    /// HOST, USERNAME, and PASSWORD are required. PROTOCOL and BUCKET have
-    /// sensible defaults ("couchbase" and "main" respectively).
+    /// URL, USERNAME, and PASSWORD are required. BUCKET has a sensible
+    /// default ("main").
     pub fn from_env(prefix: &str) -> Result<Self, String> {
         let prefix = prefix.to_uppercase().replace('-', "_");
 
-        let host = std::env::var(format!("{prefix}_HOST")).map_err(|_| {
-            format!("Required env var {prefix}_HOST is not set. Run 'b client configure' to inject it.")
+        let url = std::env::var(format!("{prefix}_URL")).map_err(|_| {
+            format!("Required env var {prefix}_URL is not set. Run 'b client configure' to inject it.")
         })?;
         let username = std::env::var(format!("{prefix}_USERNAME")).map_err(|_| {
             format!("Required env var {prefix}_USERNAME is not set. Run 'b client configure' to inject it.")
@@ -43,15 +45,12 @@ impl CouchbaseConf {
         })?;
         let bucket =
             std::env::var(format!("{prefix}_BUCKET")).unwrap_or_else(|_| "main".into());
-        let protocol =
-            std::env::var(format!("{prefix}_PROTOCOL")).unwrap_or_else(|_| "couchbase".into());
 
         Ok(Self {
-            host,
+            url,
             username,
             password,
             bucket,
-            protocol,
         })
     }
 }
@@ -105,12 +104,11 @@ impl std::fmt::Debug for CouchbaseClient {
 
 impl CouchbaseClient {
     pub async fn new(conf: CouchbaseConf) -> Result<Self, String> {
-        let url = format!("{}://{}", conf.protocol, conf.host);
         let auth = PasswordAuthenticator::new(&conf.username, &conf.password);
         let opts = ClusterOptions::new(auth.into());
-        let cluster = Cluster::connect(&url, opts)
+        let cluster = Cluster::connect(&conf.url, opts)
             .await
-            .map_err(|e| format!("Failed to connect to Couchbase cluster at {url}: {e}"))?;
+            .map_err(|e| format!("Failed to connect to Couchbase cluster at {}: {e}", conf.url))?;
         Ok(Self { conf, cluster })
     }
 

@@ -9,8 +9,8 @@ mod usage;
 
 use types::*;
 
-#[derive(Clone, Debug, Serialize, Deserialize, StateMachine, Default)]
 #[state_machine(name = "AI Governance")]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct AppState {
     users: HashMap<String, User>,
     models: HashMap<String, AIModel>,

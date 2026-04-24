@@ -18,7 +18,8 @@ spec:
           effect: NoSchedule
       containers:
         - name: service-config-manager
-          image: python:3.11.8-slim-bookworm
+          image: bluetext-service-config-manager:latest
+          imagePullPolicy: IfNotPresent
           command: ["./bin/run"]
           workingDir: /app
           env:

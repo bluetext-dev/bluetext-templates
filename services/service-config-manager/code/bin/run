@@ -10,31 +10,52 @@ trap 'jobs -p | xargs -r kill' EXIT
 readonly ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." &> /dev/null && pwd)"
 readonly CACHE="${HOME}/.cache"
 
-. "$(dirname "$0")/lib/pip_install"
-
 cd "$ROOT"
 
 CMD="python src/main.py"
 
-if [ -f /etc/os-release ]; then
-  DISTRO=$(cat /etc/os-release | grep '^NAME' | sed 's/.*"\([^ "]*\)[ "].*/\1/')
+# When running on the baked image (Dockerfile in this directory), watchexec and
+# the Python dependencies are already present. Only fall back to the runtime
+# install path on fallback base images (python:*-slim) so the service still
+# works when deployed without a build step.
+ensure_watchexec() {
+  command -v watchexec >/dev/null 2>&1 && return 0
+  if [ ! -f /etc/os-release ]; then return 1; fi
+  local distro
+  distro=$(grep '^NAME' /etc/os-release | sed 's/.*"\([^ "]*\)[ "].*/\1/')
+  case "$distro" in
+    Alpine)
+      apk add -q --no-progress --no-cache watchexec
+      ;;
+    Ubuntu|Debian)
+      apt-get update -qq
+      apt-get install -qq -y wget
+      local arch watchexec_arch
+      arch=$(dpkg --print-architecture)
+      case "$arch" in
+        arm64) watchexec_arch="aarch64" ;;
+        *) watchexec_arch="x86_64" ;;
+      esac
+      wget -q "https://github.com/watchexec/watchexec/releases/download/v2.3.2/watchexec-2.3.2-${watchexec_arch}-unknown-linux-musl.deb" -O /tmp/watchexec.deb
+      dpkg -i /tmp/watchexec.deb
+      rm -f /tmp/watchexec.deb
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
 
-  if [ "$DISTRO" = "Alpine" ]; then
-    apk add -q --no-progress --no-cache watchexec
-  elif [ "$DISTRO" = "Ubuntu" ] || [ "$DISTRO" = "Debian" ]; then
-    apt-get update -qq
-    apt-get install -qq -y wget
-    ARCH=$(dpkg --print-architecture)
-    if [ "$ARCH" = "arm64" ]; then
-      WATCHEXEC_ARCH="aarch64"
-    else
-      WATCHEXEC_ARCH="x86_64"
-    fi
-    wget -q https://github.com/watchexec/watchexec/releases/download/v2.3.2/watchexec-2.3.2-${WATCHEXEC_ARCH}-unknown-linux-musl.deb -O /tmp/watchexec.deb
-    dpkg -i /tmp/watchexec.deb
-    rm /tmp/watchexec.deb
+ensure_python_deps() {
+  # Shortcut: if a known dep is importable, we're done.
+  if python -c 'import couchbase, yaml' >/dev/null 2>&1; then
+    return 0
   fi
+  . "$(dirname "$0")/lib/pip_install"
+}
 
+ensure_python_deps
+if ensure_watchexec; then
   exec watchexec --watch /config --restart --shell=none -- $CMD
 else
   exec $CMD

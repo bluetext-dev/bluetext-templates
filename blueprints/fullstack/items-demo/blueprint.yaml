@@ -1,0 +1,119 @@
+name: Items CRUD round-trip (api + web-app + Couchbase)
+description: >-
+  Adds a POST /items endpoint to the Rust axum api that persists to a
+  Couchbase bucket, and a matching form + list to the web-app home page.
+  Flips the api out of mirrord dev mode so the container actually serves
+  traffic in-cluster. Demonstrates a full frontend → API → datastore
+  round-trip without any host-side tooling.
+tags: [fullstack, api, couchbase, crud, demo]
+
+prerequisites:
+  - description: api service exists
+    check: service_exists
+    params:
+      id: "{{api_service}}"
+  - description: web-app service exists
+    check: service_exists
+    params:
+      id: "{{web_service}}"
+  - description: Upstream Couchbase exists
+    check: upstream_exists
+    params:
+      id: "{{upstream_couchbase}}"
+
+caveats:
+  - The api base image (bluetext-api:latest) is rebuilt during the follow-up deploy. First build can take a few minutes.
+  - The api ingress returns 502 until the pod's readiness probe passes. Polling the ingress is fine.
+  - Couchbase must already be initialized with the {{bucket}} bucket (run database/service-config-manager-register first).
+
+variables:
+  - name: api_service
+    alias: a
+    description: Rust axum api service to extend with POST /items.
+    type: service
+    accepts: [api]
+    default: api
+  - name: web_service
+    alias: w
+    description: Web-app service to extend with the items form.
+    type: service
+    accepts: [web-app]
+    default: web-app
+  - name: upstream_couchbase
+    alias: u
+    description: Couchbase service to persist items into.
+    type: upstream
+    accepts: [couchbase]
+    default: couchbase
+  - name: system_spec
+    alias: s
+    description: System-spec that owns the api deployment (used by the final redeploy).
+    type: system-spec
+    default: default
+  - name: bucket
+    alias: b
+    description: Couchbase bucket to store items in. Must already exist.
+    type: string
+    default: main
+
+restarts: [api, web-app]
+
+see_also:
+  - database/service-config-manager-register
+
+steps:
+  - name: Wire {{api_service}} to {{upstream_couchbase}} (data profile) — injects COUCHBASE_* env vars
+    tool: service_wire
+    params:
+      target: "{{api_service}}"
+      upstream: "{{upstream_couchbase}}"
+      profile: data
+
+  - name: Replace api main.rs with items CRUD handler
+    tool: file_write
+    params:
+      file: code/services/{{api_service}}/src/main.rs
+      content_file: files/main.rs
+
+  - name: Replace api Cargo.toml with items-demo dependencies (tower-http CORS, uuid)
+    tool: file_write
+    params:
+      file: code/services/{{api_service}}/Cargo.toml
+      content_file: files/Cargo.toml
+
+  - name: Replace web-app home.tsx with items form + list
+    tool: file_write
+    params:
+      file: code/services/{{web_service}}/app/routes/home.tsx
+      content_file: files/home.tsx
+
+  - name: Flip api out of mirrord dev mode (remove dev command)
+    tool: shell_exec
+    params:
+      command: |
+        set -e
+        # Entity discovery prefers <service-dir>/metadata.yaml over
+        # <service-dir>.yaml — patch whichever files exist so either
+        # lookup path sees in-cluster mode with no dev command.
+        for f in \
+          "config/services/{{api_service}}.yaml" \
+          "config/services/{{api_service}}/metadata.yaml"; do
+          [ -f "$f" ] || continue
+          sed -i.bak '/^    command: cargo watch -x run$/d; s/^    mode: mirrord$/    mode: in-cluster/' "$f"
+          rm -f "$f.bak"
+        done
+
+  - name: Simplify api development overlay (drop mirrord hostPath patches; base image handles it)
+    tool: file_write
+    params:
+      file: config/services/{{api_service}}/development/kustomization.yaml
+      content: |
+        apiVersion: kustomize.config.k8s.io/v1beta1
+        kind: Kustomization
+        resources:
+          - ../base
+
+  - name: Build + redeploy the api image so the new code + in-cluster mode take effect
+    tool: shell_exec
+    params:
+      command: ${BLUETEXT_CLI:-b} deploy run {{system_spec}} --only {{api_service}}

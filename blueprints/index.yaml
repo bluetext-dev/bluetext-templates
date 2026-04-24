@@ -35,7 +35,10 @@ blueprints:
     description: Deploy a standalone Curity Identity Server for OAuth 2.0 and OpenID Connect
     tags: [auth, oidc, oauth]
     prerequisites:
-      - description: A running cluster (b start)
+      - description: Curity service exists
+        check: service_exists
+        params:
+          id: curity
   - id: auth/curity-assign-roles
     name: Curity Assign Roles
     description: Assign roles to existing user accounts via SCIM API
@@ -102,14 +105,31 @@ blueprints:
     description: Deploy Curity + Kong with phantom token introspection to protect target services
     tags: [auth, phantom-token, gateway, security]
     prerequisites:
-      - description: A running cluster (b start)
-      - description: At least one existing service to protect (already added via b service add)
+      - description: Curity service exists
+        check: service_exists
+        params:
+          id: curity
+      - description: Kong service exists
+        check: service_exists
+        params:
+          id: kong
   - id: auth/curity-rbac
     name: Curity RBAC Stack
     description: Full-stack RBAC — Curity (IdP) + Kong (gateway enforcement) + API (service-level role guards)
     tags: [auth, oidc, security, gateway, phantom-token, rbac]
     prerequisites:
-      - description: A running cluster (b start)
+      - description: Curity service exists
+        check: service_exists
+        params:
+          id: curity
+      - description: Kong service exists
+        check: service_exists
+        params:
+          id: kong
+      - description: API service exists
+        check: service_exists
+        params:
+          id: api
   - id: auth/kong-phantom-token
     name: Kong Phantom Token
     description: Configure Kong with phantom token introspection and wire target services through the gateway
@@ -149,6 +169,27 @@ blueprints:
         check: upstream_exists
         params:
           id: "{{service}}"
+  - id: demo/ai-governance
+    name: AI Governance Model
+    description: Demo data model for an AI governance platform — users, models, policies, usage tracking
+    tags: [demo]
+  - id: fullstack/items-demo
+    name: Items CRUD round-trip (api + web-app + Couchbase)
+    description: Adds a POST /items endpoint to the Rust axum api that persists to a Couchbase bucket, and a matching form + list to the web-app home page. Flips the api out of mirrord dev mode so the container actually serves traffic in-cluster. Demonstrates a full frontend → API → datastore round-trip without any host-side tooling.
+    tags: [fullstack, api, couchbase, crud, demo]
+    prerequisites:
+      - description: api service exists
+        check: service_exists
+        params:
+          id: "{{api_service}}"
+      - description: web-app service exists
+        check: service_exists
+        params:
+          id: "{{web_service}}"
+      - description: Upstream Couchbase exists
+        check: upstream_exists
+        params:
+          id: "{{upstream_couchbase}}"
   - id: gateway/kong-proxy
     name: Kong Proxy
     description: Wire frontend and API services through Kong — same-origin routing, no auth

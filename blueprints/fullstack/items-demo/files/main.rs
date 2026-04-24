@@ -32,13 +32,24 @@ struct AppState {
 
 async fn list_items(
     State(state): State<Arc<AppState>>,
-) -> Result<Json<Vec<serde_json::Value>>, (StatusCode, String)> {
-    state
+) -> Result<Json<Vec<Item>>, (StatusCode, String)> {
+    let raw = state
         .keyspace
         .list(Some(100))
         .await
-        .map(Json)
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
+    // `Keyspace::list` runs `SELECT META().id, * FROM <keyspace>` so each
+    // row is shaped like `{"id": "<meta>", "<collection>": {...actual doc}}`.
+    // Find the first nested-object value and decode it into an Item.
+    let items: Vec<Item> = raw
+        .into_iter()
+        .filter_map(|row| {
+            let obj = row.as_object()?;
+            let inner = obj.values().find(|v| v.is_object())?.clone();
+            serde_json::from_value::<Item>(inner).ok()
+        })
+        .collect();
+    Ok(Json(items))
 }
 
 async fn create_item(

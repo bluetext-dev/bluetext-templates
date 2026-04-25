@@ -30,14 +30,14 @@ spec:
                 fieldRef:
                   fieldPath: metadata.namespace
           volumeMounts:
-            - name: code
+            - name: project
               mountPath: /app
             - name: config
               mountPath: /config
             - name: pip-cache
               mountPath: /root/.cache
       volumes:
-        - name: code
+        - name: project
           hostPath:
             path: /var/mnt/project/code/services/service-config-manager
             type: Directory

@@ -61,10 +61,10 @@ jdbc:postgresql:couchbase://couchbase-headless?catalog=curity&user=Administrator
 
 ```bash
 # Run unit tests (88 tests covering translation, ResultSet parsing, JSON serialization)
-docker run --rm -v "$(pwd):/project" -w /project gradle:8-jdk21 gradle test
+docker run --rm -v "$(pwd):/system" -w /system gradle:8-jdk21 gradle test
 
 # Build the wrapper JAR (includes Gson, no external JDBC driver needed)
-docker run --rm -v "$(pwd):/project" -w /project gradle:8-jdk21 gradle wrapperJar
+docker run --rm -v "$(pwd):/system" -w /system gradle:8-jdk21 gradle wrapperJar
 ```
 
 ## Requirements

@@ -80,7 +80,7 @@ spec:
       volumes:
         - name: config-template
           hostPath:
-            path: /var/mnt/project/config/curity
+            path: /var/mnt/system/config/curity
             type: DirectoryOrCreate
         - name: init-config
           emptyDir: {}
@@ -91,7 +91,7 @@ spec:
             items:
               - key: license-key
                 path: default
-        - name: project
+        - name: system
           hostPath:
-            path: /var/mnt/project/code/services/curity
+            path: /var/mnt/system/code/services/curity
             type: DirectoryOrCreate

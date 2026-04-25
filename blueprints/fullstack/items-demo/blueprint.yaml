@@ -45,10 +45,10 @@ variables:
     type: upstream
     accepts: [couchbase]
     default: couchbase
-  - name: system_spec
+  - name: run_spec
     alias: s
-    description: System-spec that owns the api deployment (used by the final redeploy).
-    type: system-spec
+    description: Run-spec that owns the api deployment (used by the final redeploy).
+    type: run-spec
     default: default
   - name: bucket
     alias: b
@@ -116,4 +116,4 @@ steps:
   - name: Build + redeploy the api image so the new code + in-cluster mode take effect
     tool: shell_exec
     params:
-      command: ${BLUETEXT_CLI:-b} deploy run {{system_spec}} --only {{api_service}}
+      command: ${BLUETEXT_CLI:-b} deploy run {{run_spec}} --only {{api_service}}

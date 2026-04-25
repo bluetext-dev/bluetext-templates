@@ -24,7 +24,7 @@ spec:
             - name: ANDROID_ADB_SERVER_ADDRESS
               value: host.docker.internal
           volumeMounts:
-            - name: project
+            - name: system
               mountPath: /app
             - name: pub-cache
               mountPath: /root/.pub-cache
@@ -33,9 +33,9 @@ spec:
             - name: sdk-cache
               mountPath: /sdk-cache
       volumes:
-        - name: project
+        - name: system
           hostPath:
-            path: /var/mnt/project/code/services/flutter
+            path: /var/mnt/system/code/services/flutter
             type: Directory
         - name: pub-cache
           hostPath:

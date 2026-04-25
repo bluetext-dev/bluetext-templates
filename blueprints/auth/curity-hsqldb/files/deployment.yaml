@@ -81,13 +81,13 @@ spec:
       volumes:
         - name: config-template
           hostPath:
-            path: /var/mnt/project/config/curity
+            path: /var/mnt/system/config/curity
             type: DirectoryOrCreate
         - name: init-config
           emptyDir: {}
         - name: hsqldb-data
           hostPath:
-            path: /var/mnt/project/.bluetext/curity-db
+            path: /var/mnt/system/.bluetext/curity-db
             type: DirectoryOrCreate
         - name: license
           secret:

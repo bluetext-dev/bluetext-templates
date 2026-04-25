@@ -1,5 +1,5 @@
 name: couchbase_lite_p2p
-description: "A new Flutter plugin project."
+description: "A new Flutter plugin system."
 version: 0.0.2
 homepage:
 
@@ -22,7 +22,7 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
-  # This section identifies this Flutter project as a plugin project.
+  # This section identifies this Flutter system as a plugin system.
   # The 'pluginClass' specifies the class (in Java, Kotlin, Swift, Objective-C, etc.)
   # which should be registered in the plugin registry. This is required for
   # using method channels.
@@ -31,7 +31,7 @@ flutter:
   # The 'ffiPlugin' specifies that native code should be built and bundled.
   # This is required for using `dart:ffi`.
   # All these are used by the tooling to maintain consistency when
-  # adding or updating assets for this project.
+  # adding or updating assets for this system.
   plugin:
     platforms:
       android:

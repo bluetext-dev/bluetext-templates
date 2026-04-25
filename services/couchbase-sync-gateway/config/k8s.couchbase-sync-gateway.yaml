@@ -58,7 +58,7 @@ spec:
       volumes:
         - name: config-template
           hostPath:
-            path: /var/mnt/project/config/couchbase-sync-gateway
+            path: /var/mnt/system/config/couchbase-sync-gateway
             type: Directory
         - name: config
           emptyDir: {}

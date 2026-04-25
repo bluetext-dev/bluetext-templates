@@ -8,20 +8,20 @@ spec:
       containers:
         - name: service-config-manager
           volumeMounts:
-            - name: project
+            - name: system
               mountPath: /app
             - name: config
               mountPath: /config
             - name: pip-cache
               mountPath: /root/.cache
       volumes:
-        - name: project
+        - name: system
           hostPath:
-            path: /var/mnt/project/code/services/service-config-manager
+            path: /var/mnt/system/code/services/service-config-manager
             type: Directory
         - name: config
           hostPath:
-            path: /var/mnt/project/config
+            path: /var/mnt/system/config
             type: Directory
         - name: pip-cache
           hostPath:

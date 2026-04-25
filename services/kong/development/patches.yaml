@@ -9,14 +9,14 @@ spec:
         - name: kong
           imagePullPolicy: Never
           volumeMounts:
-            - name: project
+            - name: system
               mountPath: /app
       volumes:
-        - name: project
+        - name: system
           hostPath:
-            path: /var/mnt/project/code/services/kong
+            path: /var/mnt/system/code/services/kong
             type: Directory
         - name: kong-config
           hostPath:
-            path: /var/mnt/project/config/kong
+            path: /var/mnt/system/config/kong
             type: Directory

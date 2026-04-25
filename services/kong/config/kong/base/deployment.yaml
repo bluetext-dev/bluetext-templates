@@ -53,16 +53,16 @@ spec:
             periodSeconds: 5
             failureThreshold: 12
           volumeMounts:
-            - name: project
+            - name: system
               mountPath: /app
             - name: kong-config
               mountPath: /config/kong
       volumes:
-        - name: project
+        - name: system
           hostPath:
-            path: /var/mnt/project/code/services/kong
+            path: /var/mnt/system/code/services/kong
             type: Directory
         - name: kong-config
           hostPath:
-            path: /var/mnt/project/config/kong
+            path: /var/mnt/system/config/kong
             type: Directory

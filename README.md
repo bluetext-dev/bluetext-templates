@@ -1,6 +1,6 @@
 # Bluetext Templates
 
-This repo contains reusable service templates for [Bluetext CLI](https://github.com/bluetext-dev/bluetext-cli) (`b`). Projects add templates via `b service add <template-name>...` (accepts multiple names).
+This repo contains reusable service templates for [Bluetext CLI](https://github.com/bluetext-dev/bluetext-cli) (`b`). Systems add templates via `b service add <template-name>...` (accepts multiple names).
 
 By default, the CLI auto-fetches this repo from GitHub and caches it at `~/.cache/bluetext/templates/`. Override with `--from` / `-f` flag or `templates_dir` in `~/.config/bluetext/config.yaml`.
 
@@ -11,9 +11,9 @@ services/
   <service-id>/
     template.yaml    # Template metadata (id, name, description, ports, dev_mode, dependencies, connection_profiles)
     icon.svg         # Optional icon for CLI display
-    config/          # K8s manifests (copied to project's config/services/)
+    config/          # K8s manifests (copied to system's config/services/)
       k8s.<service-id>.yaml
-    code/            # Service source code (copied to project's code/services/<service-id>/)
+    code/            # Service source code (copied to system's code/services/<service-id>/)
       ...
 
 external_services/
@@ -25,7 +25,7 @@ clients/
   <client-id>/
     template.yaml    # Client metadata (id, name, description, language, accepts)
     icon.svg         # Optional icon
-    <source files>   # Library source copied into the project's code/clients/<id>/
+    <source files>   # Library source copied into the system's code/clients/<id>/
                      # (or a single .rs file dropped into code/clients/src/<id>.rs for Rust)
 ```
 
@@ -80,20 +80,20 @@ Must contain `k8s.<service-id>.yaml` — a multi-document YAML with Deployment, 
 
 ### code/
 
-Contains the service's source code. This entire directory is copied into the project at `code/services/<service-id>/`. Do NOT include build artifacts (`node_modules`, `target`, `build`, `.dart_tool`) — they are skipped during copy.
+Contains the service's source code. This entire directory is copied into the system at `code/services/<service-id>/`. Do NOT include build artifacts (`node_modules`, `target`, `build`, `.dart_tool`) — they are skipped during copy.
 
 ### config-files/ (optional)
 
-Non-Kubernetes configuration files. When `b service add` runs, files from `config-files/` are copied directly into the project's `config/` directory (preserving subdirectory structure).
+Non-Kubernetes configuration files. When `b service add` runs, files from `config-files/` are copied directly into the system's `config/` directory (preserving subdirectory structure).
 
 ## How `b service add` Works
 
-Running `b service add <name>...` in a project (accepts multiple template names):
+Running `b service add <name>...` in a system (accepts multiple template names):
 
 1. Looks for `services/<name>/` in the templates repo (auto-fetched from GitHub or overridden with `--from` / `-f`)
-2. Copies all files from `services/<name>/config/` into the project's `config/services/` directory
-3. Copies `services/<name>/code/` into the project's `code/services/<name>/`
-4. Copies `services/<name>/config-files/` (if present) into the project's `config/` directory
+2. Copies all files from `services/<name>/config/` into the system's `config/services/` directory
+3. Copies `services/<name>/code/` into the system's `code/services/<name>/`
+4. Copies `services/<name>/config-files/` (if present) into the system's `config/` directory
 5. The service is immediately discoverable via `b service list` and runnable via `b service start`
 
 ## External Services
@@ -103,7 +103,7 @@ External services represent dependencies not deployed to the cluster (e.g. Couch
 ### How `b external-service add` Works
 
 1. Looks for `external_services/<name>/template.yaml` in the templates repo
-2. Copies to `config/external_services/<name>.yaml` in the project
+2. Copies to `config/external_services/<name>.yaml` in the system
 3. If the template has secret refs in connection_profiles, generates `secret.samples.<name>.yaml`
 4. If no template found, creates a minimal skeleton for manual editing
 
@@ -146,7 +146,7 @@ Collaborators run `b secret init <id>` to create the actual secrets file from sa
 
 ## Client Templates
 
-Client templates package reusable library code (e.g. a Couchbase SDK wrapper) along with a declaration of which upstream connection profiles they consume. `b client add <id>` copies the library into the project; `b client configure <id>` injects the right environment variables into a target service by reading the upstream's `connection_profiles`.
+Client templates package reusable library code (e.g. a Couchbase SDK wrapper) along with a declaration of which upstream connection profiles they consume. `b client add <id>` copies the library into the system; `b client configure <id>` injects the right environment variables into a target service by reading the upstream's `connection_profiles`.
 
 ### Client `template.yaml`
 
@@ -172,12 +172,12 @@ The `accepts` list is authoritative: `b client configure -u <upstream>` only suc
 1. Reads `<name>/template.yaml` → resolves the `(upstream, profile)` pair to use.
 2. Reads the upstream's `connection_profiles.<profile>` from the service or external-service template.
 3. Substitutes `{{upstream}}` / `{{upstream_ns}}` (internal services only) and injects the env vars into the target service's Deployment container.
-4. Records a `connection` relationship in the project's relationship graph.
+4. Records a `connection` relationship in the system's relationship graph.
 5. For JS/TS clients, adds a `file:/clients/<name>` dependency to the target's `package.json`.
 
 ## How the CLI Discovers Services
 
-After a template is added to a project, the CLI discovers it automatically. On every run, the CLI **recursively** scans the project's `config/services/` directory (including subdirectories) for files matching the pattern `k8s.<id>.yaml`. Each matching file becomes a service with that `<id>`. The CLI then parses the YAML to extract `target_port` from the Service resource, and annotations + volumes from the Deployment resource (see "How the CLI Extracts Config" below).
+After a template is added to a system, the CLI discovers it automatically. On every run, the CLI **recursively** scans the system's `config/services/` directory (including subdirectories) for files matching the pattern `k8s.<id>.yaml`. Each matching file becomes a service with that `<id>`. The CLI then parses the YAML to extract `target_port` from the Service resource, and annotations + volumes from the Deployment resource (see "How the CLI Extracts Config" below).
 
 This means:
 - A service exists if and only if `config/services/k8s.<id>.yaml` exists
@@ -214,12 +214,12 @@ spec:
           ports:
             - containerPort: <port>
           volumeMounts:
-            - name: project
+            - name: system
               mountPath: /app
       volumes:
-        - name: project
+        - name: system
           hostPath:
-            path: /var/mnt/project/code/services/<service-id>
+            path: /var/mnt/system/code/services/<service-id>
             type: Directory
 ---
 apiVersion: v1
@@ -271,8 +271,8 @@ The CLI reads annotations from `metadata.annotations` on the **Deployment** reso
 - **Parsed from:** `Deployment.metadata.annotations`
 - **Effect:** Switches the service out of in-cluster mode. Instead of deploying the full container, the CLI deploys a stub pod and runs this command locally on the host machine.
 - **Without `bluetext.io/dev-mode`:** Uses mirrord mode — deploys a pause container as stub, then runs `mirrord exec --steal` to intercept cluster traffic and forward it to the local process.
-- **Value:** The shell command to run locally (e.g. `cargo watch -x run`, `./bin/dev`). Executed via `zsh -lc` so PATH includes user tools. **Paths are relative to the service directory** (`code/services/<service-id>/`), not the project root.
-- **Requires:** A `project` hostPath volume under `/var/mnt/project/` so the CLI can determine the local source directory (it strips the `/var/mnt/project/` prefix to get the relative path).
+- **Value:** The shell command to run locally (e.g. `cargo watch -x run`, `./bin/dev`). Executed via `zsh -lc` so PATH includes user tools. **Paths are relative to the service directory** (`code/services/<service-id>/`), not the system root.
+- **Requires:** A `system` hostPath volume under `/var/mnt/system/` so the CLI can determine the local source directory (it strips the `/var/mnt/system/` prefix to get the relative path).
 
 ### `bluetext.io/dev-mode`
 
@@ -302,7 +302,7 @@ The CLI reads annotations from `metadata.annotations` on the **Deployment** reso
 
 - **Parsed from:** `Deployment.metadata.annotations`
 - **Requires:** `bluetext.io/reload-command` must also be set.
-- **Effect:** The host agent watches the specified directory (relative to project root) for file changes. When a change is detected, it automatically execs the reload command inside the running pod. Polling interval: 2 seconds.
+- **Effect:** The host agent watches the specified directory (relative to system root) for file changes. When a change is detected, it automatically execs the reload command inside the running pod. Polling interval: 2 seconds.
 - **Example:** `"config/kong"` — watches the `config/kong/` directory; when `kong.yaml` is modified (by a blueprint or manually), Kong is automatically reloaded.
 - **Use case:** Hot reload during development — edit config, see changes immediately without running a command.
 
@@ -315,7 +315,7 @@ The CLI parses each `k8s.<id>.yaml` and extracts from the Deployment:
 | `target_port` | `Service.spec.ports[0].targetPort` | `target_port` |
 | `dev_command` | `Deployment.metadata.annotations["bluetext.io/dev-command"]` | `dev_command` |
 | `dev_mode` | `Deployment.metadata.annotations["bluetext.io/dev-mode"]` | `dev_mode` |
-| `local_dir` | `Deployment.spec.template.spec.volumes[name=project].hostPath.path` (strips `/var/mnt/project/` prefix) | `local_dir` |
+| `local_dir` | `Deployment.spec.template.spec.volumes[name=system].hostPath.path` (strips `/var/mnt/system/` prefix) | `local_dir` |
 | `port_forwards` | `Deployment.metadata.annotations["bluetext.io/port-forwards"]` (parsed as comma-separated `service:localPort:servicePort`) | `port_forwards` |
 
 ### Three Deploy Modes
@@ -353,7 +353,7 @@ The CLI parses each `k8s.<id>.yaml` and extracts from the Deployment:
 
 ### `config-files/` Directory
 
-Templates can include a `config-files/` directory for non-Kubernetes configuration files. When `b service add` runs, files from `config-files/` are copied directly into the project's `config/` directory (preserving subdirectory structure). This is used for:
+Templates can include a `config-files/` directory for non-Kubernetes configuration files. When `b service add` runs, files from `config-files/` are copied directly into the system's `config/` directory (preserving subdirectory structure). This is used for:
 
 - `config-files/couchbase-sync-gateway/config.json` — Sync Gateway bootstrap config
 - `config-files/service-config-manager/managed-services.yaml` — service-config-manager manifest
@@ -383,6 +383,6 @@ Use `__NAMESPACE__` (not `{{NAMESPACE}}`) to avoid conflict with the CLI's manif
 - Service id = directory name = all K8s resource names = `app` label value
 - Use `ClusterIP` services (port 80 → targetPort), not NodePort
 - Add `tolerations` for control-plane scheduling if appropriate
-- Use hostPath volumes under `/var/mnt/project/` for source code and cache directories
-- Cache mounts go under `/var/mnt/workspace/.bluetext/cache/<service-id>/` (workspace-level, persists across projects)
+- Use hostPath volumes under `/var/mnt/system/` for source code and cache directories
+- Cache mounts go under `/var/mnt/workspace/.bluetext/cache/<service-id>/` (workspace-level, persists across systems)
 - Vite-based services need `allowedHosts: ['.bluetext.localhost']` in vite.config.js

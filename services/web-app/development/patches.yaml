@@ -8,16 +8,16 @@ spec:
       containers:
         - name: app
           volumeMounts:
-            - name: project
+            - name: system
               mountPath: /app
             - name: node-modules
               mountPath: /app/node_modules
             - name: clients
               mountPath: /clients
       volumes:
-        - name: project
+        - name: system
           hostPath:
-            path: /var/mnt/project/code/services/web-app
+            path: /var/mnt/system/code/services/web-app
             type: Directory
         - name: node-modules
           hostPath:
@@ -25,5 +25,5 @@ spec:
             type: DirectoryOrCreate
         - name: clients
           hostPath:
-            path: /var/mnt/project/code/clients
+            path: /var/mnt/system/code/clients
             type: Directory

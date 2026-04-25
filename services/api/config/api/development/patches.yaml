@@ -8,22 +8,22 @@ spec:
       containers:
         - name: api
           volumeMounts:
-            - name: project
+            - name: system
               mountPath: /app
             - name: clients
               mountPath: /clients
             - name: models
               mountPath: /models
       volumes:
-        - name: project
+        - name: system
           hostPath:
-            path: /var/mnt/project/code/services/api
+            path: /var/mnt/system/code/services/api
             type: Directory
         - name: clients
           hostPath:
-            path: /var/mnt/project/code/clients
+            path: /var/mnt/system/code/clients
             type: Directory
         - name: models
           hostPath:
-            path: /var/mnt/project/code/models
+            path: /var/mnt/system/code/models
             type: DirectoryOrCreate

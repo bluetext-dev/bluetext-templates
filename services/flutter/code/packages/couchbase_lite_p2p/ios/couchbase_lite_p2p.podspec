@@ -5,9 +5,9 @@
 Pod::Spec.new do |s|
   s.name             = 'couchbase_lite_p2p'
   s.version          = '0.0.2'
-  s.summary          = 'A new Flutter plugin project.'
+  s.summary          = 'A Bluetext system Flutter plugin.'
   s.description      = <<-DESC
-A new Flutter plugin project.
+A Bluetext system Flutter plugin.
                        DESC
   s.homepage         = 'http://example.com'
   s.license          = { :file => '../LICENSE' }

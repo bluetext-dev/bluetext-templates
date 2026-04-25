@@ -9,7 +9,7 @@ mod usage;
 
 use types::*;
 
-#[state_machine(name = "AI Governance")]
+#[state_machine("AI Governance")]
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct AppState {
     users: HashMap<String, User>,

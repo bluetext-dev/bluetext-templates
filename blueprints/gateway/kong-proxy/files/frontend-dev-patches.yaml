@@ -13,16 +13,16 @@ spec:
             - name: API_HOST
               value: "kong.{{NAMESPACE}}.bluetext.localhost"
           volumeMounts:
-            - name: project
+            - name: system
               mountPath: /app
             - name: node-modules
               mountPath: /app/node_modules
             - name: clients
               mountPath: /clients
       volumes:
-        - name: project
+        - name: system
           hostPath:
-            path: /var/mnt/project/code/services/{{frontend}}
+            path: /var/mnt/system/code/services/{{frontend}}
             type: Directory
         - name: node-modules
           hostPath:
@@ -30,5 +30,5 @@ spec:
             type: DirectoryOrCreate
         - name: clients
           hostPath:
-            path: /var/mnt/project/code/clients
+            path: /var/mnt/system/code/clients
             type: Directory

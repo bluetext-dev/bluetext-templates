@@ -22,14 +22,14 @@ variables:
     type: connection-profile
     depends_on: service
     accepts: [admin]
-  - name: system_spec
-    description: Optional system-spec context — when set, namespace is a key within this spec
-    type: system-spec
+  - name: run_spec
+    description: Optional run-spec context — when set, namespace is a key within this spec
+    type: run-spec
   - name: namespace
     alias: n
-    description: Target namespace (key within system_spec if set, otherwise a raw k8s namespace)
+    description: Target namespace (key within run_spec if set, otherwise a raw k8s namespace)
     type: namespace
-    depends_on: system_spec
+    depends_on: run_spec
     default: main
 restarts: [service-config-manager]
 steps:

@@ -18,7 +18,7 @@ Blueprints exist to add capabilities, connect services, or wire cross-cutting co
 
 Adding a service is the developer's action via `b service add`. Blueprints only configure, connect, and wire existing services. Prerequisites validate this with `service_exists` checks.
 
-**Why:** The developer must control what exists in their project. If blueprints add services, you lose visibility into what's being pulled in — a configuration step shouldn't silently change your project's service inventory. Adding and configuring are different responsibilities: one is a project structure decision, the other is a capability decision.
+**Why:** The developer must control what exists in their system. If blueprints add services, you lose visibility into what's being pulled in — a configuration step shouldn't silently change your system's service inventory. Adding and configuring are different responsibilities: one is a system structure decision, the other is a capability decision.
 
 ## Principle 3: One service, one capability per blueprint
 

@@ -55,7 +55,7 @@ spec:
       volumes:
         - name: config-template
           hostPath:
-            path: /var/mnt/project/config/couchbase-edge-server
+            path: /var/mnt/system/config/couchbase-edge-server
             type: Directory
         - name: config
           emptyDir: {}

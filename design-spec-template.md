@@ -1,11 +1,11 @@
 # System Design Specification
 
 > Fill in each section below to describe what you're building. This document
-> serves as the single source of truth for project scope and constraints.
+> serves as the single source of truth for system scope and constraints.
 > Architecture and implementation details are derived from this spec — not
 > defined here.
 
-## 1. Project Overview
+## 1. System Overview
 
 <!-- One-paragraph elevator pitch: what is this system and who is it for? -->
 

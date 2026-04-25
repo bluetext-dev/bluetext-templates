@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: curity
+spec:
+  replicas: 2
+  template:
+    spec:
+      initContainers:
+        - name: config-templater
+          imagePullPolicy: Always
+      containers:
+        - name: curity
+          imagePullPolicy: Always
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "1"

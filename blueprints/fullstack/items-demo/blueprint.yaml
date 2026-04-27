@@ -153,6 +153,7 @@ steps:
           - ../base
 
   - name: Build + redeploy the api image so the new model + in-cluster mode take effect
-    tool: shell_exec
+    tool: deploy_run
     params:
-      command: ${BLUETEXT_CLI:-b} deploy run {{run_spec}} --only {{api_service}}
+      run_spec: "{{run_spec}}"
+      only: "{{api_service}}"

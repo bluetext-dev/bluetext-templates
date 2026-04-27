@@ -1,6 +1,6 @@
 # Bluetext Templates
 
-This repo contains reusable service templates for [Bluetext CLI](https://github.com/bluetext-dev/bluetext-cli) (`b`). Systems add templates via `b service add <template-name>...` (accepts multiple names).
+This repo contains reusable service templates for [Bluetext CLI](https://github.com/bluetext-dev/bluetext) (`b`). Systems add templates via `b service add <template-name>...` (accepts multiple names).
 
 By default, the CLI auto-fetches this repo from GitHub and caches it at `~/.cache/bluetext/templates/`. Override with `--from` / `-f` flag or `templates_dir` in `~/.config/bluetext/config.yaml`.
 

@@ -1,0 +1,20 @@
+name: Kong Hot Reload
+description: Re-run init_worker on the live Kong pod to pick up edits to the Lua plugin source under code/services/kong/lua/. Use after hand-editing handler.lua or schema.lua during plugin development.
+tags: [gateway, kong, dev]
+prerequisites:
+  - description: Kong service exists
+    check: service_exists
+    params:
+      id: kong
+variables:
+  - name: namespace
+    alias: n
+    description: Namespace where Kong is running
+    type: string
+    default: main
+steps:
+  - name: Reload kong in {{namespace}}
+    tool: service_reload
+    params:
+      id: kong
+      namespace: "{{namespace}}"

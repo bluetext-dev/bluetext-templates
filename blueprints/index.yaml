@@ -190,6 +190,15 @@ blueprints:
     name: AI Governance Model
     description: Demo data model for an AI governance platform — users, models, policies, usage tracking
     tags: [demo]
+  - id: dev/kong-reload
+    name: Kong Hot Reload
+    description: Re-run init_worker on the live Kong pod to pick up edits to the Lua plugin source under code/services/kong/lua/. Use after hand-editing handler.lua or schema.lua during plugin development.
+    tags: [gateway, kong, dev]
+    prerequisites:
+      - description: Kong service exists
+        check: service_exists
+        params:
+          id: kong
   - id: fullstack/items-demo
     name: Items CRUD round-trip (api + web-app + Couchbase)
     description: "Materializes an `Item` entity in the project's modeling layer — state machine, mutation, getter, command, and state invariant — then wires a thin axum controller in the api service and a matching form + list in the web-app home page. Flips the api out of mirrord dev mode so the container actually serves traffic in-cluster. Demonstrates a full frontend → API → datastore round-trip that follows the platform's modeling architecture (docs/MODELING.md)."

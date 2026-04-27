@@ -13,12 +13,12 @@ variables:
     default: flutter
 caveats:
   - Kong adds introspection latency per request (mitigated by 300s token caching)
-  - API trusts the JWT from Kong without signature verification (Kong already validated it)
+  - The API trusts the JWT from Kong without signature verification (Kong already validated it)
   - First Flutter image pull is ~1.9GB — cached globally after first pull via registry mirror
 tips:
-  - "Create users: b bp run auth/curity-create-users --var users=alice:Pass1,bob:Pass2"
-  - "Assign roles: b bp run auth/curity-assign-roles --var users=alice:admin,bob:moderator"
-  - b service start auto-configures ADB reverse (emulator:8888 → host:80) for ingress access
+  - "Create users: b bp run auth/curity-create-users --var users=alice:Pass1,bob:Pass2 -s rbac"
+  - "Assign roles: b bp run auth/curity-assign-roles --var users=alice:admin,bob:moderator -s rbac"
+  - The {{app_id}} service auto-configures ADB reverse (emulator:8888 → host:80) for ingress access on start
   - "If Chrome Custom Tab fails after wiping HSQLDB, clear Chrome data: adb shell pm clear com.android.chrome"
 pitfalls:
   - Don't skip auth/curity-oauth — phantom-token needs the introspect endpoint configured
@@ -33,21 +33,21 @@ steps:
     description: Add the API service
   - run: b service add {{app_id}}
     description: Add the {{app_id}} service
-  - run: b bp run auth/curity-hsqldb --no-restart
+  - run: b run-spec set rbac -s curity,kong,api,{{app_id}}
+    description: Compose the four services into a single run-spec
+  - run: b bp run auth/curity-hsqldb --no-restart -s rbac
     description: Configure HSQLDB as the data store
-  - run: b bp run auth/curity-oauth --no-restart
+  - run: b bp run auth/curity-oauth --no-restart -s rbac
     description: Configure OAuth2 profiles, clients (flutter-app), and scopes
-  - run: b bp run auth/kong-phantom-token --var targets=api --no-restart
+  - run: b bp run auth/kong-phantom-token --var targets=api --no-restart -s rbac
     description: Configure Kong with phantom token introspection, route API traffic through it
-  - run: b bp run auth/api-rbac --no-restart
+  - run: b bp run auth/api-rbac --no-restart -s rbac
     description: Add role-guarded routes, SCIM user management profile, and claims mapper
-  - run: b bp run auth/app-oidc --var app_id={{app_id}} --no-restart
+  - run: b bp run auth/app-oidc --var app_id={{app_id}} --no-restart -s rbac
     description: Add OIDC login flow to the app
-  - run: b service start curity kong api
-    description: Start all services (picks up all config at once)
-  - run: b service start {{app_id}}
-    description: Start {{app_id}} (builds image, sets up ADB reverse for emulator)
-  - run: b bp run auth/curity-create-users --var users=alice:Password1,bob:Password1
+  - run: b deploy run rbac
+    description: Render manifests, build images, and apply the run-spec to the local cluster
+  - run: b bp run auth/curity-create-users --var users=alice:Password1,bob:Password1 -s rbac
     description: Create test user accounts with passwords
-  - run: b bp run auth/curity-assign-roles --var users=alice:admin,bob:moderator
+  - run: b bp run auth/curity-assign-roles --var users=alice:admin,bob:moderator -s rbac
     description: Assign roles to the test users

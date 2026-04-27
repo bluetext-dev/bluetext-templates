@@ -9,17 +9,19 @@ variables:
 caveats:
   - Uses default admin password "admin" — change for non-dev environments
 tips:
-  - Register test users at curity.main.bluetext.localhost/authn/registration
-  - Admin UI available at curity-admin.main.bluetext.localhost
+  - "Open the Curity login form at curity.rs--development--auth--main.bluetext.localhost/authn"
+  - "Admin UI: curity-admin.rs--development--auth--main.bluetext.localhost"
   - Pre-configured client — flutter-app (public, PKCE)
 pitfalls:
   - The license secret must be created before starting Curity
 steps:
   - run: b service add curity --var license_key={{license_key}}
     description: Add the Curity Identity Server with license secret
-  - run: b bp run auth/curity-hsqldb --no-restart
+  - run: b run-spec set auth -s curity
+    description: Compose Curity into a single-service run-spec
+  - run: b bp run auth/curity-hsqldb --no-restart -s auth
     description: Configure HSQLDB as the data store (accounts, tokens, sessions)
-  - run: b bp run auth/curity-oauth --no-restart
+  - run: b bp run auth/curity-oauth --no-restart -s auth
     description: Configure OAuth2 profiles, clients (flutter-app), and scopes
-  - run: b service start curity
-    description: Start Curity (picks up HSQLDB + OAuth2 config on first start)
+  - run: b deploy run auth
+    description: Render manifests and apply the run-spec to the local cluster

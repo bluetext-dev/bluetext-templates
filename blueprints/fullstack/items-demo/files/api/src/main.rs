@@ -59,11 +59,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .and_then(|p| p.parse().ok())
         .unwrap_or(3030);
 
-    // Single bootstrap point — `AppState::connect()` reads the COUCHBASE_*
-    // env vars injected by `b service wire` and returns a connected state
-    // machine. Every controller holds a shared reference.
+    // Single bootstrap point — `AppState::__connect()` is auto-generated
+    // by `#[state_machine]`; it reads the COUCHBASE_* env vars injected by
+    // `b service wire` and binds each state-var. Every controller holds a
+    // shared reference.
     let state = Arc::new(
-        AppState::connect()
+        AppState::__connect()
             .await
             .map_err(|e| format!("connect failed: {e}"))?,
     );

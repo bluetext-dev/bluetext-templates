@@ -1,5 +1,5 @@
 use bluetext_model::prelude::*;
-use bluetext_model::stores::couchbase::{CouchbaseBucket, CouchbaseCollection};
+use bluetext_model::stores::couchbase::CouchbaseCollection;
 
 pub mod items;
 
@@ -12,49 +12,12 @@ pub use items::Item;
 // `#[mutation] create_item` the simulation exercises is the one the api
 // controller calls in production (docs/MODELING.md).
 //
-// `stores` is what the simulation engine uses to reset / dump bucket
-// state between randomized traces.
-#[derive(StateMachine)]
-#[state_machine(name = "items-demo")]
+// The `#[state_machine]` attribute injects a hidden `__stores` field
+// and synthesizes `__connect()` that reads the COUCHBASE_* env vars and
+// binds each state-var. No manual `connect()` to write here.
+#[state_machine("items-demo")]
 pub struct AppState {
     items: CouchbaseCollection<Item>,
-    stores: Stores,
-}
-
-impl AppState {
-    // Production bootstrap. Connects to the Couchbase bucket pointed at
-    // by the `COUCHBASE_*` env vars injected via
-    // `b service wire <api> -u couchbase -c data`.
-    pub async fn connect() -> Result<Self, String> {
-        let host = std::env::var("COUCHBASE_HOST")
-            .map_err(|_| "COUCHBASE_HOST not set".to_string())?;
-        let user = std::env::var("COUCHBASE_USERNAME")
-            .map_err(|_| "COUCHBASE_USERNAME not set".to_string())?;
-        let pass = std::env::var("COUCHBASE_PASSWORD")
-            .map_err(|_| "COUCHBASE_PASSWORD not set".to_string())?;
-        let bucket = std::env::var("COUCHBASE_BUCKET")
-            .unwrap_or_else(|_| "main".to_string());
-
-        let auth = ::couchbase::authenticator::Authenticator::PasswordAuthenticator(
-            ::couchbase::authenticator::PasswordAuthenticator {
-                username: user,
-                password: pass,
-            },
-        );
-        let opts = ::couchbase::options::cluster_options::ClusterOptions::new(auth);
-        let cb_bucket = CouchbaseBucket::connect(
-            &format!("couchbase://{host}"),
-            opts,
-            &bucket,
-        )
-        .await
-        .map_err(|e| format!("couchbase connect failed: {e}"))?;
-
-        Ok(Self {
-            items: cb_bucket.collection("_default", "_default"),
-            stores: Stores::new(vec![Box::new(cb_bucket)]),
-        })
-    }
 }
 
 // Mutations, getters, state invariants, simulation hooks — the state
@@ -141,5 +104,4 @@ bluetext_model::model! {
     modules: [],
     types: [items::Item],
     commands: [__commands_block_meta],
-    state_factory: AppState::connect().await.expect("couchbase connect failed"),
 }

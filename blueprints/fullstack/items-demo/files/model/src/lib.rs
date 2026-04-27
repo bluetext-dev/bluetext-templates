@@ -15,8 +15,15 @@ pub use items::Item;
 // The `#[state_machine]` attribute injects a hidden `__stores` field
 // and synthesizes `__connect()` that reads the COUCHBASE_* env vars and
 // binds each state-var. No manual `connect()` to write here.
+//
+// The `#[store(collection = "_default")]` override routes documents
+// into the bucket's always-existing `_default._default` keyspace, so the
+// blueprint doesn't have to provision a dedicated collection (the
+// service-config-manager only auto-creates buckets, not nested
+// collections, by default).
 #[state_machine("items-demo")]
 pub struct AppState {
+    #[store(collection = "_default")]
     items: CouchbaseCollection<Item>,
 }
 
@@ -28,35 +35,45 @@ pub struct AppState {
 impl AppState {
     // Atomic state transition. Idempotent: a retried call with the same
     // id returns Ok(false) so HTTP retries don't duplicate documents.
+    //
+    // Store errors panic per PRINCIPLES §16 — "Couchbase is reachable" is
+    // an internal invariant, not a precondition the caller can fix. Axum's
+    // panic handler converts to a 5xx, which the controller surfaces.
     #[mutation]
     pub async fn create_item(
         &self,
         #[new_key(items)] id: String,
         text: String,
     ) -> Result<bool, MutationError> {
-        if self.items.exists(&id).await {
+        if self.items.exists(&id).await.expect("items.exists failed") {
             return Ok(false);
         }
         self.items
             .upsert(&id, &Item { id: id.clone(), text })
-            .await;
+            .await
+            .expect("items.upsert failed");
         Ok(true)
     }
 
     #[getter]
     pub async fn get_item(&self, #[key(items)] id: String) -> Option<Item> {
-        self.items.get(&id).await
+        self.items.get(&id).await.expect("items.get failed")
     }
 
     #[getter]
     pub async fn list_items(&self) -> Vec<Item> {
-        self.items.values().await
+        self.items.values().await.expect("items.values failed")
     }
 
     // Enforced after every mutation in both production and simulation.
     #[state_invariant]
     pub async fn items_have_text(&self) -> bool {
-        self.items.values().await.iter().all(|it| !it.text.is_empty())
+        self.items
+            .values()
+            .await
+            .expect("items.values failed")
+            .iter()
+            .all(|it| !it.text.is_empty())
     }
 
     #[simulation_init]
@@ -66,7 +83,10 @@ impl AppState {
     // look for traces that violate `items_have_text`.
     #[simulation_step]
     pub async fn step(&self) -> bool {
-        let id = format!("sim-{}", self.items.keys().await.len());
+        let id = format!(
+            "sim-{}",
+            self.items.keys().await.expect("items.keys failed").len()
+        );
         let text = format!("simulated item {id}");
         self.submit_item(id, text).await.is_ok()
     }

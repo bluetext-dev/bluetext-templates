@@ -57,9 +57,13 @@ export default function Home() {
         body: JSON.stringify({ text: trimmed }),
       });
       if (!res.ok) throw new Error(`POST /items returned ${res.status}`);
+      // The api returns the created Item — append it directly so the UI
+      // doesn't depend on a follow-up GET hitting the Couchbase indexer in
+      // time. The next page load will re-fetch from N1QL and reconcile.
+      const created = (await res.json()) as Item;
+      setItems((prev) => [...prev, created]);
       setText("");
       setError(null);
-      await fetchItems();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to save item");
     } finally {

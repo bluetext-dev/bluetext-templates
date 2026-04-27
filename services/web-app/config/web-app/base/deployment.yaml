@@ -19,6 +19,40 @@ spec:
       containers:
         - name: app
           image: oven/bun:latest
-          command: ["sh", "-c", "cd /app && bun install && bun run dev --host"]
+          # The dev server has a transient first-boot crash on hostPath-backed
+          # node_modules: vite/react-router-dev sometimes hits an uncaught
+          # ENOENT in the static-asset path before the install tree has fully
+          # settled in the cache mount. We brace against it with three things:
+          # `sync` after `bun install` to flush async writes, a short pre-warm
+          # probe that the @react-router/dev package is readable, and an
+          # in-pod retry loop so a single crash doesn't trigger a k8s
+          # crashloop backoff (~30s+). Five consecutive failures fall through
+          # to k8s.
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              cd /app
+              bun install
+              sync
+              # Pre-warm: confirm the @react-router/dev package is readable
+              # before launching the dev server, so we don't hand vite a
+              # tree it'll race against.
+              for w in 1 2 3 4 5 6 7 8 9 10; do
+                [ -d node_modules/@react-router/dev/dist ] && break
+                echo "[web-app] waiting for node_modules/@react-router/dev (probe $w)"
+                sleep 1
+              done
+              for attempt in 1 2 3 4 5; do
+                echo "[web-app] starting dev server (attempt $attempt)"
+                if bun run dev --host; then
+                  exit 0
+                fi
+                echo "[web-app] dev exited (attempt $attempt) — sleeping 2s before retry"
+                sleep 2
+              done
+              echo "[web-app] dev failed 5 times — exiting for k8s to take over"
+              exit 1
           ports:
             - containerPort: 5173

@@ -175,7 +175,7 @@ blueprints:
     tags: [demo]
   - id: fullstack/items-demo
     name: Items CRUD round-trip (api + web-app + Couchbase)
-    description: Adds a POST /items endpoint to the Rust axum api that persists to a Couchbase bucket, and a matching form + list to the web-app home page. Flips the api out of mirrord dev mode so the container actually serves traffic in-cluster. Demonstrates a full frontend → API → datastore round-trip without any host-side tooling.
+    description: "Materializes an `Item` entity in the project's modeling layer — state machine, mutation, getter, command, and state invariant — then wires a thin axum controller in the api service and a matching form + list in the web-app home page. Flips the api out of mirrord dev mode so the container actually serves traffic in-cluster. Demonstrates a full frontend → API → datastore round-trip that follows the platform's modeling architecture (docs/MODELING.md)."
     tags: [fullstack, api, couchbase, crud, demo]
     prerequisites:
       - description: api service exists

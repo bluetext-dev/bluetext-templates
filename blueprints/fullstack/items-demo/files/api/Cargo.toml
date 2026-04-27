@@ -10,5 +10,4 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 uuid = { version = "1", features = ["v4"] }
 tower-http = { version = "0.6", features = ["cors"] }
-models = { path = "../../../model" }
-clients = { path = "../../clients" }
+models = { path = "../../../model", features = ["couchbase"] }

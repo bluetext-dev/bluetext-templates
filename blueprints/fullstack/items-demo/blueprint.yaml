@@ -1,10 +1,12 @@
 name: Items CRUD round-trip (api + web-app + Couchbase)
 description: >-
-  Adds a POST /items endpoint to the Rust axum api that persists to a
-  Couchbase bucket, and a matching form + list to the web-app home page.
-  Flips the api out of mirrord dev mode so the container actually serves
-  traffic in-cluster. Demonstrates a full frontend → API → datastore
-  round-trip without any host-side tooling.
+  Materializes an `Item` entity in the project's modeling layer — state
+  machine, mutation, getter, command, and state invariant — then wires a
+  thin axum controller in the api service and a matching form + list in
+  the web-app home page. Flips the api out of mirrord dev mode so the
+  container actually serves traffic in-cluster. Demonstrates a full
+  frontend → API → datastore round-trip that follows the platform's
+  modeling architecture (docs/MODELING.md).
 tags: [fullstack, api, couchbase, crud, demo]
 
 prerequisites:
@@ -22,6 +24,7 @@ prerequisites:
       id: "{{upstream_couchbase}}"
 
 caveats:
+  - Overwrites the project's `model/` crate (lib.rs, items.rs, Cargo.toml) to define the Item state machine. Existing model content is replaced.
   - The api base image (bluetext-api:latest) is rebuilt during the follow-up deploy. First build can take a few minutes.
   - The api ingress returns 502 until the pod's readiness probe passes. Polling the ingress is fine.
   - Couchbase must already be initialized with the {{bucket}} bucket (run database/service-config-manager-register first).
@@ -69,23 +72,59 @@ steps:
       upstream: "{{upstream_couchbase}}"
       profile: data
 
-  - name: Replace api main.rs with items CRUD handler
+  # ─── Modeling layer ─────────────────────────────────────────────────
+  # The Item entity, its mutation/getter/command, and the state invariant
+  # live in the shared `model/` crate so both production and simulation
+  # run the exact same code.
+
+  - name: Write model crate manifest (enables couchbase feature)
+    tool: file_write
+    params:
+      file: model/Cargo.toml
+      content_file: files/model/Cargo.toml
+
+  - name: Write model state machine (AppState + connect + simulation hooks)
+    tool: file_write
+    params:
+      file: model/src/lib.rs
+      content_file: files/model/src/lib.rs
+
+  - name: Write Item entity — mutation, getter, command, state invariant
+    tool: file_write
+    params:
+      file: model/src/items.rs
+      content_file: files/model/src/items.rs
+
+  - name: Write model simulation entry point
+    tool: file_write
+    params:
+      file: model/src/main.rs
+      content_file: files/model/src/main.rs
+
+  # ─── Controller layer ───────────────────────────────────────────────
+  # axum handlers that each call exactly one command on AppState.
+
+  - name: Replace api main.rs with thin controllers (one endpoint = one command)
     tool: file_write
     params:
       file: code/services/{{api_service}}/src/main.rs
-      content_file: files/main.rs
+      content_file: files/api/src/main.rs
 
-  - name: Replace api Cargo.toml with items-demo dependencies (tower-http CORS, uuid)
+  - name: Replace api Cargo.toml (pulls in models with couchbase feature)
     tool: file_write
     params:
       file: code/services/{{api_service}}/Cargo.toml
-      content_file: files/Cargo.toml
+      content_file: files/api/Cargo.toml
+
+  # ─── Frontend ───────────────────────────────────────────────────────
 
   - name: Replace web-app home.tsx with items form + list
     tool: file_write
     params:
       file: code/services/{{web_service}}/app/routes/home.tsx
-      content_file: files/home.tsx
+      content_file: files/web/home.tsx
+
+  # ─── Make the api actually serve traffic in-cluster ────────────────
 
   - name: Flip api out of mirrord dev mode (remove dev command)
     tool: shell_exec
@@ -113,7 +152,7 @@ steps:
         resources:
           - ../base
 
-  - name: Build + redeploy the api image so the new code + in-cluster mode take effect
+  - name: Build + redeploy the api image so the new model + in-cluster mode take effect
     tool: shell_exec
     params:
       command: ${BLUETEXT_CLI:-b} deploy run {{run_spec}} --only {{api_service}}

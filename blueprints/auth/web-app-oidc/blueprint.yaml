@@ -1,0 +1,109 @@
+name: Web-App OIDC Authentication
+description: Add OpenID Connect authentication and role-aware UI to the web-app, registering it as a Curity client and routing API calls through Kong.
+tags: [auth, oidc, web, curity, web-app]
+prerequisites:
+  - description: Web-app service exists
+    check: service_exists
+    params:
+      id: web-app
+  - description: Curity service exists
+    check: service_exists
+    params:
+      id: curity
+  - description: Curity OAuth config exists (run auth/curity-oauth first)
+    check: file_exists
+    params:
+      file: config/curity/oauth-config.xml
+caveats:
+  - Replaces app/root.tsx, app/routes.ts, and app/routes/home.tsx — back up those files if you have custom content.
+  - Replaces vite.config.ts to point /api at Kong and /curity at the IdP. Custom proxies in the existing config will be lost.
+  - Tokens are kept in localStorage. Fine for a local demo; revisit before going to production.
+variables:
+  - name: namespace
+    alias: n
+    description: Namespace where Curity is running (only used for the restart step)
+    type: string
+    default: main
+restarts: [curity, web-app]
+see_also: [auth/curity-oauth, auth/api-rbac, auth/kong-phantom-token]
+steps:
+  - name: Register the web-app client with Curity
+    tool: file_write
+    params:
+      file: config/curity/web-app-client.xml
+      content_file: files/web-app-client.xml
+  - name: Drop the Flutter ADB-tunnel port forwarding (use plain port 80 for browser flows)
+    tool: file_write
+    params:
+      file: config/services/curity/base/middleware.yaml
+      content_file: files/curity-middleware.yaml
+  - name: Repoint Curity's base-url at the browser-reachable hostname (no :8888)
+    tool: file_write
+    params:
+      file: config/curity/base-config.xml
+      content_file: files/base-config.xml
+  - name: Write OIDC client config
+    tool: file_write
+    params:
+      file: code/services/web-app/app/lib/auth/auth-config.ts
+      content_file: files/auth-config.ts
+  - name: Write PKCE helpers
+    tool: file_write
+    params:
+      file: code/services/web-app/app/lib/auth/pkce.ts
+      content_file: files/pkce.ts
+  - name: Write authenticated fetch wrapper
+    tool: file_write
+    params:
+      file: code/services/web-app/app/lib/auth/api-client.ts
+      content_file: files/api-client.ts
+  - name: Write React auth context
+    tool: file_write
+    params:
+      file: code/services/web-app/app/lib/auth/auth-context.tsx
+      content_file: files/auth-context.tsx
+  - name: Write OIDC callback route
+    tool: file_write
+    params:
+      file: code/services/web-app/app/routes/auth.callback.tsx
+      content_file: files/auth.callback.tsx
+  - name: Replace home with the RBAC dashboard
+    tool: file_write
+    params:
+      file: code/services/web-app/app/routes/home.tsx
+      content_file: files/home.tsx
+  - name: Register the callback route
+    tool: file_write
+    params:
+      file: code/services/web-app/app/routes.ts
+      content_file: files/routes.ts
+  - name: Wrap the app in the auth provider
+    tool: file_write
+    params:
+      file: code/services/web-app/app/root.tsx
+      content_file: files/root.tsx
+  - name: Point /api at Kong, expose /curity proxy for token exchange
+    tool: file_write
+    params:
+      file: code/services/web-app/vite.config.ts
+      content_file: files/vite.config.ts
+  - name: Inject KONG_URL/CURITY_URL into the web-app pod (FQDN — Vite proxy needs it)
+    tool: file_write
+    params:
+      file: config/services/web-app/development/patches.yaml
+      content_file: files/web-app-development-patches.yaml
+  - name: Switch the API to in-cluster mode (the RBAC stack runs the API as a real container, not via mirrord)
+    tool: file_write
+    params:
+      file: config/services/api/metadata.yaml
+      content_file: files/api-metadata.yaml
+  - name: Restart curity in {{namespace}}
+    tool: service_restart
+    params:
+      id: curity
+      namespace: "{{namespace}}"
+  - name: Restart web-app in {{namespace}}
+    tool: service_restart
+    params:
+      id: web-app
+      namespace: "{{namespace}}"

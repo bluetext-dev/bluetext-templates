@@ -156,6 +156,23 @@ blueprints:
         check: service_exists
         params:
           id: "{{service}}"
+  - id: auth/web-app-oidc
+    name: Web-App OIDC Authentication
+    description: Add OpenID Connect authentication and role-aware UI to the web-app, registering it as a Curity client and routing API calls through Kong.
+    tags: [auth, oidc, web, curity, web-app]
+    prerequisites:
+      - description: Web-app service exists
+        check: service_exists
+        params:
+          id: web-app
+      - description: Curity service exists
+        check: service_exists
+        params:
+          id: curity
+      - description: Curity OAuth config exists (run auth/curity-oauth first)
+        check: file_exists
+        params:
+          file: config/curity/oauth-config.xml
   - id: database/service-config-manager-register
     name: Register Service with Config Manager
     description: Wire service-config-manager to an upstream service — injects connection env vars, registers in managed services, and creates the relationship

@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-app
+spec:
+  template:
+    spec:
+      containers:
+        - name: app
+          env:
+            # /api/* gets proxied through Kong (which runs phantom-token + RBAC).
+            # Vite's http-proxy doesn't honour the pod's /etc/resolv.conf search
+            # domains, so use the full DNS name — short hostnames give ECONNREFUSED.
+            - name: KONG_URL
+              value: "http://kong.{{NS:main}}.svc.cluster.local"
+            # /curity/* gets proxied to Curity for the OIDC token POST (same-origin
+            # so the browser doesn't trip a CORS preflight).
+            - name: CURITY_URL
+              value: "http://curity.{{NS:main}}.svc.cluster.local"
+          volumeMounts:
+            - name: system
+              mountPath: /app
+            - name: node-modules
+              mountPath: /app/node_modules
+            - name: clients
+              mountPath: /clients
+      volumes:
+        - name: system
+          hostPath:
+            path: /var/mnt/system/code/services/web-app
+            type: Directory
+        - name: node-modules
+          hostPath:
+            path: /var/mnt/workspace/.bluetext/cache/web-app/node_modules
+            type: DirectoryOrCreate
+        - name: clients
+          hostPath:
+            path: /var/mnt/system/code/clients
+            type: Directory

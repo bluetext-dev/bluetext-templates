@@ -1,0 +1,36 @@
+<config xmlns="http://tail-f.com/ns/config/1.0">
+  <profiles xmlns="https://curity.se/ns/conf/base">
+    <profile>
+      <id>token-service</id>
+      <type xmlns:as="https://curity.se/ns/conf/profile/oauth">as:oauth-service</type>
+      <settings>
+        <authorization-server xmlns="https://curity.se/ns/conf/profile/oauth">
+          <client-store>
+            <config-backed>
+              <client>
+                <id>web-app</id>
+                <client-name>Web App</client-name>
+                <no-authentication>true</no-authentication>
+                <redirect-uris>http://web-app.__NAMESPACE__.bluetext.localhost/auth/callback</redirect-uris>
+                <redirect-uris>http://web-app.__NAMESPACE__.bluetext.lvh.me/auth/callback</redirect-uris>
+                <scope>openid</scope>
+                <scope>profile</scope>
+                <scope>email</scope>
+                <scope>roles</scope>
+                <capabilities>
+                  <code/>
+                </capabilities>
+                <proof-key>
+                  <require-proof-key>true</require-proof-key>
+                </proof-key>
+                <use-pairwise-subject-identifiers>
+                  <sector-identifier>bluetext-web-app</sector-identifier>
+                </use-pairwise-subject-identifiers>
+              </client>
+            </config-backed>
+          </client-store>
+        </authorization-server>
+      </settings>
+    </profile>
+  </profiles>
+</config>

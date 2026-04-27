@@ -1,0 +1,47 @@
+name: RBAC Auth with Curity (web-app)
+description: Full authentication stack with role-based access control for the web-app — Curity (IdP) + Kong (gateway enforcement) + API (service-level role guards) + web-app (browser OIDC login with PKCE).
+variables:
+  - name: license_key
+    alias: l
+    description: Curity license key (free trial at developer.curity.io)
+    type: string
+    required: true
+caveats:
+  - Kong adds introspection latency per request (mitigated by 300s token caching).
+  - The API trusts the JWT from Kong without signature verification (Kong already validated it).
+  - Tokens land in browser localStorage. Fine for a local demo; revisit before going to production.
+tips:
+  - "Create users: b bp run auth/curity-create-users --var users=alice:Pass1,bob:Pass2"
+  - "Assign roles: b bp run auth/curity-assign-roles --var users=alice:admin,bob:moderator"
+  - "Open the UI: http://web-app.rs--development--rbac--main.bluetext.localhost"
+pitfalls:
+  - Don't skip auth/curity-oauth — phantom-token needs the introspect endpoint configured.
+  - The API routes through Kong — direct API ingress is removed.
+  - Curity issues a session cookie. To switch users in a browser, sign out (or clear cookies for curity.<ns>.bluetext.localhost).
+steps:
+  - run: b service add curity --var license_key={{license_key}}
+    description: Add the Curity Identity Server with license secret
+  - run: b service add kong
+    description: Add the Kong API Gateway
+  - run: b service add api
+    description: Add the API service
+  - run: b service add web-app
+    description: Add the web-app service
+  - run: b run-spec set rbac -s curity,kong,api,web-app
+    description: Compose the four services into a single run-spec
+  - run: b bp run auth/curity-hsqldb --no-restart -s rbac
+    description: Configure HSQLDB as the data store
+  - run: b bp run auth/curity-oauth --no-restart -s rbac
+    description: Configure OAuth2 profiles, scopes, and the flutter-app client
+  - run: b bp run auth/kong-phantom-token --var targets=api --no-restart -s rbac
+    description: Configure Kong with phantom token introspection, route API traffic through it
+  - run: b bp run auth/api-rbac --no-restart -s rbac
+    description: Add role-guarded routes, SCIM user management profile, and claims mapper
+  - run: b bp run auth/web-app-oidc --no-restart -s rbac
+    description: Register the web-app Curity client, add the React auth provider, and rewire /api through Kong
+  - run: b deploy run rbac
+    description: Render manifests, build images, and apply the run-spec to the local cluster
+  - run: b bp run auth/curity-create-users --var users=alice:Password1,bob:Password1 -s rbac
+    description: Create test user accounts with passwords
+  - run: b bp run auth/curity-assign-roles --var users=alice:admin,bob:moderator -s rbac
+    description: Assign roles to the test users

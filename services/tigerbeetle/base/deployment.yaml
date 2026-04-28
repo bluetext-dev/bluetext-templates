@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tigerbeetle
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: tigerbeetle
+  template:
+    metadata:
+      labels:
+        app: tigerbeetle
+    spec:
+      hostname: tigerbeetle
+      subdomain: tigerbeetle-headless
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+      initContainers:
+        - name: format
+          image: ghcr.io/tigerbeetle/tigerbeetle:0.16.78
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              if [ ! -f /data/0_0.tigerbeetle ]; then
+                /tigerbeetle format --cluster=0 --replica=0 --replica-count=1 /data/0_0.tigerbeetle
+              fi
+          volumeMounts:
+            - name: tigerbeetle-data
+              mountPath: /data
+      containers:
+        - name: tigerbeetle
+          image: ghcr.io/tigerbeetle/tigerbeetle:0.16.78
+          imagePullPolicy: IfNotPresent
+          command:
+            - /tigerbeetle
+            - start
+            - --addresses=0.0.0.0:3000
+            - --development
+            - /data/0_0.tigerbeetle
+          ports:
+            - containerPort: 3000
+              name: cluster
+          readinessProbe:
+            tcpSocket:
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 12
+          livenessProbe:
+            tcpSocket:
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          volumeMounts:
+            - name: tigerbeetle-data
+              mountPath: /data
+      volumes:
+        - name: tigerbeetle-data
+          persistentVolumeClaim:
+            claimName: tigerbeetle-data

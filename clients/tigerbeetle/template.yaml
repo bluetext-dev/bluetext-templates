@@ -1,0 +1,7 @@
+id: tigerbeetle
+name: TigerBeetle Client
+description: Rust TigerBeetle client library — re-exports tigerbeetle-unofficial with bluetext-aware connect helper (DNS resolution, env-driven config)
+language: rust
+accepts:
+  - upstream: tigerbeetle
+    profile: data

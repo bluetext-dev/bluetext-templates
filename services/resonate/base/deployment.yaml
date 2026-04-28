@@ -18,7 +18,8 @@ spec:
           effect: NoSchedule
       containers:
         - name: resonate
-          image: us-central1-docker.pkg.dev/arched-inkwell-420116/bluetext/resonate:latest
+          image: bluetext-resonate:latest
+          imagePullPolicy: Never
           ports:
             - containerPort: 8001
               name: api

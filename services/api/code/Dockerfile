@@ -1,4 +1,11 @@
 FROM rust:bookworm AS builder
+
+# bindgen (pulled in transitively by tigerbeetle-unofficial-sys, which
+# is included whenever the scaffolded `models` crate enables the
+# `tigerbeetle` feature — the default `__all` set does) needs libclang
+# at build time.
+RUN apt-get update && apt-get install -y libclang-dev && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # 1. Copy only manifests and create dummy source files to cache dependencies

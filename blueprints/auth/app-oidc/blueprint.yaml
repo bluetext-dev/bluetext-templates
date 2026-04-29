@@ -59,3 +59,12 @@ steps:
     params:
       file: "code/services/{{app_id}}/android/app/src/main/AndroidManifest.xml"
       content_file: files/AndroidManifest.xml
+  - name: Add ApiClient unit tests
+    # Sub-second feedback layer for the OIDC HTTP contract — runs without an
+    # emulator or a deployed RBAC stack. Pin guards: every status code is
+    # data, the bearer token attaches when present, the 30s timeout actually
+    # fires. Run via `flutter test` inside the dev pod or on the host.
+    tool: file_write
+    params:
+      file: "code/services/{{app_id}}/test/api_client_test.dart"
+      content_file: files/api_client_test.dart

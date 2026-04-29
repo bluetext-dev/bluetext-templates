@@ -65,7 +65,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final _authService = AuthService();
-  late final _apiClient = ApiClient(_authService);
+  late final _apiClient = ApiClient(() => _authService.token);
 
   bool _loggedIn = false;
   bool _loading = false;

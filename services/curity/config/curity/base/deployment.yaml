@@ -2,6 +2,11 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: curity
+  annotations:
+    # `idsvr -r` reloads etc/init XML and merges with the running config —
+    # ConfD-backed dynamic reload, no process restart, no downtime.
+    bluetext.io/reload-command: "idsvr -r"
+    bluetext.io/reload-watch: "config/curity"
 spec:
   replicas: 1
   selector:

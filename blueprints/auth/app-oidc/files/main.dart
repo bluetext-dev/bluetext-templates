@@ -1,11 +1,43 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'services/auth_service.dart';
 import 'services/api_client.dart';
 
+/// Catch every async/uncaught error so a single bad HTTP response (a 403
+/// from a role-guarded endpoint, a TLS handshake failure, etc.) can't tear
+/// the app process down. Without these handlers an unhandled Future
+/// rejection cascades to the platform and Android kills the activity —
+/// the symptom is an empty screen / app restart, not a useful message on
+/// the Authenticated home page.
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  runApp(const MyApp());
+  // Reported synchronously inside the Flutter framework (build, layout,
+  // paint). Logged but not rethrown so the framework can keep going.
+  FlutterError.onError = (FlutterErrorDetails details) {
+    debugPrint('FlutterError: ${details.exceptionAsString()}');
+    if (kDebugMode) {
+      FlutterError.dumpErrorToConsole(details);
+    }
+  };
+
+  // Reported by the Dart runtime for errors that escape framework callbacks
+  // (e.g. an unawaited Future thrown inside an isolate). Returning `true`
+  // tells the platform we've handled it.
+  PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
+    debugPrint('PlatformDispatcher error: $error');
+    return true;
+  };
+
+  // Run the whole app inside a guarded zone so anything that escapes the
+  // two handlers above still surfaces here instead of hitting the OS.
+  await runZonedGuarded<Future<void>>(() async {
+    WidgetsFlutterBinding.ensureInitialized();
+    runApp(const MyApp());
+  }, (Object error, StackTrace stack) {
+    debugPrint('Zone error: $error');
+  });
 }
 
 class MyApp extends StatelessWidget {
@@ -97,15 +129,46 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _callApi(String path) async {
+    if (!mounted) return;
     setState(() { _apiResponse = null; _error = null; _loading = true; });
     try {
       final response = await _apiClient.get(path);
-      setState(() { _apiResponse = '${response.statusCode}: ${response.body}'; });
-    } catch (e) {
-      setState(() { _error = e.toString(); });
+      if (!mounted) return;
+      // Show every response — including 4xx/5xx — instead of treating
+      // them as exceptions. The http package only throws on
+      // socket/timeout errors; status codes are data, not crashes.
+      final body = _safePreview(response.body);
+      setState(() {
+        _apiResponse = '${response.statusCode}: $body';
+        _error = null;
+      });
+    } on TimeoutException {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Request timed out — is the gateway reachable?';
+        _apiResponse = null;
+      });
+    } catch (e, stack) {
+      debugPrint('_callApi failed for $path: $e\n$stack');
+      if (!mounted) return;
+      setState(() {
+        _error = 'Request failed: $e';
+        _apiResponse = null;
+      });
     } finally {
-      setState(() { _loading = false; });
+      if (mounted) {
+        setState(() { _loading = false; });
+      }
     }
+  }
+
+  /// Cap response previews so an accidental megabyte payload can't blow up
+  /// the widget tree. The full body is in the http response object if a
+  /// caller needs it.
+  static String _safePreview(String body) {
+    const limit = 4096;
+    if (body.length <= limit) return body;
+    return '${body.substring(0, limit)}… (truncated, ${body.length} bytes total)';
   }
 
   @override

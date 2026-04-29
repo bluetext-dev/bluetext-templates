@@ -10,6 +10,7 @@ environments:
   development:
     mode: mirrord
     command: cargo watch -x run
+warmup_command: cargo fetch && cargo build
 start_prerequisites:
   - description: cargo-watch installed for auto-rebuild on file changes
     check: command_on_path

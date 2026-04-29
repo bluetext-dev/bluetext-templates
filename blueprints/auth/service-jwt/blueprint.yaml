@@ -16,6 +16,10 @@ variables:
     description: Rust service to add JWT auth to
     type: service
     required: true
+  - name: namespace
+    description: Namespace where the service runs (used for the post-blueprint restart)
+    type: string
+    default: main
 restarts: ["{{service}}"]
 see_also: [auth/curity-oauth, auth/kong-phantom-token, auth/api-rbac]
 steps:
@@ -24,14 +28,17 @@ steps:
     params:
       command: "b client add jwt-auth"
   - name: Add clients dependency to service
-    tool: file_patch
+    # Use `cargo add` rather than file_patch — Cargo.toml is TOML, and
+    # file_patch only knows YAML. cargo is the source of truth for Rust
+    # dep manipulation (preserves formatting, comments, version syntax).
+    # Run from the service directory so cargo resolves `--path ../../clients`
+    # relative to the manifest's location (cargo resolves relative paths
+    # against cwd, not against `--manifest-path`).
+    tool: shell_exec
     params:
-      file: "code/services/{{service}}/Cargo.toml"
-      operation: merge
-      path: dependencies
-      content: |
-        clients = { path = "../../clients" }
+      command: "cd code/services/{{service}} && cargo add clients --path ../../clients"
   - name: Restart service
     tool: service_restart
     params:
       id: "{{service}}"
+      namespace: "{{namespace}}"

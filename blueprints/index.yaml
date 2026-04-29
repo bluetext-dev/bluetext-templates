@@ -216,6 +216,19 @@ blueprints:
         check: upstream_exists
         params:
           id: "{{upstream_couchbase}}"
+  - id: gateway/kong-mcp-proxy
+    name: Kong AI MCP Proxy
+    description: "Expose an HTTP API's endpoints as MCP tools via the Kong ai-mcp-proxy plugin (Kong Enterprise 3.12+ required)"
+    tags: [gateway, kong]
+    prerequisites:
+      - description: Kong (Enterprise) service exists
+        check: service_exists
+        params:
+          id: "{{gateway}}"
+      - description: Target API service exists
+        check: service_exists
+        params:
+          id: "{{target}}"
   - id: gateway/kong-proxy
     name: Kong Proxy
     description: Wire frontend and API services through Kong — same-origin routing, no auth
@@ -224,7 +237,7 @@ blueprints:
       - description: Kong service exists
         check: service_exists
         params:
-          id: kong
+          id: "{{gateway}}"
   - id: gateway/kong-request-logger
     name: Kong Request Logger Plugin
     description: Add a custom Lua plugin to Kong that logs intercepted requests
@@ -233,4 +246,4 @@ blueprints:
       - description: Kong service exists
         check: service_exists
         params:
-          id: kong
+          id: "{{gateway}}"

@@ -5,8 +5,13 @@ prerequisites:
   - description: Kong service exists
     check: service_exists
     params:
-      id: kong
+      id: "{{gateway}}"
 variables:
+  - name: gateway
+    alias: g
+    description: Which Kong service to configure (kong or kong-enterprise)
+    type: service
+    default: kong
   - name: namespace
     alias: n
     description: Namespace where services are running
@@ -24,13 +29,12 @@ variables:
     type: service
     accepts: [web-app, flutter]
     required: true
-restarts: [kong]
 see_also: [auth/kong-phantom-token]
 steps:
   - name: Write Kong declarative config
     tool: file_write
     params:
-      file: config/kong/kong.yaml
+      file: "config/{{gateway}}/kong.yaml"
       content_file: files/kong-declarative.yaml
   - name: Route target services through Kong
     for_each: targets
@@ -47,11 +51,11 @@ steps:
           match_kind: Deployment
           path: spec.template.metadata.annotations
           content: |
-            bluetext.io/gateway: kong
+            bluetext.io/gateway: "{{gateway}}"
       - name: "Add Kong route for {{item}}"
         tool: file_patch
         params:
-          file: config/kong/kong.yaml
+          file: "config/{{gateway}}/kong.yaml"
           operation: append_list
           path: services
           content: |
@@ -69,7 +73,7 @@ steps:
           operation: append_list
           path: relationships
           content: |
-            - from: kong
+            - from: "{{gateway}}"
               to: "{{item}}"
               type: gateway
               label: Routes traffic to
@@ -92,14 +96,14 @@ steps:
       path: relationships
       content: |
         - from: "{{frontend}}"
-          to: kong
+          to: "{{gateway}}"
           type: gateway
           label: Routes API calls through
           blueprint: gateway/kong-proxy
-  - name: Reload kong
+  - name: "Reload {{gateway}}"
     tool: service_reload
     params:
-      id: kong
+      id: "{{gateway}}"
       namespace: "{{namespace}}"
   - name: "Restart frontend"
     tool: service_restart

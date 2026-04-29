@@ -1,0 +1,51 @@
+name: Kong AI MCP Proxy
+description: Expose an HTTP API's endpoints as MCP tools via the Kong ai-mcp-proxy plugin (Kong Enterprise 3.12+ required)
+tags: [gateway, kong]
+prerequisites:
+  - description: Kong (Enterprise) service exists
+    check: service_exists
+    params:
+      id: "{{gateway}}"
+  - description: Target API service exists
+    check: service_exists
+    params:
+      id: "{{target}}"
+variables:
+  - name: gateway
+    alias: g
+    description: Kong service to configure. Must be Kong Enterprise 3.12+ (the ai-mcp-proxy plugin is an EE-only tier)
+    type: service
+    default: kong-enterprise
+  - name: target
+    alias: t
+    description: Backend service whose HTTP endpoints become MCP tools (e.g. api)
+    type: service
+    required: true
+  - name: namespace
+    alias: n
+    description: Namespace where services are running
+    type: string
+    default: main
+steps:
+  - name: Write Kong declarative config with MCP proxy plugin
+    tool: file_write
+    params:
+      file: "config/{{gateway}}/kong.yaml"
+      content_file: files/kong-declarative.yaml
+  - name: "Register gateway relationship for {{target}}"
+    tool: file_patch
+    params:
+      file: config/bluetext.yaml
+      operation: append_list
+      path: relationships
+      content: |
+        - from: "{{gateway}}"
+          to: "{{target}}"
+          type: gateway
+          label: Exposes as MCP tools
+          blueprint: gateway/kong-mcp-proxy
+  - name: "Reload {{gateway}}"
+    tool: service_reload
+    params:
+      id: "{{gateway}}"
+      namespace: "{{namespace}}"

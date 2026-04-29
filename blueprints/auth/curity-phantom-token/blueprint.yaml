@@ -30,7 +30,7 @@ variables:
     type: service
     multiple: true
     required: true
-see_also: [auth/curity, auth/curity-rbac, gateway/kong]
+see_also: [auth/curity, auth/curity-rbac, gateway/kong-proxy]
 steps:
   - name: Gitignore service secret files
     tool: file_write

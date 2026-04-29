@@ -36,7 +36,7 @@ variables:
     type: service
     multiple: true
     default: ""
-see_also: [auth/curity-phantom-token, gateway/kong]
+see_also: [auth/curity-phantom-token, gateway/kong-proxy]
 steps:
   - name: Gitignore service secret files
     tool: file_write

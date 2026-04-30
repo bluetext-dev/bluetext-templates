@@ -10,16 +10,11 @@ prerequisites:
     check: service_exists
     params:
       id: couchbase
-  - description: Service Config Manager exists
-    check: service_exists
-    params:
-      id: service-config-manager
 caveats:
   - Overwrites Curity deployment (custom image bundling the Couchbase data-source plugin)
   - Requires a Curity license that allows custom data-source types (data-sources feature unrestricted, or with "couchbase" listed)
-  - The plugin auto-creates ten curity-* collections plus primary indexes inside the configured bucket and scope on first connect
+  - The plugin auto-creates the curity bucket (256 MiB by default), the configured scope, ten curity-* collections, and primary indexes on first connect — no external provisioner needed
   - For licenses restricted to jdbc data sources, use auth/curity-couchbase-jdbc instead
-  - Curity may restart once or twice while Couchbase initializes — this is normal
   - Couchbase admin credentials are Administrator/password — change for non-dev environments
 variables:
   - name: namespace
@@ -27,26 +22,9 @@ variables:
     description: Namespace where Curity and Couchbase are running
     type: string
     default: main
-restarts: [service-config-manager, curity]
+restarts: [curity]
 see_also: [auth/curity-couchbase-jdbc, auth/curity-oauth, auth/kong-phantom-token]
 steps:
-  - name: Add curity bucket to service-config-manager Couchbase config
-    tool: file_patch
-    params:
-      file: config/service-config-manager/couchbase/couchbase.yaml
-      operation: merge
-      path: buckets
-      content: |
-        curity:
-          defaults:
-            flush_enabled: true
-          analytics: true
-          env_settings:
-            dev:
-              ram_quota_mb: 256
-            prod:
-              ram_quota_mb: 2048
-              num_replicas: 3
   - name: Overwrite Curity deployment (custom image with Couchbase plugin)
     tool: file_write
     params:
@@ -74,11 +52,6 @@ steps:
           type: datasource
           label: Uses as data store
           blueprint: auth/curity-couchbase
-  - name: Restart service-config-manager in {{namespace}}
-    tool: service_restart
-    params:
-      id: service-config-manager
-      namespace: "{{namespace}}"
   - name: Restart curity in {{namespace}}
     tool: service_restart
     params:

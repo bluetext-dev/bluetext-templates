@@ -46,6 +46,11 @@ public interface CouchbaseDataAccessProviderConfiguration extends Configuration 
     @DefaultString("curity")
     String getBucket();
 
+    @Description("RAM quota in MiB used when the plugin creates the bucket on first connect (no effect if the bucket already exists)")
+    @DefaultLong(256)
+    @RangeConstraint(min = 100.0, max = Long.MAX_VALUE)
+    Long getBucketRamQuotaMb();
+
     @Description("Couchbase bucket's scope")
     @DefaultString("_default")
     String getScope();

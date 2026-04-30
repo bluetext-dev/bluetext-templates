@@ -36,7 +36,8 @@ The plugin's config schema is generated from `CouchbaseDataAccessProviderConfigu
 | `<use-tls>` | boolean | `true` | When `true`, connects via `couchbases://`; otherwise `couchbase://`. |
 | `<user-name>` | string | required | Couchbase user with read/write on the configured bucket. |
 | `<password>` | string | required | Password for the Couchbase user. |
-| `<bucket>` | string | `curity` | Bucket holding all Curity collections. |
+| `<bucket>` | string | `curity` | Bucket holding all Curity collections. Auto-created on first connect if missing. |
+| `<bucket-ram-quota-mb>` | long | `256` | RAM quota used when the plugin creates the bucket on first connect. No effect if the bucket already exists. |
 | `<scope>` | string | `_default` | Scope inside the bucket. Auto-created if missing. |
 | `<claim-query>` | string | required | N1QL query for the attribute provider. Supports the placeholders below. |
 | `<use-scim-parameter-names>` | boolean | `true` | When `true`, account-attribute lookups use SCIM names (`emails`, `phoneNumbers`, `userName`); otherwise their flat counterparts (`email`, `phone`, `username`). |
@@ -64,13 +65,15 @@ SELECT `curity-accounts`.* FROM `curity`.`_default`.`curity-accounts` WHERE META
 
 ## Auto-Provisioning
 
-On first connect, `CouchbaseExecutor.init()` runs `DBSetupRunners.run()` against the configured `<bucket>` / `<scope>`:
+The plugin owns its full data-store lifecycle. On first connect, `CouchbaseExecutor.init()` runs the following sequence against the configured `<host>`/credentials:
 
-1. Creates a primary index on the bucket.
-2. Creates the ten Curity collections listed below if missing.
-3. Creates a primary index on each collection and waits for it to come online (with bounded exponential retry against transient `InternalServerFailureException` from the GSI service).
+1. **Wait for cluster manager + global config** — `cluster.waitUntilReady(MANAGER, 2 min)` blocks until Couchbase has finished bootstrap and the management endpoint can accept config requests. Without this step the SDK races the cluster's `GLOBAL_CONFIG_LOAD_IN_PROGRESS` state.
+2. **Create the bucket** if missing — `cluster.buckets().createBucket(...)` with the configured `<bucket-ram-quota-mb>` and `flushEnabled=true`. If the bucket already exists, `BucketExistsException` is caught and the existing bucket is used as-is (settings are not reconciled).
+3. **Wait for bucket KV/Query/GSI** — `bucket.waitUntilReady(60s)` blocks until the new (or existing) bucket's services are responsive. Without this step subsequent collection-management calls would race `FeatureNotAvailableException`.
+4. **Create the ten Curity collections** under `<scope>` if missing (collisions handled idempotently).
+5. **Create a primary index on each collection** and wait for it to come online, with bounded exponential retry against transient `InternalServerFailureException` from the GSI service.
 
-The bucket itself is **not** created — it must exist before the plugin connects. In bluetext deployments that's handled by the `service-config-manager` step in the blueprint.
+What this means for deployment: the plugin needs an **initialized Couchbase cluster** with credentials matching `<user-name>` / `<password>`, but no external bucket-provisioning step. Bucket sizing for production should be handled either by pre-creating the bucket with proper RAM quota and replica settings (the plugin will detect it and skip creation) or by tuning `<bucket-ram-quota-mb>` in the data-source config.
 
 ## Collections
 
@@ -153,6 +156,6 @@ gs://bluetext-cli-releases/plugins/curity-couchbase-plugin-<version>.tar.gz
 
 ## Requirements
 
-- Couchbase Server with KV, Query, and GSI services reachable from the Curity pod.
+- Couchbase Server with KV, Query, and GSI services reachable from the Curity pod, and an initialized cluster (i.e. an admin/RBAC user matching `<user-name>` / `<password>`).
 - A Curity license whose `data-sources` feature allows the `couchbase` type (see [License Requirements](#license-requirements)).
-- The bucket configured under `<bucket>` exists before Curity starts.
+- The configured user must have privileges to create buckets, scopes, collections, and primary indexes if those do not already exist. (For pre-provisioned environments, lower-privileged credentials are sufficient.)

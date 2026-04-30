@@ -14,10 +14,15 @@
 
 package dev.bluetext.curity.couchbase;
 
+import com.couchbase.client.core.error.BucketExistsException;
 import com.couchbase.client.core.error.CouchbaseException;
+import com.couchbase.client.core.service.ServiceType;
 import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.*;
+import com.couchbase.client.java.diagnostics.WaitUntilReadyOptions;
 import com.couchbase.client.java.json.JsonObject;
+import com.couchbase.client.java.manager.bucket.BucketSettings;
+import com.couchbase.client.java.manager.bucket.CreateBucketOptions;
 import com.couchbase.client.java.query.QueryOptions;
 import com.couchbase.client.java.query.QueryScanConsistency;
 import dev.bluetext.curity.couchbase.configuration.CouchbaseDataAccessProviderConfiguration;
@@ -30,6 +35,7 @@ import se.curity.identityserver.sdk.data.query.ResourceQuery.AttributesEnumerati
 import se.curity.identityserver.sdk.data.query.ResourceQueryResult;
 import se.curity.identityserver.sdk.plugin.ManagedObject;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -87,11 +93,35 @@ public class CouchbaseExecutor extends ManagedObject<CouchbaseDataAccessProvider
                     );
             this.cluster = Cluster.connect(connectionString,options);
 
+            // Wait for the management service + global cluster config to be ready before
+            // any bucket-management call. On a freshly-deployed Couchbase the management
+            // endpoint accepts connections before the cluster has finished bootstrap, so
+            // a direct createBucket call otherwise races GLOBAL_CONFIG_LOAD_IN_PROGRESS.
+            this.cluster.waitUntilReady(Duration.ofMinutes(2),
+                    WaitUntilReadyOptions.waitUntilReadyOptions()
+                            .serviceTypes(java.util.Set.of(ServiceType.MANAGER)));
+
+            // Create the bucket if it does not yet exist. The plugin owns its bucket
+            // lifecycle so deployments do not need an external provisioner.
+            try {
+                BucketSettings settings = BucketSettings.create(configuration.getBucket())
+                        .ramQuotaMB(configuration.getBucketRamQuotaMb())
+                        .flushEnabled(true);
+                cluster.buckets().createBucket(settings,
+                        CreateBucketOptions.createBucketOptions().timeout(Duration.ofMinutes(2)));
+                _logger.info("Created bucket '{}' (ram quota: {} MiB)",
+                        configuration.getBucket(), configuration.getBucketRamQuotaMb());
+            } catch (BucketExistsException e) {
+                _logger.info("Bucket '{}' already exists", configuration.getBucket());
+            }
 
             this.bucket = cluster.bucket(configuration.getBucket());
-            if (bucket == null) {
-                throw new RuntimeException("Given bucket does not exist: " + configuration.getBucket());
-            }
+            // Block until the bucket's KV, Query, and GSI services are responsive.
+            // On a freshly-created bucket (or freshly-deployed cluster) the capability map
+            // has not propagated yet, and any subsequent collection-management call would
+            // otherwise throw FeatureNotAvailableException. waitUntilReady is the SDK's
+            // blessed answer.
+            this.bucket.waitUntilReady(Duration.ofSeconds(60));
             this.scope = bucket.scope(configuration.getScope());
             if (this.scope == null) {
                 bucket.collections().createScope(configuration.getScope());

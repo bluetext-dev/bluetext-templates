@@ -65,10 +65,6 @@ blueprints:
         check: service_exists
         params:
           id: couchbase
-      - description: Service Config Manager exists
-        check: service_exists
-        params:
-          id: service-config-manager
   - id: auth/curity-couchbase-jdbc
     name: Curity Couchbase Data Store (JDBC)
     description: Configure Curity with Couchbase via a JDBC wrapper that translates SQL to N1QL — fits Curity licenses that allow JDBC data sources

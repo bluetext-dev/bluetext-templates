@@ -1,14 +1,13 @@
-# Stage 1: compile the Couchbase data-source plugin from source.
-# Source lives at code/services/curity/plugin/ in the system, copied there by the blueprint's tree_copy step.
-# Docker build context is the system root, so paths are system-relative.
-FROM eclipse-temurin:21-jdk AS builder
-WORKDIR /build
-COPY code/services/curity/plugin/ ./
-RUN chmod +x gradlew && ./gradlew --no-daemon createPluginDir
-
-# Stage 2: Curity runtime image with the compiled plugin installed.
-# The createPluginDir task outputs to build/<rootProject.name>/, where rootProject.name = curity-couchbase-plugin.
 FROM curity.azurecr.io/curity/idsvr:latest
-COPY --from=builder --chown=10001:10000 \
-    /build/build/curity-couchbase-plugin/ \
-    /opt/idsvr/usr/share/plugins/couchbase/
+
+# Pre-built Couchbase data-source plugin — registers `couchbase` as a Curity data-source type.
+# Source lives in templates/blueprints/auth/curity-couchbase/files/plugin/ and is published
+# to GCS by the plugin's Publishing pipeline (see files/plugin/README.md).
+USER root
+ADD https://storage.googleapis.com/bluetext-cli-releases/plugins/curity-couchbase-plugin-1.0.0.tar.gz \
+    /tmp/curity-couchbase-plugin.tar.gz
+RUN mkdir -p /opt/idsvr/usr/share/plugins/couchbase \
+ && tar -xzf /tmp/curity-couchbase-plugin.tar.gz -C /opt/idsvr/usr/share/plugins/couchbase --exclude='._*' \
+ && rm /tmp/curity-couchbase-plugin.tar.gz \
+ && chown -R 10001:10000 /opt/idsvr/usr/share/plugins/couchbase
+USER 10001

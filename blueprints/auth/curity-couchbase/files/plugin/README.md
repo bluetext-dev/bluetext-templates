@@ -98,13 +98,50 @@ Other provider classes use their own key shapes — most are simple single-segme
 
 ## Build
 
-Java 21 with the bundled Gradle wrapper:
+Java 21 with the bundled Gradle wrapper, or via Docker:
 
 ```bash
+# Local Java 21
 ./gradlew createPluginDir
+
+# Or via Docker (matches the publish pipeline)
+docker run --rm -v "$(pwd):/system" -w /system gradle:8-jdk21 gradle createPluginDir
 ```
 
-Output lands in `build/curity-couchbase-plugin/` and contains the plugin jar plus its runtime dependencies (Couchbase client, Jackson). Drop that directory at `/opt/idsvr/usr/share/plugins/couchbase/` inside the Curity image. The bluetext blueprint does this automatically via a multi-stage Dockerfile — no manual build needed when running the blueprint.
+Output lands in `build/curity-couchbase-plugin/` and contains the plugin jar plus its runtime dependencies (Couchbase client, Jackson, Reactor). The contents go at `/opt/idsvr/usr/share/plugins/couchbase/` inside the Curity image.
+
+When deployed via the bluetext blueprint, the Curity Dockerfile pulls a pre-built tarball from GCS — see Publishing below. Developers using the blueprint don't compile anything.
+
+## Publishing
+
+The blueprint pulls a pre-built tarball from a public GCS bucket rather than compiling per-system. This source tree is authoritative; the published tarball is its build output.
+
+**Publish target:**
+```
+gs://bluetext-cli-releases/plugins/curity-couchbase-plugin-<version>.tar.gz
+```
+
+**Publishing a new version:**
+1. Bump `version` in `build.gradle` (semver).
+2. Build the plugin directory:
+   ```bash
+   docker run --rm -v "$(pwd):/system" -w /system gradle:8-jdk21 gradle createPluginDir
+   ```
+3. Tarball it (entries at the root, no top-level dir, no macOS AppleDouble sidecars):
+   ```bash
+   COPYFILE_DISABLE=1 tar -czf build/curity-couchbase-plugin-<version>.tar.gz \
+     -C build/curity-couchbase-plugin .
+   ```
+   `COPYFILE_DISABLE=1` is critical on macOS: BSD `tar` otherwise embeds 163-byte `._<filename>` HFS+ metadata stubs alongside each jar, and Curity's plugin loader tries to read every file in the plugin dir as a JAR and fails on those with `ZipException: zip END header not found`.
+4. Upload:
+   ```bash
+   gcloud storage cp build/curity-couchbase-plugin-<version>.tar.gz \
+     gs://bluetext-cli-releases/plugins/
+   ```
+5. Update the pinned version in the blueprint's `files/Dockerfile` (the `ADD` URL).
+6. Commit the source change, the blueprint Dockerfile change, and confirm the published tarball all together.
+
+**Why a published tarball:** the plugin pulls in the full Couchbase Java SDK plus Jackson and Reactor (~16MB compressed). Pinning each system to a specific published artifact keeps Docker builds fast and deterministic, and gives the plugin a real release surface independent of any single user's checkout. Compile-from-source remains supported for plugin development — see the Build instructions above — and the source itself is what's pinned in this directory.
 
 ## Verified Against
 

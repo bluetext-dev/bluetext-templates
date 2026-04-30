@@ -52,16 +52,11 @@ steps:
     params:
       file: config/services/curity/base/deployment.yaml
       content_file: files/deployment.yaml
-  - name: Write Dockerfile (multi-stage build that compiles the Couchbase plugin)
+  - name: Write Dockerfile (Curity + pre-built Couchbase plugin from GCS)
     tool: file_write
     params:
       file: code/services/curity/Dockerfile
       content_file: files/Dockerfile
-  - name: Copy Couchbase plugin source into Curity service
-    tool: tree_copy
-    params:
-      source: files/plugin
-      destination: code/services/curity/plugin
   - name: Write datasource config (Couchbase via native plugin)
     tool: file_write
     params:

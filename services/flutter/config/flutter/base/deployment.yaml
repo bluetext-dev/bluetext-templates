@@ -16,7 +16,8 @@ spec:
     spec:
       containers:
         - name: app
-          image: ghcr.io/cirruslabs/flutter:stable
+          image: bluetext-flutter:latest
+          imagePullPolicy: Never
           command: ["sh", "-c", "cd /app && ./bin/init && exec ./bin/dev"]
           ports:
             - containerPort: 8080

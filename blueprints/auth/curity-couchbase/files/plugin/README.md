@@ -6,7 +6,7 @@ Native Curity plugin that registers `couchbase` as a data source type via the Da
 
 Curity's plugin system uses Java SPI. This plugin implements `DataAccessProviderPluginDescriptor` and registers type `"couchbase"`. On startup, Curity discovers the plugin, generates an admin UI form from the configuration interface, and delegates data operations to the plugin's provider classes. This is a first-class data source type with its own configuration schema.
 
-For a comparison with the JDBC-based approach, see the [JDBC wrapper](../couchbase-jdbc-wrapper/).
+For a comparison with the JDBC-based approach, see the JDBC wrapper in the sibling blueprint `auth/curity-couchbase-jdbc`.
 
 ## Curity Image and License
 
@@ -17,7 +17,7 @@ Curity licenses specify which **data source types** are available and how many i
 1. **Includes the Plugin SDK** — Curity loads plugin JARs at startup
 2. **Includes custom data source types** — the `couchbase` type is available as a data source
 
-For licenses limited to JDBC, see the [JDBC wrapper](../couchbase-jdbc-wrapper/) which fits Couchbase into a standard JDBC slot.
+For licenses limited to JDBC, use the sibling blueprint `auth/curity-couchbase-jdbc`, which fits Couchbase into a standard JDBC slot.
 
 ## Build
 

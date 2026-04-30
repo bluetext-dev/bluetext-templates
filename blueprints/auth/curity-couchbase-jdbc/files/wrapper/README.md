@@ -67,6 +67,30 @@ docker run --rm -v "$(pwd):/system" -w /system gradle:8-jdk21 gradle test
 docker run --rm -v "$(pwd):/system" -w /system gradle:8-jdk21 gradle wrapperJar
 ```
 
+The `wrapperJar` task produces `build/libs/couchbase-postgres-wrapper-<version>.jar` (version comes from `build.gradle`).
+
+## Publishing
+
+The blueprint pulls a pre-built jar from a public GCS bucket rather than compiling on every system add. This source tree is authoritative; the published jar is its build output.
+
+**Publish target:**
+```
+gs://bluetext-cli-releases/plugins/couchbase-postgres-wrapper-<version>.jar
+```
+
+**Publishing a new version:**
+1. Bump `version` in `build.gradle` (semver).
+2. Run the test + jar tasks above.
+3. Upload the jar:
+   ```bash
+   gcloud storage cp build/libs/couchbase-postgres-wrapper-<version>.jar \
+     gs://bluetext-cli-releases/plugins/
+   ```
+4. Update the pinned version in the blueprint's `files/Dockerfile` (the `ADD` URL).
+5. Commit the source change, the blueprint Dockerfile change, and verify the published jar all together.
+
+**Why a GCS-published jar instead of in-Dockerfile compilation:** the wrapper is small (single JAR + Gson), iteration is rare, and pulling a pinned URL keeps system Docker builds fast and deterministic. The native plugin variant (sibling blueprint `auth/curity-couchbase`) takes the opposite tradeoff — it compiles from source in a multi-stage Docker build because the plugin pulls in the full Couchbase Java SDK plus Jackson modules, is iterated more actively, and pinning each system to the source-tree state in the blueprint is safer than pinning to a published artifact.
+
 ## Requirements
 
 - Couchbase Enterprise Edition with Query service (`n1ql`)
@@ -75,4 +99,4 @@ docker run --rm -v "$(pwd):/system" -w /system gradle:8-jdk21 gradle wrapperJar
 
 ## License Compatibility
 
-Fits into Curity's `jdbc[1]` license slot — Curity sees a standard JDBC data source. For licenses that include the Plugin SDK and custom data source types, see the native [Couchbase DAP plugin](../couchbase-plugin/).
+Fits Curity licenses that allow JDBC data sources (e.g. `jdbc[1]`) — Curity sees a standard JDBC data source. For licenses that allow custom data-source types, see the native Couchbase data-source plugin in the sibling blueprint `auth/curity-couchbase`.

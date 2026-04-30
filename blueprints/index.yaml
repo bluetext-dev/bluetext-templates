@@ -54,8 +54,25 @@ blueprints:
           file: config/curity/user-management.xml
   - id: auth/curity-couchbase
     name: Curity Couchbase Data Store
-    description: Configure Curity with Couchbase via JDBC — accounts, tokens, sessions, and credentials backed by Couchbase
-    tags: [auth, curity, couchbase, database]
+    description: Configure Curity with Couchbase as a native data source — accounts, tokens, sessions, and credentials backed by Couchbase via the Curity DAP plugin
+    tags: [auth, curity, couchbase, database, plugin]
+    prerequisites:
+      - description: Curity service exists
+        check: service_exists
+        params:
+          id: curity
+      - description: Couchbase service exists
+        check: service_exists
+        params:
+          id: couchbase
+      - description: Service Config Manager exists
+        check: service_exists
+        params:
+          id: service-config-manager
+  - id: auth/curity-couchbase-jdbc
+    name: Curity Couchbase Data Store (JDBC)
+    description: Configure Curity with Couchbase via a JDBC wrapper that translates SQL to N1QL — fits Curity licenses that allow JDBC data sources
+    tags: [auth, curity, couchbase, database, jdbc]
     prerequisites:
       - description: Curity service exists
         check: service_exists

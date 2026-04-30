@@ -1,6 +1,6 @@
-name: Curity Couchbase Data Store
-description: Configure Curity with Couchbase as a native data source — accounts, tokens, sessions, and credentials backed by Couchbase via the Curity DAP plugin
-tags: [auth, curity, couchbase, database, plugin]
+name: Curity Couchbase Data Store (JDBC)
+description: Configure Curity with Couchbase via a JDBC wrapper that translates SQL to N1QL — fits Curity licenses that allow JDBC data sources
+tags: [auth, curity, couchbase, database, jdbc]
 prerequisites:
   - description: Curity service exists
     check: service_exists
@@ -15,12 +15,11 @@ prerequisites:
     params:
       id: service-config-manager
 caveats:
-  - Overwrites Curity deployment (custom image bundling the Couchbase data-source plugin)
-  - Requires a Curity license that allows custom data-source types (data-sources feature unrestricted, or with "couchbase" listed)
-  - The plugin auto-creates ten curity-* collections plus primary indexes inside the configured bucket and scope on first connect
-  - For licenses restricted to jdbc data sources, use auth/curity-couchbase-jdbc instead
+  - Overwrites Curity deployment (custom image bundling the Couchbase JDBC wrapper)
+  - For licenses that include the Plugin SDK and unrestricted data-source types, prefer auth/curity-couchbase (native plugin)
   - Curity may restart once or twice while Couchbase initializes — this is normal
   - Couchbase admin credentials are Administrator/password — change for non-dev environments
+  - Collections and Analytics datasets are provisioned by service-config-manager before Curity connects
 variables:
   - name: namespace
     alias: n
@@ -28,7 +27,7 @@ variables:
     type: string
     default: main
 restarts: [service-config-manager, curity]
-see_also: [auth/curity-couchbase-jdbc, auth/curity-oauth, auth/kong-phantom-token]
+see_also: [auth/curity-couchbase, auth/curity-oauth, auth/kong-phantom-token]
 steps:
   - name: Add curity bucket to service-config-manager Couchbase config
     tool: file_patch
@@ -47,22 +46,35 @@ steps:
             prod:
               ram_quota_mb: 2048
               num_replicas: 3
-  - name: Overwrite Curity deployment (custom image with Couchbase plugin)
+          scopes:
+            _default:
+              collections:
+                accounts: {}
+                credentials: {}
+                sessions: {}
+                tokens: {}
+                delegations: {}
+                nonces: {}
+                linked_accounts: {}
+                devices: {}
+                audit: {}
+                dynamically_registered_clients: {}
+                database_clients: {}
+                buckets: {}
+                database_service_providers: {}
+                entities: {}
+                entity_relations: {}
+  - name: Overwrite Curity deployment (custom image with Couchbase JDBC driver)
     tool: file_write
     params:
       file: config/services/curity/base/deployment.yaml
       content_file: files/deployment.yaml
-  - name: Write Dockerfile (multi-stage build that compiles the Couchbase plugin)
+  - name: Write Dockerfile (Curity + pre-built Couchbase JDBC wrapper from GCS)
     tool: file_write
     params:
       file: code/services/curity/Dockerfile
       content_file: files/Dockerfile
-  - name: Copy Couchbase plugin source into Curity service
-    tool: tree_copy
-    params:
-      source: files/plugin
-      destination: code/services/curity/plugin
-  - name: Write datasource config (Couchbase via native plugin)
+  - name: Write datasource config (Couchbase via JDBC)
     tool: file_write
     params:
       file: config/curity/datasource.xml
@@ -78,7 +90,7 @@ steps:
           to: couchbase
           type: datasource
           label: Uses as data store
-          blueprint: auth/curity-couchbase
+          blueprint: auth/curity-couchbase-jdbc
   - name: Restart service-config-manager in {{namespace}}
     tool: service_restart
     params:

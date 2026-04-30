@@ -13,6 +13,7 @@ variables:
     default: flutter
 caveats:
   - First Curity build takes several minutes (downloads Gradle, JDK, and Couchbase plugin dependencies)
+  - Requires a Curity license that allows custom data-source types; for licenses restricted to JDBC, swap auth/curity-couchbase for auth/curity-couchbase-jdbc
   - Kong adds introspection latency per request (mitigated by 300s token caching)
   - The API trusts the JWT from Kong without signature verification (Kong already validated it)
   - First Flutter image pull is ~1.9GB — cached globally after first pull via registry mirror
@@ -20,7 +21,7 @@ tips:
   - "Create users: b bp run auth/curity-create-users --var users=alice:Pass1,bob:Pass2 -s rbac"
   - "Assign roles: b bp run auth/curity-assign-roles --var users=alice:admin,bob:moderator -s rbac"
   - "Couchbase UI: couchbase.rs--development--rbac--main.bluetext.localhost"
-  - service-config-manager creates the 15 Curity collections and enables Analytics on the curity bucket
+  - service-config-manager provisions the curity bucket and enables Analytics; the plugin self-provisions its ten curity-* collections plus primary indexes on first connect
   - The {{app_id}} service auto-configures ADB reverse (emulator:8888 → host:80) for ingress access on start
 pitfalls:
   - Don't skip auth/curity-oauth — phantom-token needs the introspect endpoint configured

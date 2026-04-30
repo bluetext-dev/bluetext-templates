@@ -8,5 +8,6 @@ start_prerequisites:
       element: data-source
     hint: |
       Configure a data store for Curity:
-        b bp run auth/curity-hsqldb      (embedded file-based, for development)
-        b bp run auth/curity-couchbase   (Couchbase via JDBC)
+        b bp run auth/curity-hsqldb           (embedded file-based, for development)
+        b bp run auth/curity-couchbase        (Couchbase via native plugin — recommended)
+        b bp run auth/curity-couchbase-jdbc   (Couchbase via JDBC wrapper — for licenses restricted to JDBC)

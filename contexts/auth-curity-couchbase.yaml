@@ -9,10 +9,11 @@ variables:
 caveats:
   - First Curity build takes several minutes (downloads Gradle, JDK, and Couchbase plugin dependencies)
   - Couchbase admin credentials are Administrator/password — change for non-dev environments
+  - Requires a Curity license that allows custom data-source types; for licenses restricted to JDBC, swap auth/curity-couchbase for auth/curity-couchbase-jdbc
 tips:
   - "Couchbase UI: couchbase.rs--development--auth--main.bluetext.localhost"
   - "Curity login: curity.rs--development--auth--main.bluetext.localhost/authn"
-  - service-config-manager creates the 15 Curity collections and enables Analytics on the curity bucket
+  - service-config-manager provisions the curity bucket and enables Analytics; the plugin self-provisions its ten curity-* collections plus primary indexes on first connect
 pitfalls:
   - Couchbase must be fully initialized before Curity connects — service-config-manager handles this
   - service-config-manager must be running for Couchbase bucket configuration

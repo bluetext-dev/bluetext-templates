@@ -61,7 +61,27 @@ done
 # Accept Android licenses
 yes | flutter doctor --android-licenses 2>/dev/null || true
 
-# Get dependencies
-flutter pub get
+# Get dependencies — skip when `pubspec.lock` hasn't changed since the last
+# successful resolve. The marker file lives in the persistent pub-cache mount
+# so it survives pod restarts the same way the package archives do. Falls
+# through to a real `flutter pub get` whenever the marker, the lock, or the
+# resolved package_config.json look out of sync — recovers cleanly from any
+# weird state on its own.
+PUB_LOCK_HASH=$(md5sum /app/pubspec.lock 2>/dev/null | awk '{print $1}')
+PUB_LOCK_MARKER=/root/.pub-cache/.bluetext-resolved-lock-hash
+
+if [ -n "$PUB_LOCK_HASH" ] \
+   && [ -f "$PUB_LOCK_MARKER" ] \
+   && [ "$(cat "$PUB_LOCK_MARKER" 2>/dev/null)" = "$PUB_LOCK_HASH" ] \
+   && [ -f /app/.dart_tool/package_config.json ]; then
+  echo "pub get: cache-hit (pubspec.lock unchanged) — skipping"
+else
+  echo "pub get: cache-miss — resolving dependencies"
+  flutter pub get
+  if [ -n "$PUB_LOCK_HASH" ]; then
+    mkdir -p "$(dirname "$PUB_LOCK_MARKER")"
+    echo "$PUB_LOCK_HASH" > "$PUB_LOCK_MARKER"
+  fi
+fi
 
 echo "Initialization complete."

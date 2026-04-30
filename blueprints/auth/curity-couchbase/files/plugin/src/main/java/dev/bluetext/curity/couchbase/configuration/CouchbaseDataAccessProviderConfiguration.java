@@ -46,7 +46,11 @@ public interface CouchbaseDataAccessProviderConfiguration extends Configuration 
     @DefaultString("curity")
     String getBucket();
 
-    @Description("RAM quota in MiB used when the plugin creates the bucket on first connect (no effect if the bucket already exists)")
+    @Description("Auto-provision the bucket, scope, collections, and primary indexes on first connect when missing. Disable when these are managed externally and the configured user lacks create privileges.")
+    @DefaultBoolean(true)
+    boolean isAutoProvision();
+
+    @Description("RAM quota in MiB used when the plugin creates the bucket on first connect (no effect when auto-provision is disabled or the bucket already exists)")
     @DefaultLong(256)
     @RangeConstraint(min = 100.0, max = Long.MAX_VALUE)
     Long getBucketRamQuotaMb();

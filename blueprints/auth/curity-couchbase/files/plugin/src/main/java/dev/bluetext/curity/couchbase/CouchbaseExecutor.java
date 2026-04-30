@@ -93,42 +93,47 @@ public class CouchbaseExecutor extends ManagedObject<CouchbaseDataAccessProvider
                     );
             this.cluster = Cluster.connect(connectionString,options);
 
-            // Wait for the management service + global cluster config to be ready before
-            // any bucket-management call. On a freshly-deployed Couchbase the management
-            // endpoint accepts connections before the cluster has finished bootstrap, so
-            // a direct createBucket call otherwise races GLOBAL_CONFIG_LOAD_IN_PROGRESS.
-            this.cluster.waitUntilReady(Duration.ofMinutes(2),
-                    WaitUntilReadyOptions.waitUntilReadyOptions()
-                            .serviceTypes(java.util.Set.of(ServiceType.MANAGER)));
+            if (configuration.isAutoProvision()) {
+                // Wait for the management service + global cluster config to be ready
+                // before any bucket-management call. On a freshly-deployed Couchbase the
+                // management endpoint accepts connections before the cluster has finished
+                // bootstrap, so a direct createBucket call otherwise races
+                // GLOBAL_CONFIG_LOAD_IN_PROGRESS.
+                this.cluster.waitUntilReady(Duration.ofMinutes(2),
+                        WaitUntilReadyOptions.waitUntilReadyOptions()
+                                .serviceTypes(java.util.Set.of(ServiceType.MANAGER)));
 
-            // Create the bucket if it does not yet exist. The plugin owns its bucket
-            // lifecycle so deployments do not need an external provisioner.
-            try {
-                BucketSettings settings = BucketSettings.create(configuration.getBucket())
-                        .ramQuotaMB(configuration.getBucketRamQuotaMb())
-                        .flushEnabled(true);
-                cluster.buckets().createBucket(settings,
-                        CreateBucketOptions.createBucketOptions().timeout(Duration.ofMinutes(2)));
-                _logger.info("Created bucket '{}' (ram quota: {} MiB)",
-                        configuration.getBucket(), configuration.getBucketRamQuotaMb());
-            } catch (BucketExistsException e) {
-                _logger.info("Bucket '{}' already exists", configuration.getBucket());
+                // Create the bucket if it does not yet exist.
+                try {
+                    BucketSettings settings = BucketSettings.create(configuration.getBucket())
+                            .ramQuotaMB(configuration.getBucketRamQuotaMb())
+                            .flushEnabled(true);
+                    cluster.buckets().createBucket(settings,
+                            CreateBucketOptions.createBucketOptions().timeout(Duration.ofMinutes(2)));
+                    _logger.info("Created bucket '{}' (ram quota: {} MiB)",
+                            configuration.getBucket(), configuration.getBucketRamQuotaMb());
+                } catch (BucketExistsException e) {
+                    _logger.info("Bucket '{}' already exists", configuration.getBucket());
+                }
             }
 
             this.bucket = cluster.bucket(configuration.getBucket());
             // Block until the bucket's KV, Query, and GSI services are responsive.
             // On a freshly-created bucket (or freshly-deployed cluster) the capability map
-            // has not propagated yet, and any subsequent collection-management call would
-            // otherwise throw FeatureNotAvailableException. waitUntilReady is the SDK's
-            // blessed answer.
+            // has not propagated yet, and any subsequent KV or query call would otherwise
+            // throw FeatureNotAvailableException. waitUntilReady is the SDK's blessed
+            // answer and is needed regardless of auto-provision.
             this.bucket.waitUntilReady(Duration.ofSeconds(60));
             this.scope = bucket.scope(configuration.getScope());
-            if (this.scope == null) {
-                bucket.collections().createScope(configuration.getScope());
-                this.scope = bucket.scope(configuration.getScope());
+
+            if (configuration.isAutoProvision()) {
+                if (this.scope == null) {
+                    bucket.collections().createScope(configuration.getScope());
+                    this.scope = bucket.scope(configuration.getScope());
+                }
+                DBSetupRunners setupRunners = new DBSetupRunners();
+                setupRunners.run(cluster, bucket, scope);
             }
-            DBSetupRunners setupRunners = new DBSetupRunners();
-            setupRunners.run(cluster, bucket, scope);
             this.collection = scope.collection(ACCOUNT_COLLECTION_NAME);
 
 

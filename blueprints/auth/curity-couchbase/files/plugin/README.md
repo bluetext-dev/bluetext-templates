@@ -36,9 +36,10 @@ The plugin's config schema is generated from `CouchbaseDataAccessProviderConfigu
 | `<use-tls>` | boolean | `true` | When `true`, connects via `couchbases://`; otherwise `couchbase://`. |
 | `<user-name>` | string | required | Couchbase user with read/write on the configured bucket. |
 | `<password>` | string | required | Password for the Couchbase user. |
-| `<bucket>` | string | `curity` | Bucket holding all Curity collections. Auto-created on first connect if missing. |
-| `<bucket-ram-quota-mb>` | long | `256` | RAM quota used when the plugin creates the bucket on first connect. No effect if the bucket already exists. |
-| `<scope>` | string | `_default` | Scope inside the bucket. Auto-created if missing. |
+| `<bucket>` | string | `curity` | Bucket holding all Curity collections. Auto-created on first connect when `<auto-provision>` is enabled and missing. |
+| `<auto-provision>` | boolean | `true` | When `true`, the plugin creates the bucket, scope, ten Curity collections, and primary indexes on first connect if any are missing. When `false`, the plugin assumes everything is pre-provisioned and only connects + waits for bucket readiness. Set to `false` for production deployments where buckets are managed externally and the configured user lacks create privileges. |
+| `<bucket-ram-quota-mb>` | long | `256` | RAM quota used when the plugin creates the bucket on first connect. No effect when `<auto-provision>` is `false` or the bucket already exists. |
+| `<scope>` | string | `_default` | Scope inside the bucket. Auto-created when `<auto-provision>` is enabled and missing. |
 | `<claim-query>` | string | required | N1QL query for the attribute provider. Supports the placeholders below. |
 | `<use-scim-parameter-names>` | boolean | `true` | When `true`, account-attribute lookups use SCIM names (`emails`, `phoneNumbers`, `userName`); otherwise their flat counterparts (`email`, `phone`, `username`). |
 | `<sessions-ttl-retain-duration>` | long (seconds) | `86400` | Extra retain time past `sessions` TTL. |
@@ -63,17 +64,30 @@ After substitution at request time:
 SELECT `curity-accounts`.* FROM `curity`.`_default`.`curity-accounts` WHERE META().id = "node::user::personal_info::alice"
 ```
 
-## Auto-Provisioning
+## Init Sequence
 
-The plugin owns its full data-store lifecycle. On first connect, `CouchbaseExecutor.init()` runs the following sequence against the configured `<host>`/credentials:
+What `CouchbaseExecutor.init()` does on first connect, ordered:
 
-1. **Wait for cluster manager + global config** — `cluster.waitUntilReady(MANAGER, 2 min)` blocks until Couchbase has finished bootstrap and the management endpoint can accept config requests. Without this step the SDK races the cluster's `GLOBAL_CONFIG_LOAD_IN_PROGRESS` state.
-2. **Create the bucket** if missing — `cluster.buckets().createBucket(...)` with the configured `<bucket-ram-quota-mb>` and `flushEnabled=true`. If the bucket already exists, `BucketExistsException` is caught and the existing bucket is used as-is (settings are not reconciled).
-3. **Wait for bucket KV/Query/GSI** — `bucket.waitUntilReady(60s)` blocks until the new (or existing) bucket's services are responsive. Without this step subsequent collection-management calls would race `FeatureNotAvailableException`.
-4. **Create the ten Curity collections** under `<scope>` if missing (collisions handled idempotently).
-5. **Create a primary index on each collection** and wait for it to come online, with bounded exponential retry against transient `InternalServerFailureException` from the GSI service.
+1. **Open the cluster connection** — `Cluster.connect(<host>, <user-name>, <password>)`. TLS is selected by `<use-tls>`.
+2. **(auto-provision only) Wait for cluster manager + global config** — `cluster.waitUntilReady(MANAGER, 2 min)`. Without this barrier, a freshly-deployed Couchbase races the SDK's `GLOBAL_CONFIG_LOAD_IN_PROGRESS` state on the next step.
+3. **(auto-provision only) Create the bucket** if missing — `cluster.buckets().createBucket(...)` with `<bucket-ram-quota-mb>` and `flushEnabled=true`. `BucketExistsException` is caught (existing settings are not reconciled).
+4. **Open the bucket reference** — `cluster.bucket(<bucket>)`.
+5. **Wait for bucket KV / Query / GSI** — `bucket.waitUntilReady(60s)`. Always runs, regardless of auto-provision: any subsequent KV or N1QL call needs the bucket's services to be online.
+6. **(auto-provision only) Create the scope** if missing.
+7. **(auto-provision only) Create the ten Curity collections** under `<scope>` plus a primary index on each, with bounded exponential retry against transient `InternalServerFailureException` from the GSI service.
+8. **Pin the account collection reference** for direct-key reads/writes against `curity-accounts`.
 
-What this means for deployment: the plugin needs an **initialized Couchbase cluster** with credentials matching `<user-name>` / `<password>`, but no external bucket-provisioning step. Bucket sizing for production should be handled either by pre-creating the bucket with proper RAM quota and replica settings (the plugin will detect it and skip creation) or by tuning `<bucket-ram-quota-mb>` in the data-source config.
+### When `<auto-provision>` is `true` (default)
+
+The plugin owns the bucket, scope, collections, and primary-index lifecycle. The configured user must have privileges to create buckets, scopes, collections, and primary indexes on the cluster. This matches dev/blueprint-driven flows where the developer wants a one-shot setup: deploy and the data store is ready.
+
+Bucket sizing for production: either pre-create the bucket externally with the proper RAM quota, replica count, durability, and encryption settings (the plugin will detect it via `BucketExistsException` and use it as-is), or set `<bucket-ram-quota-mb>` to the desired value. Other settings (replicas, durability, etc.) cannot be set through plugin config — pre-create the bucket if those matter.
+
+### When `<auto-provision>` is `false`
+
+The plugin only opens the cluster connection and waits for the bucket. The bucket, scope, ten `curity-*` collections, and a primary index on each must already exist; the configured user only needs read/write/query privileges on those collections (not create). This is the recommended posture for production where bucket provisioning is owned by an ops process.
+
+Operations that fail when collections are missing surface as the underlying Couchbase SDK exception (e.g. `CollectionNotFoundException`) rather than a friendly preflight error — pre-flight your provisioning out-of-band before pointing Curity at the cluster.
 
 ## Collections
 
@@ -148,6 +162,7 @@ gs://bluetext-cli-releases/plugins/curity-couchbase-plugin-<version>.tar.gz
 
 ## Verified Against
 
+- Plugin version `1.0.4`
 - Curity Identity Server 11.1.1 (image `curity.azurecr.io/curity/idsvr:latest`)
 - Couchbase Server 7.6.6 Enterprise Edition (KV + Query + GSI services)
 - `com.couchbase.client:java-client` 3.4.2
@@ -158,4 +173,6 @@ gs://bluetext-cli-releases/plugins/curity-couchbase-plugin-<version>.tar.gz
 
 - Couchbase Server with KV, Query, and GSI services reachable from the Curity pod, and an initialized cluster (i.e. an admin/RBAC user matching `<user-name>` / `<password>`).
 - A Curity license whose `data-sources` feature allows the `couchbase` type (see [License Requirements](#license-requirements)).
-- The configured user must have privileges to create buckets, scopes, collections, and primary indexes if those do not already exist. (For pre-provisioned environments, lower-privileged credentials are sufficient.)
+- Configured user privileges depend on `<auto-provision>`:
+  - `true` (default): privileges to create buckets, scopes, collections, and primary indexes plus read/write/query.
+  - `false`: read/write/query on the pre-provisioned bucket and the ten `curity-*` collections.

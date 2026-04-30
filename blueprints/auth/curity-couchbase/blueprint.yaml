@@ -11,9 +11,9 @@ prerequisites:
     params:
       id: couchbase
 caveats:
-  - Overwrites Curity deployment (custom image bundling the Couchbase data-source plugin)
+  - Overwrites Curity deployment (custom image bundling the Couchbase data-source plugin pulled from gs://bluetext-cli-releases/plugins/)
   - Requires a Curity license that allows custom data-source types (data-sources feature unrestricted, or with "couchbase" listed)
-  - The plugin auto-creates the curity bucket (256 MiB by default), the configured scope, ten curity-* collections, and primary indexes on first connect — no external provisioner needed
+  - The plugin auto-provisions the curity bucket (256 MiB by default), the configured scope, ten curity-* collections, and primary indexes on first connect — no external provisioner needed. Set the data-source's auto-provision field to false for production where the bucket is pre-provisioned and the configured user lacks create privileges
   - For licenses restricted to jdbc data sources, use auth/curity-couchbase-jdbc instead
   - Couchbase admin credentials are Administrator/password — change for non-dev environments
 variables:

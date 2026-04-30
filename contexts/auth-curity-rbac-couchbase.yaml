@@ -12,7 +12,7 @@ variables:
     type: string
     default: flutter
 caveats:
-  - First Curity build takes several minutes (downloads Gradle, JDK, and Couchbase plugin dependencies)
+  - First Curity build pulls the pre-built Couchbase plugin tarball (~16 MiB) from gs://bluetext-cli-releases/plugins/ and extracts it into the image — fast, no JDK/Gradle compile step
   - Requires a Curity license that allows custom data-source types; for licenses restricted to JDBC, swap auth/curity-couchbase for auth/curity-couchbase-jdbc
   - Kong adds introspection latency per request (mitigated by 300s token caching)
   - The API trusts the JWT from Kong without signature verification (Kong already validated it)
@@ -21,17 +21,17 @@ tips:
   - "Create users: b bp run auth/curity-create-users --var users=alice:Pass1,bob:Pass2 -s rbac"
   - "Assign roles: b bp run auth/curity-assign-roles --var users=alice:admin,bob:moderator -s rbac"
   - "Couchbase UI: couchbase.rs--development--rbac--main.bluetext.localhost"
-  - service-config-manager provisions the curity bucket and enables Analytics; the plugin self-provisions its ten curity-* collections plus primary indexes on first connect
+  - The plugin self-provisions the curity bucket (256 MiB, configurable via `<bucket-ram-quota-mb>`), the configured scope, ten curity-* collections, and primary indexes on first connect (auto-provision=true by default)
   - The {{app_id}} service auto-configures ADB reverse (emulator:8888 → host:80) for ingress access on start
 pitfalls:
   - Don't skip auth/curity-oauth — phantom-token needs the introspect endpoint configured
-  - Couchbase must be fully initialized before Curity connects — service-config-manager handles this
+  - Couchbase must finish cluster initialization (admin user created) before Curity connects — service-config-manager currently performs that step; the plugin then provisions its own bucket and collections
   - The API routes through Kong — direct API ingress is removed
 steps:
   - run: b service add couchbase
     description: Add the Couchbase database service
   - run: b service add service-config-manager
-    description: Add the service config manager (handles Couchbase bucket provisioning)
+    description: Add service-config-manager (initializes the Couchbase cluster on first deploy)
   - run: b service add curity --var license_key={{license_key}}
     description: Add the Curity Identity Server with license secret
   - run: b service add kong
@@ -43,9 +43,9 @@ steps:
   - run: b run-spec set rbac -s couchbase,service-config-manager,curity,kong,api,{{app_id}}
     description: Compose the six services into a single run-spec
   - run: b bp run database/service-config-manager-register --var service=couchbase --no-restart -s rbac
-    description: Wire service-config-manager to Couchbase (injects connection env vars)
+    description: Wire service-config-manager to Couchbase (injects connection env vars for cluster init)
   - run: b bp run auth/curity-couchbase --no-restart -s rbac
-    description: Switch Curity to Couchbase — adds curity bucket via service-config-manager, custom image with plugin
+    description: Switch Curity to Couchbase (plugin self-provisions bucket + 10 curity-* collections + indexes; deploys custom Curity image with the plugin)
   - run: b bp run auth/curity-oauth --no-restart -s rbac
     description: Configure OAuth2 profiles, clients (flutter-app), and scopes
   - run: b bp run auth/kong-phantom-token --var targets=api --no-restart -s rbac

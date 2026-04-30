@@ -7,29 +7,28 @@ variables:
     type: string
     required: true
 caveats:
-  - First Curity build takes several minutes (downloads Gradle, JDK, and Couchbase plugin dependencies)
+  - First Curity build pulls the pre-built Couchbase plugin tarball (~16 MiB) from gs://bluetext-cli-releases/plugins/ and extracts it into the image — fast, no JDK/Gradle compile step
   - Couchbase admin credentials are Administrator/password — change for non-dev environments
   - Requires a Curity license that allows custom data-source types; for licenses restricted to JDBC, swap auth/curity-couchbase for auth/curity-couchbase-jdbc
 tips:
   - "Couchbase UI: couchbase.rs--development--auth--main.bluetext.localhost"
   - "Curity login: curity.rs--development--auth--main.bluetext.localhost/authn"
-  - service-config-manager provisions the curity bucket and enables Analytics; the plugin self-provisions its ten curity-* collections plus primary indexes on first connect
+  - The plugin self-provisions the curity bucket (256 MiB, configurable via `<bucket-ram-quota-mb>`), the configured scope, ten curity-* collections, and primary indexes on first connect (auto-provision=true by default)
 pitfalls:
-  - Couchbase must be fully initialized before Curity connects — service-config-manager handles this
-  - service-config-manager must be running for Couchbase bucket configuration
+  - Couchbase must finish cluster initialization (admin user created) before Curity connects — service-config-manager currently performs that step; the plugin then provisions its own bucket and collections
 steps:
   - run: b service add couchbase
     description: Add the Couchbase database service
   - run: b service add service-config-manager
-    description: Add the service config manager (handles Couchbase bucket setup)
+    description: Add service-config-manager (initializes the Couchbase cluster on first deploy)
   - run: b service add curity --var license_key={{license_key}}
     description: Add the Curity Identity Server with license secret
   - run: b run-spec set auth -s couchbase,service-config-manager,curity
     description: Compose the three services into a single run-spec
   - run: b bp run database/service-config-manager-register --var service=couchbase --no-restart -s auth
-    description: Wire service-config-manager to Couchbase (injects connection env vars)
+    description: Wire service-config-manager to Couchbase (injects connection env vars for cluster init)
   - run: b bp run auth/curity-couchbase --no-restart -s auth
-    description: Switch Curity's data source from HSQLDB to Couchbase
+    description: Switch Curity's data source from HSQLDB to Couchbase (plugin self-provisions bucket + collections + indexes on first connect)
   - run: b bp run auth/curity-oauth --no-restart -s auth
     description: Configure OAuth2 profiles, clients (flutter-app), and scopes
   - run: b deploy run auth

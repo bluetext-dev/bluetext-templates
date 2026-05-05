@@ -11,6 +11,11 @@ caveats:
   - Appends request-logger to the KONG_PLUGINS whitelist
   - Logs at notice level — visible via `b service logs <gateway>` (kong or kong-enterprise)
 variables:
+  - name: deploy_target
+    alias: d
+    description: '<run-spec>/<deploy-name> — context for service start/stop/restart steps (e.g. app/development-local)'
+    type: deploy-target
+    required: true
   - name: gateway
     alias: g
     description: Which Kong service to configure (kong or kong-enterprise)
@@ -37,7 +42,7 @@ steps:
     tool: shell_exec
     params:
       command: >-
-        F=config/services/{{gateway}}/base/deployment.yaml &&
+        F=manifests/services/{{gateway}}/base/deployment.yaml &&
         awk 'prev ~ /name: KONG_PLUGINS/ && /value:/ {
           sub(/"$/, ",request-logger\"");
           print;
@@ -58,4 +63,4 @@ steps:
     tool: service_reload
     params:
       id: "{{gateway}}"
-      namespace: "{{namespace}}"
+      deploy_target: "{{deploy_target}}"

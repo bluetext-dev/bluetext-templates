@@ -16,10 +16,11 @@ variables:
     description: Rust service to add JWT auth to
     type: service
     required: true
-  - name: namespace
-    description: Namespace where the service runs (used for the post-blueprint restart)
-    type: string
-    default: main
+  - name: deploy_target
+    alias: d
+    description: '<run-spec>/<deploy-name> — restart targets after the cargo dep edit (e.g. app/development-local)'
+    type: deploy-target
+    required: true
 restarts: ["{{service}}"]
 see_also: [auth/curity-oauth, auth/kong-phantom-token, auth/api-rbac]
 steps:
@@ -41,4 +42,4 @@ steps:
     tool: service_restart
     params:
       id: "{{service}}"
-      namespace: "{{namespace}}"
+      deploy_target: "{{deploy_target}}"

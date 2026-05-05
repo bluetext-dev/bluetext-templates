@@ -23,6 +23,11 @@ caveats:
   - Create Account link on the login page, or register at curity.<namespace>.bluetext.localhost/authn/registration
   - Target services will have their direct Ingress removed (traffic routes through Kong)
 variables:
+  - name: deploy_target
+    alias: d
+    description: '<run-spec>/<deploy-name> — context for service start/stop/restart steps (e.g. app/development-local)'
+    type: deploy-target
+    required: true
   - name: namespace
     description: Target namespace
     type: string
@@ -78,11 +83,11 @@ steps:
   - name: Remove direct ingress for api
     tool: file_delete
     params:
-      file: config/services/api/base/ingress.yaml
+      file: manifests/services/api/base/ingress.yaml
   - name: Add gateway annotations to api
     tool: file_patch
     params:
-      file: config/services/api/base/deployment.yaml
+      file: manifests/services/api/base/deployment.yaml
       operation: merge
       path: spec.template.metadata.annotations
       content: |
@@ -94,11 +99,11 @@ steps:
       - name: "Remove direct ingress for {{item}}"
         tool: file_delete
         params:
-          file: "config/services/{{item}}/base/ingress.yaml"
+          file: "manifests/services/{{item}}/base/ingress.yaml"
       - name: "Add gateway annotations to {{item}}"
         tool: file_patch
         params:
-          file: "config/services/{{item}}/base/deployment.yaml"
+          file: "manifests/services/{{item}}/base/deployment.yaml"
           operation: merge
           path: spec.template.metadata.annotations
           content: |
@@ -122,7 +127,7 @@ steps:
         tool: service_restart
         params:
           id: "{{item}}"
-          namespace: "{{namespace}}"
+          deploy_target: "{{deploy_target}}"
   - name: Create {{namespace}} namespace
     tool: namespace_create
     params:
@@ -131,14 +136,14 @@ steps:
     tool: service_start
     params:
       id: curity
-      namespace: "{{namespace}}"
+      deploy_target: "{{deploy_target}}"
   - name: Start kong in {{namespace}}
     tool: service_start
     params:
       id: kong
-      namespace: "{{namespace}}"
+      deploy_target: "{{deploy_target}}"
   - name: Start api in {{namespace}}
     tool: service_start
     params:
       id: api
-      namespace: "{{namespace}}"
+      deploy_target: "{{deploy_target}}"

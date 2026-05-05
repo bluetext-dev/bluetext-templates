@@ -19,9 +19,9 @@ steps:
     description: Add the Curity Identity Server with license secret
   - run: b run-spec set auth -s curity
     description: Compose Curity into a single-service run-spec
-  - run: b bp run auth/curity-hsqldb --no-restart -s auth
+  - run: b bp run auth/curity-hsqldb --no-restart --var deploy_target=auth/development-local
     description: Configure HSQLDB as the data store (accounts, tokens, sessions)
-  - run: b bp run auth/curity-oauth --no-restart -s auth
+  - run: b bp run auth/curity-oauth --no-restart --var deploy_target=auth/development-local
     description: Configure OAuth2 profiles, clients (flutter-app), and scopes
-  - run: b deploy run auth
+  - run: b deploy auth/development-local
     description: Render manifests and apply the run-spec to the local cluster

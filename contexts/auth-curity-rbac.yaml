@@ -16,8 +16,8 @@ caveats:
   - The API trusts the JWT from Kong without signature verification (Kong already validated it)
   - First Flutter image pull is ~1.9GB — cached globally after first pull via registry mirror
 tips:
-  - "Create users: b bp run auth/curity-create-users --var users=alice:Pass1,bob:Pass2 -s rbac"
-  - "Assign roles: b bp run auth/curity-assign-roles --var users=alice:admin,bob:moderator -s rbac"
+  - "Create users: b bp run auth/curity-create-users --var users=alice:Pass1,bob:Pass2 --var deploy_target=rbac/development-local"
+  - "Assign roles: b bp run auth/curity-assign-roles --var users=alice:admin,bob:moderator --var deploy_target=rbac/development-local"
   - The {{app_id}} service auto-configures ADB reverse (emulator:8888 → host:80) for ingress access on start
   - "If Chrome Custom Tab fails after wiping HSQLDB, clear Chrome data: adb shell pm clear com.android.chrome"
 pitfalls:
@@ -35,19 +35,19 @@ steps:
     description: Add the {{app_id}} service
   - run: b run-spec set rbac -s curity,kong,api,{{app_id}}
     description: Compose the four services into a single run-spec
-  - run: b bp run auth/curity-hsqldb --no-restart -s rbac
+  - run: b bp run auth/curity-hsqldb --no-restart --var deploy_target=rbac/development-local
     description: Configure HSQLDB as the data store
-  - run: b bp run auth/curity-oauth --no-restart -s rbac
+  - run: b bp run auth/curity-oauth --no-restart --var deploy_target=rbac/development-local
     description: Configure OAuth2 profiles, clients (flutter-app), and scopes
-  - run: b bp run auth/kong-phantom-token --var targets=api --no-restart -s rbac
+  - run: b bp run auth/kong-phantom-token --var targets=api --no-restart --var deploy_target=rbac/development-local
     description: Configure Kong with phantom token introspection, route API traffic through it
-  - run: b bp run auth/api-rbac --no-restart -s rbac
+  - run: b bp run auth/api-rbac --no-restart --var deploy_target=rbac/development-local
     description: Add role-guarded routes, SCIM user management profile, and claims mapper
-  - run: b bp run auth/app-oidc --var app_id={{app_id}} --no-restart -s rbac
+  - run: b bp run auth/app-oidc --var app_id={{app_id}} --no-restart --var deploy_target=rbac/development-local
     description: Add OIDC login flow to the app
-  - run: b deploy run rbac
+  - run: b deploy rbac/development-local
     description: Render manifests, build images, and apply the run-spec to the local cluster
-  - run: b bp run auth/curity-create-users --var users=alice:Password1,bob:Password1 -s rbac
+  - run: b bp run auth/curity-create-users --var users=alice:Password1,bob:Password1 --var deploy_target=rbac/development-local
     description: Create test user accounts with passwords
-  - run: b bp run auth/curity-assign-roles --var users=alice:admin,bob:moderator -s rbac
+  - run: b bp run auth/curity-assign-roles --var users=alice:admin,bob:moderator --var deploy_target=rbac/development-local
     description: Assign roles to the test users

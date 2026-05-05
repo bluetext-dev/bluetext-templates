@@ -7,6 +7,11 @@ prerequisites:
     params:
       id: "{{gateway}}"
 variables:
+  - name: deploy_target
+    alias: d
+    description: '<run-spec>/<deploy-name> — context for service start/stop/restart steps (e.g. app/development-local)'
+    type: deploy-target
+    required: true
   - name: gateway
     alias: g
     description: Which Kong service to configure (kong or kong-enterprise)
@@ -42,11 +47,11 @@ steps:
       - name: "Remove direct ingress for {{item}}"
         tool: file_delete
         params:
-          file: "config/services/{{item}}/base/ingress.yaml"
+          file: "manifests/services/{{item}}/base/ingress.yaml"
       - name: "Add gateway annotation to {{item}}"
         tool: file_patch
         params:
-          file: "config/services/{{item}}/base/deployment.yaml"
+          file: "manifests/services/{{item}}/base/deployment.yaml"
           operation: merge
           match_kind: Deployment
           path: spec.template.metadata.annotations
@@ -81,12 +86,12 @@ steps:
   - name: "Update frontend ingress — route /api to Kong"
     tool: file_write
     params:
-      file: "config/services/{{frontend}}/base/ingress.yaml"
+      file: "manifests/services/{{frontend}}/base/ingress.yaml"
       content_file: files/frontend-ingress.yaml
   - name: "Update frontend dev overlay — point API to Kong"
     tool: file_write
     params:
-      file: "config/services/{{frontend}}/development/patches.yaml"
+      file: "manifests/services/{{frontend}}/_default/patches.yaml"
       content_file: files/frontend-dev-patches.yaml
   - name: "Register frontend-kong relationship"
     tool: file_patch
@@ -104,9 +109,9 @@ steps:
     tool: service_reload
     params:
       id: "{{gateway}}"
-      namespace: "{{namespace}}"
+      deploy_target: "{{deploy_target}}"
   - name: "Restart frontend"
     tool: service_restart
     params:
       id: "{{frontend}}"
-      namespace: "{{namespace}}"
+      deploy_target: "{{deploy_target}}"

@@ -23,6 +23,11 @@ caveats:
   - Adds the jwt-auth client crate and rewrites API source (main.rs, Cargo.toml)
   - Kong pre-function plugins decode JWT base64 payload to check roles
 variables:
+  - name: deploy_target
+    alias: d
+    description: '<run-spec>/<deploy-name> — context for service start/stop/restart steps (e.g. app/development-local)'
+    type: deploy-target
+    required: true
   - name: namespace
     description: Namespace where services are running
     type: string
@@ -77,11 +82,11 @@ steps:
   - name: Remove direct ingress for api
     tool: file_delete
     params:
-      file: config/services/api/base/ingress.yaml
+      file: manifests/services/api/base/ingress.yaml
   - name: Add gateway annotations to api
     tool: file_patch
     params:
-      file: config/services/api/base/deployment.yaml
+      file: manifests/services/api/base/deployment.yaml
       operation: merge
       path: spec.template.metadata.annotations
       content: |
@@ -91,14 +96,14 @@ steps:
     tool: service_restart
     params:
       id: curity
-      namespace: "{{namespace}}"
+      deploy_target: "{{deploy_target}}"
   - name: Reload kong in {{namespace}}
     tool: service_reload
     params:
       id: kong
-      namespace: "{{namespace}}"
+      deploy_target: "{{deploy_target}}"
   - name: Restart api in {{namespace}}
     tool: service_restart
     params:
       id: api
-      namespace: "{{namespace}}"
+      deploy_target: "{{deploy_target}}"

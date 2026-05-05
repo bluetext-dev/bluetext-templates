@@ -7,6 +7,11 @@ prerequisites:
     params:
       id: kong
 variables:
+  - name: deploy_target
+    alias: d
+    description: '<run-spec>/<deploy-name> — context for service start/stop/restart steps (e.g. app/development-local)'
+    type: deploy-target
+    required: true
   - name: namespace
     alias: n
     description: Namespace where Kong is running
@@ -17,4 +22,4 @@ steps:
     tool: service_reload
     params:
       id: kong
-      namespace: "{{namespace}}"
+      deploy_target: "{{deploy_target}}"

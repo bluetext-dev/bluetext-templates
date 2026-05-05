@@ -25,11 +25,16 @@ prerequisites:
 
 caveats:
   - Overwrites the project's `model/` crate (lib.rs, items.rs, Cargo.toml) to define the Item state machine. Existing model content is replaced.
-  - The api base image (bluetext-api:latest) is rebuilt during the follow-up deploy. First build can take a few minutes.
+  - The api base image (api-api:latest) is rebuilt during the follow-up deploy. First build can take a few minutes.
   - The api ingress returns 502 until the pod's readiness probe passes. Polling the ingress is fine.
-  - Couchbase must already be initialized with the {{bucket}} bucket (run database/service-config-manager-register first).
+  - Couchbase must already be initialized with the {{bucket}} bucket — provision it via the per-system managed-state crate (replacement for the retired service-config-manager).
 
 variables:
+  - name: deploy_target
+    alias: d
+    description: '<run-spec>/<deploy-name> — owns the api deployment for the follow-up build + apply (e.g. app/development-local)'
+    type: deploy-target
+    required: true
   - name: api_service
     alias: a
     description: Rust axum api service to extend with POST /items.
@@ -48,11 +53,6 @@ variables:
     type: upstream
     accepts: [couchbase]
     default: couchbase
-  - name: run_spec
-    alias: s
-    description: Run-spec that owns the api deployment (used by the final redeploy).
-    type: run-spec
-    default: default
   - name: bucket
     alias: b
     description: Couchbase bucket to store items in. Must already exist.
@@ -61,16 +61,19 @@ variables:
 
 restarts: [api, web-app]
 
-see_also:
-  - database/service-config-manager-register
-
 steps:
-  - name: Wire {{api_service}} to {{upstream_couchbase}} (data profile) — injects COUCHBASE_* env vars
-    tool: service_wire
+  # Wire api → couchbase/data-writer as a v3 link entry. The deploy
+  # pipeline auto-mounts the couchbase variant's `auth` secret +
+  # endpoint metadata at /etc/bluetext/links/database/ in the api pod
+  # (PROPOSAL §D4: file-mount only, no env-var injection).
+  - name: Add `database` link from {{api_service}} to {{upstream_couchbase}}/data-writer
+    tool: file_patch
     params:
-      target: "{{api_service}}"
-      upstream: "{{upstream_couchbase}}"
-      profile: data
+      file: config/services/{{api_service}}/service.yaml
+      operation: merge
+      content: |
+        links:
+          database: {{upstream_couchbase}}/data-writer
 
   # ─── Modeling layer ─────────────────────────────────────────────────
   # The Item entity, its mutation/getter/command, and the state invariant
@@ -145,7 +148,7 @@ steps:
   - name: Simplify api development overlay (drop mirrord hostPath patches; base image handles it)
     tool: file_write
     params:
-      file: config/services/{{api_service}}/development/kustomization.yaml
+      file: manifests/services/{{api_service}}/_default/kustomization.yaml
       content: |
         apiVersion: kustomize.config.k8s.io/v1beta1
         kind: Kustomization
@@ -155,5 +158,5 @@ steps:
   - name: Build + redeploy the api image so the new model + in-cluster mode take effect
     tool: deploy_run
     params:
-      run_spec: "{{run_spec}}"
+      deploy_target: "{{deploy_target}}"
       only: "{{api_service}}"

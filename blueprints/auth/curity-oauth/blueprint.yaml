@@ -11,6 +11,11 @@ caveats:
   - Pre-configured client — flutter-app (public, PKCE)
   - Create Account link on the login page, or register at curity.<namespace>.bluetext.localhost/authn/registration
 variables:
+  - name: deploy_target
+    alias: d
+    description: '<run-spec>/<deploy-name> — context for service start/stop/restart steps (e.g. app/development-local)'
+    type: deploy-target
+    required: true
   - name: namespace
     description: Namespace where Curity is running (for endpoint URLs in config)
     type: string
@@ -27,4 +32,4 @@ steps:
     tool: service_restart
     params:
       id: curity
-      namespace: "{{namespace}}"
+      deploy_target: "{{deploy_target}}"

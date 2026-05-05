@@ -10,6 +10,11 @@ caveats:
   - Accounts persisted in file-based HSQLDB (survives pod restarts, stored in .bluetext/curity-db/)
   - Default credentials — change for non-dev environments
 variables:
+  - name: deploy_target
+    alias: d
+    description: '<run-spec>/<deploy-name> — context for service start/stop/restart steps (e.g. app/development-local)'
+    type: deploy-target
+    required: true
   - name: namespace
     alias: n
     description: Namespace where Curity is running
@@ -21,7 +26,7 @@ steps:
   - name: Overwrite Curity deployment with HSQLDB version (init container + data volume)
     tool: file_write
     params:
-      file: config/services/curity/base/deployment.yaml
+      file: manifests/services/curity/base/deployment.yaml
       content_file: files/deployment.yaml
   - name: Write datasource config (HSQLDB)
     tool: file_write
@@ -32,4 +37,4 @@ steps:
     tool: service_restart
     params:
       id: curity
-      namespace: "{{namespace}}"
+      deploy_target: "{{deploy_target}}"

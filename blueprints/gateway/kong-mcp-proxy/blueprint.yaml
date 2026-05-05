@@ -11,6 +11,11 @@ prerequisites:
     params:
       id: "{{target}}"
 variables:
+  - name: deploy_target
+    alias: d
+    description: '<run-spec>/<deploy-name> — context for service start/stop/restart steps (e.g. app/development-local)'
+    type: deploy-target
+    required: true
   - name: gateway
     alias: g
     description: Kong service to configure. Must be Kong Enterprise 3.12+ (the ai-mcp-proxy plugin is an EE-only tier)
@@ -48,4 +53,4 @@ steps:
     tool: service_reload
     params:
       id: "{{gateway}}"
-      namespace: "{{namespace}}"
+      deploy_target: "{{deploy_target}}"

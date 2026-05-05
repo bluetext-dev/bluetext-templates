@@ -11,6 +11,11 @@ caveats:
   - Uses default admin password "admin" — change for non-dev environments
   - Admin UI available at curity-admin.<namespace>.bluetext.localhost
 variables:
+  - name: deploy_target
+    alias: d
+    description: '<run-spec>/<deploy-name> — context for service start/stop/restart steps (e.g. app/development-local)'
+    type: deploy-target
+    required: true
   - name: namespace
     description: Target namespace
     type: string
@@ -46,4 +51,4 @@ steps:
     tool: service_start
     params:
       id: curity
-      namespace: "{{namespace}}"
+      deploy_target: "{{deploy_target}}"

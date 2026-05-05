@@ -17,6 +17,11 @@ caveats:
   - For licenses restricted to jdbc data sources, use auth/curity-couchbase-jdbc instead
   - Couchbase admin credentials are Administrator/password — change for non-dev environments
 variables:
+  - name: deploy_target
+    alias: d
+    description: '<run-spec>/<deploy-name> — context for service start/stop/restart steps (e.g. app/development-local)'
+    type: deploy-target
+    required: true
   - name: namespace
     alias: n
     description: Namespace where Curity and Couchbase are running
@@ -28,7 +33,7 @@ steps:
   - name: Overwrite Curity deployment (custom image with Couchbase plugin)
     tool: file_write
     params:
-      file: config/services/curity/base/deployment.yaml
+      file: manifests/services/curity/base/deployment.yaml
       content_file: files/deployment.yaml
   - name: Write Dockerfile (Curity + pre-built Couchbase plugin from GCS)
     tool: file_write
@@ -56,4 +61,4 @@ steps:
     tool: service_restart
     params:
       id: curity
-      namespace: "{{namespace}}"
+      deploy_target: "{{deploy_target}}"

@@ -19,6 +19,11 @@ caveats:
   - Replaces vite.config.ts to point /api at Kong and /curity at the IdP. Custom proxies in the existing config will be lost.
   - Tokens are kept in localStorage. Fine for a local demo; revisit before going to production.
 variables:
+  - name: deploy_target
+    alias: d
+    description: '<run-spec>/<deploy-name> — context for service start/stop/restart steps (e.g. app/development-local)'
+    type: deploy-target
+    required: true
   - name: namespace
     alias: n
     description: Namespace where Curity is running (only used for the restart step)
@@ -35,7 +40,7 @@ steps:
   - name: Drop the Flutter ADB-tunnel port forwarding (use plain port 80 for browser flows)
     tool: file_write
     params:
-      file: config/services/curity/base/middleware.yaml
+      file: manifests/services/curity/base/middleware.yaml
       content_file: files/curity-middleware.yaml
   - name: Repoint Curity's base-url at the browser-reachable hostname (no :8888)
     tool: file_write
@@ -90,7 +95,7 @@ steps:
   - name: Inject KONG_URL/CURITY_URL into the web-app pod (FQDN — Vite proxy needs it)
     tool: file_write
     params:
-      file: config/services/web-app/development/patches.yaml
+      file: manifests/services/web-app/_default/patches.yaml
       content_file: files/web-app-development-patches.yaml
   - name: Switch the API to in-cluster mode (the RBAC stack runs the API as a real container, not via mirrord)
     tool: file_write
@@ -101,9 +106,9 @@ steps:
     tool: service_restart
     params:
       id: curity
-      namespace: "{{namespace}}"
+      deploy_target: "{{deploy_target}}"
   - name: Restart web-app in {{namespace}}
     tool: service_restart
     params:
       id: web-app
-      namespace: "{{namespace}}"
+      deploy_target: "{{deploy_target}}"

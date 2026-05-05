@@ -6,7 +6,7 @@ caveats:
   - "The api template defaults to mirrord dev mode. Without mirrord installed locally, switch the api dev mode to in-cluster in config/services/api/metadata.yaml before b deploy run."
 tips:
   - "Tail the plugin output — b service logs kong | grep request-logger"
-  - "After hand-editing the Lua source, b bp run dev/kong-reload -s gateway re-runs init_worker and picks up the new module."
+  - "After hand-editing the Lua source, b bp run dev/kong-reload --var deploy_target=gateway/development-local re-runs init_worker and picks up the new module."
   - "Kong's declarative config lives at config/kong/kong.yaml; the plugin is registered there as a global entry that fires on every route."
 pitfalls:
   - gateway/kong-proxy strips the per-target ingress; once it runs, the only path to api is via Kong (http://kong.<ns>.bluetext.localhost/api).
@@ -16,9 +16,9 @@ steps:
     description: Add Kong gateway, the API it protects, and a frontend to drive it
   - run: b run-spec set gateway -s kong,api,web-app
     description: Compose the three services into a run-spec
-  - run: b bp run gateway/kong-proxy --var targets=api --var frontend=web-app --no-restart -s gateway
+  - run: b bp run gateway/kong-proxy --var targets=api --var frontend=web-app --no-restart --var deploy_target=gateway/development-local
     description: Wire the API behind Kong and route the frontend through it
-  - run: b bp run gateway/kong-request-logger --no-restart -s gateway
+  - run: b bp run gateway/kong-request-logger --no-restart --var deploy_target=gateway/development-local
     description: Scaffold a custom Lua plugin (request-logger) into Kong
-  - run: b deploy run gateway
+  - run: b deploy gateway/development-local
     description: Render manifests, build images, and apply the run-spec

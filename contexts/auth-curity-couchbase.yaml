@@ -15,21 +15,17 @@ tips:
   - "Curity login: curity.rs--development--auth--main.bluetext.localhost/authn"
   - The plugin self-provisions the curity bucket (256 MiB, configurable via `<bucket-ram-quota-mb>`), the configured scope, ten curity-* collections, and primary indexes on first connect (auto-provision=true by default)
 pitfalls:
-  - Couchbase must finish cluster initialization (admin user created) before Curity connects — service-config-manager currently performs that step; the plugin then provisions its own bucket and collections
+  - Couchbase initial cluster setup happens via the per-system managed-state crate (the v3 replacement for the retired service-config-manager); the plugin then provisions its own bucket and collections
 steps:
   - run: b service add couchbase
     description: Add the Couchbase database service
-  - run: b service add service-config-manager
-    description: Add service-config-manager (initializes the Couchbase cluster on first deploy)
   - run: b service add curity --var license_key={{license_key}}
     description: Add the Curity Identity Server with license secret
-  - run: b run-spec set auth -s couchbase,service-config-manager,curity
+  - run: b run-spec set auth -s couchbase,curity
     description: Compose the three services into a single run-spec
-  - run: b bp run database/service-config-manager-register --var service=couchbase --no-restart -s auth
-    description: Wire service-config-manager to Couchbase (injects connection env vars for cluster init)
-  - run: b bp run auth/curity-couchbase --no-restart -s auth
+  - run: b bp run auth/curity-couchbase --no-restart --var deploy_target=auth/development-local
     description: Switch Curity's data source from HSQLDB to Couchbase (plugin self-provisions bucket + collections + indexes on first connect)
-  - run: b bp run auth/curity-oauth --no-restart -s auth
+  - run: b bp run auth/curity-oauth --no-restart --var deploy_target=auth/development-local
     description: Configure OAuth2 profiles, clients (flutter-app), and scopes
-  - run: b deploy run auth
+  - run: b deploy auth/development-local
     description: Render manifests, build images, and apply the run-spec to the local cluster

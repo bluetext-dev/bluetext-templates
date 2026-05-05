@@ -7,4 +7,3 @@ interfaces:
   admin:
     port: 8001
     protocol: http
-code: code/services/kong

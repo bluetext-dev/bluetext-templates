@@ -4,4 +4,3 @@ interfaces:
   http:
     port: 8080
     protocol: http
-code: code/services/flutter

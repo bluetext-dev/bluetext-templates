@@ -4,4 +4,3 @@ interfaces:
   http:
     port: 3030
     protocol: http
-code: code/services/api

@@ -1,0 +1,17 @@
+id: capella
+implements: couchbase
+external: true
+host: cb-EDIT-ME.cloud.couchbase.com
+interfaces:
+  client:
+    port: 11207
+    protocol: couchbases
+  admin:
+    port: 18091
+    protocol: https
+secrets:
+  auth:
+    type: kubernetes.io/tls
+    keys:
+      tls.crt: secrets::api-couchbase-client-cert
+      tls.key: secrets::api-couchbase-client-key

@@ -1,0 +1,14 @@
+id: server
+implements: couchbase
+interfaces:
+  client:
+    port: 11210
+    protocol: couchbase
+  admin:
+    port: 8091
+    protocol: https
+secrets:
+  auth:
+    keys:
+      username: secrets::couchbase-server-username
+      password: secrets::couchbase-server-password

@@ -1,0 +1,21 @@
+id: couchbase
+# `b service add couchbase` ships both variants. Initial `use:` binds
+# `server` (the in-cluster Couchbase Server image) to every run-spec-
+# variant. To deploy against Capella in staging/production, edit:
+#   use:
+#     server: [development, test]
+#     capella: [staging, production]
+# Then populate ~/.bluetext/secrets/<sys>--<hash>/variants/staging/
+# (and production/) with `api-couchbase-client-cert` + `-client-key`.
+use:
+  server: [_default]
+interfaces:
+  - client    # SDK / KV / query / search
+  - admin     # management API (cluster init, bucket CRUD)
+connection-profiles:
+  data-writer:
+    interface: client
+    secret: variant::auth
+  ops:
+    interface: admin
+    secret: variant::auth

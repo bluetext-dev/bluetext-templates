@@ -18,7 +18,7 @@ spec:
           effect: NoSchedule
       containers:
         - name: api
-          image: bluetext-api:latest
+          image: api-api:latest
           imagePullPolicy: Never
           ports:
             - containerPort: 3030

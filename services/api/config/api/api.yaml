@@ -1,0 +1,6 @@
+id: api
+implements: api
+interfaces:
+  http:
+    port: 3030
+    protocol: http

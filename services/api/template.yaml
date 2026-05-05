@@ -4,13 +4,10 @@ description: Backend API with Axum, mirrord dev mode
 language: rust
 ports:
   - 3030
-dev_mode: mirrord
-dependencies: []
-environments:
+dev-modes:
   development:
     mode: mirrord
     command: cargo watch -x run
-warmup_command: cargo fetch && cargo build
 start_prerequisites:
   - description: cargo-watch installed for auto-rebuild on file changes
     check: command_on_path
@@ -19,12 +16,3 @@ start_prerequisites:
     hint: |
       Install cargo-watch so `cargo watch -x run` recompiles on save:
         cargo install cargo-watch
-connection_profiles:
-  http:
-    description: HTTP API access via Traefik ingress
-    prefix: API
-    env_vars:
-      - suffix: URL
-        default: "http://traefik.kube-system.svc.cluster.local"
-      - suffix: HOST
-        default: "{{upstream}}.{{upstream_ns}}.bluetext.localhost"

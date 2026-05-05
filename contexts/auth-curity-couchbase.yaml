@@ -1,11 +1,5 @@
 name: Curity with Couchbase
 description: Curity IdP backed by Couchbase — unified data store for accounts, tokens, sessions, and credentials
-variables:
-  - name: license_key
-    alias: l
-    description: Curity license key (free trial at developer.curity.io)
-    type: string
-    required: true
 caveats:
   - First Curity build pulls the pre-built Couchbase plugin tarball (~16 MiB) from gs://bluetext-cli-releases/plugins/ and extracts it into the image — fast, no JDK/Gradle compile step
   - Couchbase admin credentials are Administrator/password — change for non-dev environments
@@ -19,8 +13,10 @@ pitfalls:
 steps:
   - run: b service add couchbase
     description: Add the Couchbase database service
-  - run: b service add curity --var license_key={{license_key}}
-    description: Add the Curity Identity Server with license secret
+  - run: b service add curity
+    description: Add the Curity Identity Server abstract
+  - run: b secret set fixed/curity-license-key --from-env CURITY_LICENSE_KEY
+    description: Write the Curity license JWT to the secret store (free trial at developer.curity.io; export CURITY_LICENSE_KEY in your shell first)
   - run: b run-spec set auth -s couchbase,curity
     description: Compose the two services into a single run-spec
   - run: b run-spec deploy add auth development-local -v development -c k3d-local

@@ -70,7 +70,7 @@ spec:
           emptyDir: {}
         - name: license
           secret:
-            secretName: curity-license
+            secretName: curity--license
             optional: true
             items:
               - key: license-key

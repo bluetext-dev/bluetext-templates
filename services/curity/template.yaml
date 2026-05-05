@@ -15,10 +15,11 @@ start_prerequisites:
         b bp run auth/curity-hsqldb           (embedded file-based, for development)
         b bp run auth/curity-couchbase        (Couchbase via native plugin — recommended)
         b bp run auth/curity-couchbase-jdbc   (Couchbase via JDBC wrapper — for licenses restricted to JDBC)
-variables:
-  - name: license_key
-    description: Curity license key (free dev license at developer.curity.io)
-    secret:
-      name: curity-license
-      key: license-key
-      transform: '{"License":"{{value}}"}'
+  - description: Curity license written to the secret store
+    check: secret_exists
+    params:
+      id: fixed/curity-license-key
+    hint: |
+      Curity needs the license file to start. Free trial at developer.curity.io.
+      Write it via the v3 secret store:
+        b secret set fixed/curity-license-key --from-env CURITY_LICENSE_KEY

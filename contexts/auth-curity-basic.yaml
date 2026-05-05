@@ -1,22 +1,19 @@
 name: Basic Auth with Curity
 description: Minimal authentication stack — Curity IdP with OAuth2, OIDC, and user registration
-variables:
-  - name: license_key
-    alias: l
-    description: Curity license key (free trial at developer.curity.io)
-    type: string
-    required: true
 caveats:
   - Uses default admin password "admin" — change for non-dev environments
+  - Reads the license from `$CURITY_LICENSE_KEY` in the calling shell (free trial at developer.curity.io)
 tips:
   - "Open the Curity login form at curity.rs--development--auth--main.bluetext.localhost/authn"
   - "Admin UI: curity-admin.rs--development--auth--main.bluetext.localhost"
   - Pre-configured client — flutter-app (public, PKCE)
 pitfalls:
-  - The license secret must be created before starting Curity
+  - The license secret must be written to the secret store before starting Curity
 steps:
-  - run: b service add curity --var license_key={{license_key}}
-    description: Add the Curity Identity Server with license secret
+  - run: b service add curity
+    description: Add the Curity Identity Server abstract
+  - run: b secret set fixed/curity-license-key --from-env CURITY_LICENSE_KEY
+    description: Write the license JWT to the secret store (the deploy pipeline composes the JSON wrapper Curity expects)
   - run: b run-spec set auth -s curity
     description: Compose Curity into a single-service run-spec
   - run: b run-spec deploy add auth development-local -v development -c k3d-local

@@ -1,11 +1,6 @@
 name: RBAC Auth with Curity
 description: Full authentication stack with role-based access control — Curity (IdP) + Kong (gateway enforcement) + API (service-level role guards) + Flutter app (OIDC login)
 variables:
-  - name: license_key
-    alias: l
-    description: Curity license key (free trial at developer.curity.io)
-    type: string
-    required: true
   - name: app_id
     alias: a
     description: App ID for OIDC configuration
@@ -25,8 +20,10 @@ pitfalls:
   - The API routes through Kong — direct API ingress is removed
   - After clearing Chrome, complete Chrome's first-run prompts before retrying the app
 steps:
-  - run: b service add curity --var license_key={{license_key}}
-    description: Add the Curity Identity Server with license secret
+  - run: b service add curity
+    description: Add the Curity Identity Server abstract
+  - run: b secret set fixed/curity-license-key --from-env CURITY_LICENSE_KEY
+    description: Write the Curity license JWT to the secret store (free trial at developer.curity.io; export CURITY_LICENSE_KEY in your shell first)
   - run: b service add kong
     description: Add the Kong API Gateway
   - run: b service add api

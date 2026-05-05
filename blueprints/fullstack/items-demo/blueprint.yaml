@@ -156,7 +156,7 @@ steps:
           - ../base
 
   - name: Build + redeploy the api image so the new model + in-cluster mode take effect
-    tool: deploy_run
+    tool: deploy
     params:
       deploy_target: "{{deploy_target}}"
       only: "{{api_service}}"

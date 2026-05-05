@@ -66,20 +66,15 @@ pitfalls:
   - The API trusts JWT from Kong without signature verification
 steps:
   - run: b service add curity
-    description: Add the Curity Identity Server
-  - run: b service start curity
-    description: Start Curity (HSQLDB, admin UI available immediately)
-  - run: b bp run auth/curity-oauth
-    description: Configure OAuth2 profiles, clients (flutter-app), and scopes
+  - run: b bp run auth/curity-oauth --var deploy_target=auth/development-local --no-restart
   - run: b service add kong
-  - run: b bp run auth/kong-phantom-token --var target_services=api
-    description: Route API traffic through Kong with token introspection
+  - run: b bp run auth/kong-phantom-token --var deploy_target=auth/development-local --var targets=api --no-restart
   - run: b service add api
-  - run: b bp run auth/api-rbac
-    description: Add role-guarded routes to the API
+  - run: b bp run auth/api-rbac --var deploy_target=auth/development-local --no-restart
+  - run: b deploy auth/development-local
 ```
 
-Contexts contain: steps, descriptions, caveats, tips, pitfalls, and next steps. They are the implementation guide. Discoverable via `b context list`, viewable via `b context show <id>`.
+Contexts contain: steps, descriptions, caveats, tips, and pitfalls. They are the implementation guide. Discoverable via `b context list`, viewable via `b context show <id>`.
 
 ## Principle 8: Tags enable cross-cutting search
 
@@ -87,9 +82,11 @@ Every blueprint is tagged with the services it touches. Tag queries work across 
 - `b bp list curity` — everything involving Curity
 - `b bp list "curity AND couchbase"` — intersection
 
-## Principle 9: Credentials are variables with dev defaults
+## Principle 9: Credentials live in the secret store, not in YAML
 
-Configurable (close to prod) with sensible defaults (easy collab). Secrets in gitignored files (`config/services/secret.*.yaml`). Committed config has dev defaults with caveats.
+Secret values land at `~/.bluetext/secrets/<sys>--<hash>/{fixed/, variants/<rsv>/}/<value-id>` — one raw file per value, outside the system tree, never in git. Service variants reference them via `secrets.<name>.keys.<file>: secrets::<value-id>`; the deploy pipeline reads each file and projects it into a K8s `Secret`.
+
+Blueprints never write secret values. When a blueprint needs a credential to exist, it relies on the value being present at the documented path; if the value is missing, deploy fails fast with the path the user must populate.
 
 ## Principle 10: Config fragments, not monoliths
 
@@ -115,28 +112,22 @@ Blueprints show related blueprints after execution via `see_also`. There is no `
 
 **Why:** A `next_steps` field implies ordering and dependency — "after this, do that." That contradicts composability (principle 4). Blueprints are independent; they don't know or care what comes next. `see_also` is a lateral suggestion ("you might also want"), not a sequential instruction. Ordering belongs in contexts (principle 7), where the full sequence is explicitly designed.
 
-## Principle 13: `service_wire` for cross-service wiring
+## Principle 13: Cross-service wiring goes through links
 
-When a blueprint needs to wire one service to another, use the `service_wire` step type. The upstream service's `connection_profiles` are the single source of truth for *what information is needed* to reach it — host, port, credentials, protocol. They define the *what*, not the *how*. How that information is used (SDK initialization, HTTP client setup, connection pooling, retry logic) is the responsibility of client libraries, application code, or config files.
+When a service needs to consume another, the consumer's abstract declares a `links:` entry naming the upstream + connection-profile:
 
 ```yaml
-steps:
-  - name: Connect service-config-manager to Couchbase
-    tool: service_wire
-    params:
-      target: service-config-manager
-      upstream: couchbase
-      profile: admin
+# config/services/api/service.yaml — the consumer abstract
+links:
+  database:
+    upstream: couchbase
+    profile: data-writer
 ```
 
-This reads the upstream's connection profile and injects the right env vars into the target's Deployment. Works for both internal services and external services.
+The deploy pipeline reads the upstream's `connection-profiles.<profile>` (which itself references `interfaces` and `secrets` on the bound variant), generates a per-link `Secret` + `ConfigMap`, and auto-mounts them at `/etc/bluetext/links/<link>/`. Consumers read `host`, `port`, `protocol`, and credential files — never env vars.
 
-**What `service_wire` is for:** Cross-service env var injection — when one service needs to know how to reach another. The connection profile defines the env vars (HOST, USERNAME, PASSWORD, etc.) and the blueprint declares which profile to use.
+A blueprint that wires services together writes the `links:` entry into the consumer's abstract via `file_patch`. It never injects env vars into Deployments.
 
-**What it's NOT for:** Self-contained env vars that are about the service itself (`ENVIRONMENT`, `POD_NAMESPACE`, `PASSWORD` for an admin UI) are fine hardcoded in the service template's k8s manifest. These don't describe a connection to another service.
+**Why:** Variant-aware consumers are a leak. If a consumer reads `COUCHBASE_HOST` env var, switching to a TLS-bearing Capella variant requires the consumer to also read `COUCHBASE_TLS_CRT` — the consumer becomes variant-aware. The link mount projects every variant's secret shape to the same path, so the consumer reads files and discriminates by file presence (`if exists("tls.crt")`) without rebuild.
 
-**Services that read config files (not env vars):** Some services (e.g., Curity) read connection details from config files (XML, JSON) rather than env vars. For these, use the initContainer + `__PLACEHOLDER__` substitution pattern: the blueprint writes config files with `__COUCHBASE_HOST__` placeholders, and an initContainer does sed substitution from env vars at pod startup. The env var values come from the k8s manifest (dev defaults matching the connection profile).
-
-**Why:** Connection information belongs with the service that exposes it, not duplicated across every blueprint that needs it. If Couchbase changes its connection surface, one update to its `connection_profiles` fixes all blueprints that use `service_wire`. Hardcoding connection details in blueprints creates silent drift.
-
-**Prerequisite checks:** Use `upstream_exists` (checks both services and external services) or `external_service_exists` (checks external services only) to validate before connecting.
+**Prerequisite checks:** Use `service_exists` to validate the upstream abstract is present before patching the consumer's `links:`.

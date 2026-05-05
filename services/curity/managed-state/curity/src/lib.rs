@@ -1,51 +1,41 @@
 //! Curity managed-state worked example.
 //!
-//! Demonstrates the `#[migration]` shape for IdP provisioning. The
-//! example below probes Curity's OIDC discovery endpoint to assert the
-//! IdP is reachable from the migration Job's network — a useful
-//! precondition before any RESTCONF calls.
+//! ## When does Curity have managed-state?
 //!
-//! Real systems extend this with handlers that POST RESTCONF
-//! configuration to the admin API to declare OAuth profiles, clients,
-//! scopes, and roles. The shape stays the same: an async fn that takes
-//! a `&MigrationCtx` and returns `Result<()>`.
+//! The deploy pipeline applies the managed-state Job between wave 1
+//! (`kind: store`) and wave 2 (everything else). A managed-state crate
+//! can only meaningfully talk to abstracts that are **already running**
+//! when the Job fires — i.e. wave-1 stores. Curity itself is
+//! `kind: service` and lands in wave 2, so the Job cannot reach Curity's
+//! own admin API.
+//!
+//! Practical consequence: Curity's "managed state" usually lives one
+//! abstract upstream. For the JDBC blueprint, curity uses Couchbase as
+//! its data store; the bucket + collections that store must hold are
+//! provisioned by **couchbase**'s managed-state crate (which runs
+//! against an already-deployed Couchbase). Curity then boots and
+//! discovers those collections through its JDBC datasource.
+//!
+//! ## What this file is, then
+//!
+//! Just the migration-handler shape. Use it as a starting point if
+//! Curity gains a managed wave-1 upstream that needs schema (e.g.
+//! HSQLDB-as-a-store, or a Postgres backing store) — duplicate the
+//! handler, change `link("…")` to that upstream, and POST to its admin
+//! endpoint as needed.
 
 use bluetext_managed_state::{migration, MigrationCtx, Result};
-use std::time::Duration;
 
-/// Wait for Curity's OIDC discovery document to respond. Useful as a
-/// barrier before subsequent migrations that talk to the admin API —
-/// the OIDC port comes up before the admin port on a fresh boot.
-#[migration("await-oidc-ready")]
-async fn await_oidc_ready(ctx: &MigrationCtx) -> Result<()> {
-    let oidc = ctx.link("oidc")?;
-    let host = oidc.host()?;
-    let port = oidc.port()?;
-    let url = format!("http://{host}:{port}/oauth/v2/oauth-anonymous/.well-known/openid-configuration");
-
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(5))
-        .build()
-        .map_err(|e| format!("build http client: {e}"))?;
-
-    for attempt in 1..=30 {
-        match client.get(&url).send().await {
-            Ok(resp) if resp.status().is_success() => {
-                eprintln!("[curity-managed-state] OIDC discovery ready");
-                return Ok(());
-            }
-            Ok(resp) => {
-                eprintln!("[curity-managed-state] OIDC not ready yet (status {}); attempt {attempt}/30", resp.status());
-            }
-            Err(e) => {
-                eprintln!("[curity-managed-state] OIDC probe error (attempt {attempt}/30): {e}");
-            }
-        }
-        tokio::time::sleep(Duration::from_secs(2)).await;
-    }
-    Err(format!("Curity OIDC at {url} did not become ready within 60s").into())
+/// Placeholder migration. Logs that the curity managed-state Job ran;
+/// does no network work because curity isn't reachable from this Job
+/// (it's wave 2).
+#[migration("curity-noop")]
+async fn curity_noop(_ctx: &MigrationCtx) -> Result<()> {
+    eprintln!(
+        "[curity-managed-state] noop migration ran. To provision real \
+         Curity OAuth profiles, add a `#[migration(...)]` here that \
+         POSTs to a wave-1 upstream's admin API (e.g. couchbase if \
+         Curity uses it as a JDBC datasource)."
+    );
+    Ok(())
 }
-
-// Add additional `#[migration(...)]` handlers below to provision OAuth
-// profiles, clients, and scopes via the admin RESTCONF API. They run in
-// definition order after `await-oidc-ready` succeeds.

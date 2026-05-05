@@ -10,6 +10,9 @@ spec:
     - name: web-ui
       port: 80
       targetPort: 8091
+    - name: admin
+      port: 8091
+      targetPort: 8091
     - name: views
       port: 8092
       targetPort: 8092

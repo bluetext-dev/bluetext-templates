@@ -1,388 +1,288 @@
 # Bluetext Templates
 
-This repo contains reusable service templates for [Bluetext CLI](https://github.com/bluetext-dev/bluetext) (`b`). Systems add templates via `b service add <template-name>...` (accepts multiple names).
+Reusable service, blueprint, and context templates for the [Bluetext CLI](https://github.com/bluetext-dev/bluetext) (`b`).
 
-By default, the CLI auto-fetches this repo from GitHub and caches it at `~/.cache/bluetext/templates/`. Override with `--from` / `-f` flag or `templates_dir` in `~/.config/bluetext/config.yaml`.
+The CLI auto-fetches this repo from GitHub and caches it at `~/.cache/bluetext/templates/`. Override with `--from <path>` on any command, or set `templates-dir` in `~/.config/bluetext/config.yaml`.
 
-## Directory Structure
-
-```
-services/
-  <service-id>/
-    template.yaml    # Template metadata (id, name, description, ports, dev_mode, dependencies, connection_profiles)
-    icon.svg         # Optional icon for CLI display
-    config/          # K8s manifests (copied to system's config/services/)
-      k8s.<service-id>.yaml
-    code/            # Service source code (copied to system's code/services/<service-id>/)
-      ...
-
-external_services/
-  <id>/
-    template.yaml    # External service metadata (name, description, connection_profiles)
-    icon.svg         # Optional icon
-
-clients/
-  <client-id>/
-    template.yaml    # Client metadata (id, name, description, language, accepts)
-    icon.svg         # Optional icon
-    <source files>   # Library source copied into the system's code/clients/<id>/
-                     # (or a single .rs file dropped into code/clients/src/<id>.rs for Rust)
+```bash
+b service add api couchbase           # add service templates from this repo
+b store add couchbase                 # add a store (service + client + cargo feature, atomic)
+b client add couchbase                # add a typed client library
+b blueprint run auth/curity-couchbase --var deploy_target=auth/development-local
+b context run auth-curity-rbac
 ```
 
-Each template is a directory under `services/`, `external_services/`, or `clients/` named by its id.
+## Repository layout
 
-### template.yaml
+```
+services/<abstract-id>/
+  template.yaml                       # metadata: id, name, ports, dev-modes, start_prerequisites
+  icon.svg                            # optional CLI/UI icon
+  config/<abstract-id>/
+    service.yaml                      # contract — interfaces, connection-profiles, links, use:
+    <variant-id>.yaml                 # implementation — port, host?, secrets, values, external?
+  manifests/<abstract-id>/<variant-id>/
+    base/                             # invariant kustomize base
+    _default/                         # required fallback overlay
+    <run-spec-variant>/               # optional per-rsv overlay (takes precedence over _default)
+  code/<abstract-id>/<variant-id>/    # source dir copied to system code/services/...
+                                      # single-variant collapses to code/<abstract-id>/
 
-Each template must include a `template.yaml` at its root with metadata used by the CLI for listing and dependency resolution:
+clients/<id>/
+  template.yaml                       # metadata: id, language, accepts (upstream interfaces)
+  src/...                             # client library source (Rust crate, TS package, ...)
+
+blueprints/<category>/<id>/
+  blueprint.yaml                      # prerequisites, variables, steps
+  files/                              # static assets referenced by file_write steps
+  fragments/                          # config fragments referenced by file_patch steps
+
+contexts/<id>.yaml                    # ordered b commands + blueprint runs
+
+PRINCIPLES.md                         # blueprint + context design rules
+```
+
+Every service template is an **abstract + variants** pair under `services/<abstract-id>/`. The abstract names what the service is (interfaces, connection-profiles); each variant names how (image, port, secrets shape, in-cluster vs external).
+
+## Two-layer service model
+
+Every consumer of a service reads from `/etc/bluetext/links/<link>/` and gets the same files regardless of which variant is bound — the deploy pipeline mounts both Opaque and typed (`kubernetes.io/tls`) Secrets uniformly. A consumer discriminates by file presence (`if exists("tls.crt")`), not by build-time branching.
+
+To switch providers, edit one line on the abstract:
 
 ```yaml
-id: <service-id>
-name: Human-readable name
-description: Short description of the template
+# config/services/couchbase/service.yaml
+use:
+  server:  [development, test]        # in-cluster Couchbase Server
+  capella: [staging, production]      # external Capella tenant
+```
+
+`b deploy app/staging-us-east` then runs against the Capella variant; `b deploy app/development-local` runs against Server.
+
+## services/<id>/template.yaml
+
+Metadata read by `b service add` and the CLI/UI service catalog.
+
+```yaml
+id: api
+name: Rust API
+description: Backend API with Axum, mirrord dev mode
+language: rust
 ports:
-  - <port>           # List of ports the service exposes (can be empty)
-dev_mode: in-cluster # One of: in-cluster, mirrord, host-forward
-dependencies:        # Other template ids this template depends on
-  - <dependency-id>
-start_prerequisites: # Verifiable checks run before `b service start` (optional)
-  - description: Human-readable requirement
-    check: xml_element_exists  # Check type (extensible)
+  - 3030
+dev-modes:
+  development:
+    mode: mirrord                     # in-cluster | mirrord | host-forward
+    command: cargo watch -x run
+start_prerequisites:
+  - description: cargo-watch installed for auto-rebuild on file changes
+    check: command_on_path
     params:
-      file: config/<id>/datasource.xml
-      element: data-source
-    hint: |                    # Actionable guidance when check fails
-      Configure a data store:
-        b bp run auth/curity-hsqldb
-connection_profiles: # What information is needed to reach this service (used by b service wire)
-  <profile-name>:
-    description: What this profile is for
-    prefix: ENV_PREFIX  # Default env var prefix (e.g. COUCHBASE)
-    env_vars:
-      - suffix: HOST           # Combined with prefix: ENV_PREFIX_HOST
-        default: "{{upstream}}.{{upstream_ns}}.svc.cluster.local"
-      - suffix: PASSWORD
-        secret:                # K8s Secret reference (injected as secretKeyRef)
-          name: secret-name
-          key: password
+      name: cargo-watch
+    hint: |
+      Install cargo-watch so `cargo watch -x run` recompiles on save:
+        cargo install cargo-watch
 ```
 
-**Connection profile placeholders:**
-- `{{upstream}}` — resolves to the upstream service ID at `b service wire` time
-- `{{upstream_ns}}` — resolves to a deploy-time namespace placeholder `{{NS:<id>}}`
+`dev-modes:` entries merge into the system's `config/dev-modes.yaml` at `b service add` time, keyed by run-spec-variant. The variant id (`development` here) refers to a run-spec-variant, not a service variant.
 
-**Env var resolution:** Each env var must have either a `default` (plain value) or a `secret` (K8s Secret reference). If neither is set, `b service wire` fails with an actionable error.
+`start_prerequisites` are checks the CLI runs before deploy. When a check fails, the `hint:` is printed verbatim — make it actionable (the exact command to run).
 
-**Connection profiles define what, not how.** They declare what information a consumer needs to reach a service (host, port, credentials, protocol). How that information is used — SDK initialization, HTTP client setup, connection pooling — is the responsibility of client libraries and application code.
+## services/<id>/config/<id>/
 
-### config/
+The abstract + variant contract.
 
-Must contain `k8s.<service-id>.yaml` — a multi-document YAML with Deployment, Service, and optionally Ingress resources. The CLI parses this file to discover the service and determine how to run it.
-
-### code/
-
-Contains the service's source code. This entire directory is copied into the system at `code/services/<service-id>/`. Do NOT include build artifacts (`node_modules`, `target`, `build`, `.dart_tool`) — they are skipped during copy.
-
-### config-files/ (optional)
-
-Non-Kubernetes configuration files. When `b service add` runs, files from `config-files/` are copied directly into the system's `config/` directory (preserving subdirectory structure).
-
-## How `b service add` Works
-
-Running `b service add <name>...` in a system (accepts multiple template names):
-
-1. Looks for `services/<name>/` in the templates repo (auto-fetched from GitHub or overridden with `--from` / `-f`)
-2. Copies all files from `services/<name>/config/` into the system's `config/services/` directory
-3. Copies `services/<name>/code/` into the system's `code/services/<name>/`
-4. Copies `services/<name>/config-files/` (if present) into the system's `config/` directory
-5. The service is immediately discoverable via `b service list` and runnable via `b service start`
-
-## External Services
-
-External services represent dependencies not deployed to the cluster (e.g. Couchbase Capella, Twilio, Stripe). They have no k8s manifests or code — just metadata and connection profiles.
-
-### How `b external-service add` Works
-
-1. Looks for `external_services/<name>/template.yaml` in the templates repo
-2. Copies to `config/external_services/<name>.yaml` in the system
-3. If the template has secret refs in connection_profiles, generates `secret.samples.<name>.yaml`
-4. If no template found, creates a minimal skeleton for manual editing
-
-### External Service File Format
+### service.yaml — the abstract
 
 ```yaml
-# config/external_services/couchbase-capella.yaml
-name: Couchbase Capella
-description: Managed Couchbase cloud database
-connection_profiles:
-  data:
-    prefix: COUCHBASE
-    env_vars:
-      - suffix: HOST
-        default: "cb.abcdef.cloud.couchbase.com"
-      - suffix: USERNAME
-        secret:
-          name: couchbase-capella-creds
-          key: username
-      - suffix: PASSWORD
-        secret:
-          name: couchbase-capella-creds
-          key: password
+id: api
+use:
+  api: [_default]                     # bind variant `api` to every run-spec-variant
+interfaces:
+  - http
+connection-profiles:
+  http:
+    interface: http
+links:
+  database:
+    upstream: couchbase               # name of an abstract this service depends on
+    profile: data-writer              # connection-profile on that upstream
 ```
 
-Connection profiles have the same shape for internal and external services. Clients don't know the difference — they read `env::var("COUCHBASE_HOST")` either way.
+- `use:` maps each defined variant id to a list of run-spec-variants. Use `_default` to mean "every run-spec-variant that no other variant claims."
+- `interfaces:` is a bare list — names the network surfaces the service exposes. The variant fills in port + protocol per name.
+- `connection-profiles:` declare the consumer-facing views of those interfaces. `secret: variant::<name>` looks up a same-named `secrets:` block on the bound variant — useful when the secret shape differs per variant (Opaque username/password vs typed `kubernetes.io/tls`).
+- `links:` (optional) declares upstream dependencies. The deploy pipeline auto-mounts the upstream's connection-profile at `/etc/bluetext/links/<link>/`.
 
-### Secrets Samples Pattern
-
-Secret values are gitignored. A committed samples file documents what secrets are needed:
-
-```
-config/external_services/
-  couchbase-capella.yaml               # committed — metadata + connection_profiles
-  secret.samples.couchbase-capella.yaml # committed — placeholder values
-  secret.couchbase-capella.yaml         # gitignored — actual values
-```
-
-Collaborators run `b secret init <id>` to create the actual secrets file from samples, then fill in real values.
-
-## Client Templates
-
-Client templates package reusable library code (e.g. a Couchbase SDK wrapper) along with a declaration of which upstream connection profiles they consume. `b client add <id>` copies the library into the system; `b client configure <id>` injects the right environment variables into a target service by reading the upstream's `connection_profiles`.
-
-### Client `template.yaml`
+### <variant-id>.yaml — an implementation
 
 ```yaml
-id: couchbase
-name: Couchbase Client
-description: Rust Couchbase client library with generic CRUD entity trait
-language: rust                    # One of: rust, typescript, go, python, ...
-accepts:                          # Which (upstream, profile) pairs the client can wire against
-  - upstream: couchbase           # Matches a service template id OR an external-service template id
-    profile: data                 # Connection profile name defined on that upstream
+# Single-variant case: variant id == abstract id
+id: api
+implements: api
+interfaces:
+  http:
+    port: 3030
+    protocol: http
 ```
 
-The `accepts` list is authoritative: `b client configure -u <upstream>` only succeeds when `<upstream>` appears in the list. If the list has multiple profiles for the same upstream, `-c <profile>` picks one. The prefix and env-var shape come entirely from the upstream's `connection_profiles` — the client never duplicates them.
-
-### What `b client add <name>` copies
-
-- `clients/<name>/` → `code/clients/<name>/` for multi-file clients (TypeScript, etc.).
-- `clients/<name>/<name>.rs` → `code/clients/src/<name>.rs` for single-file Rust clients that slot into a shared `clients` crate.
-
-### What `b client configure <name>` writes
-
-1. Reads `<name>/template.yaml` → resolves the `(upstream, profile)` pair to use.
-2. Reads the upstream's `connection_profiles.<profile>` from the service or external-service template.
-3. Substitutes `{{upstream}}` / `{{upstream_ns}}` (internal services only) and injects the env vars into the target service's Deployment container.
-4. Records a `connection` relationship in the system's relationship graph.
-5. For JS/TS clients, adds a `file:/clients/<name>` dependency to the target's `package.json`.
-
-## How the CLI Discovers Services
-
-After a template is added to a system, the CLI discovers it automatically. On every run, the CLI **recursively** scans the system's `config/services/` directory (including subdirectories) for files matching the pattern `k8s.<id>.yaml`. Each matching file becomes a service with that `<id>`. The CLI then parses the YAML to extract `target_port` from the Service resource, and annotations + volumes from the Deployment resource (see "How the CLI Extracts Config" below).
-
-This means:
-- A service exists if and only if `config/services/k8s.<id>.yaml` exists
-- The service id is derived from the filename, not from any field inside the YAML
-- The `code/services/<id>/` directory is used at runtime (volume mounts, local dev commands) but is not required for discovery
-- `b service list` shows all discovered services and their target ports
-
-## How the CLI Discovers Apps
-
-## Writing a K8s Manifest (`k8s.<id>.yaml`)
-
-The manifest is a multi-document YAML (`---` separated). The CLI parses it to extract configuration. All resource names and labels must use the service id.
-
-### Required: Deployment + Service
-
 ```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: <service-id>
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: <service-id>
-  template:
-    metadata:
-      labels:
-        app: <service-id>
-    spec:
-      containers:
-        - name: app
-          image: <image>
-          ports:
-            - containerPort: <port>
-          volumeMounts:
-            - name: system
-              mountPath: /app
-      volumes:
-        - name: system
-          hostPath:
-            path: /var/mnt/system/code/services/<service-id>
-            type: Directory
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: <service-id>
-spec:
-  type: ClusterIP
-  selector:
-    app: <service-id>
-  ports:
-    - port: 80
-      targetPort: <port>
+# Multi-variant: server (in-cluster) + capella (external)
+id: server
+implements: couchbase
+interfaces:
+  client: { port: 11210, protocol: couchbase }
+  admin:  { port: 8091,  protocol: https }
+secrets:
+  auth:
+    keys:
+      username: secrets::couchbase-server-username
+      password: secrets::couchbase-server-password
 ```
 
-### Optional: Ingress
+```yaml
+id: capella
+implements: couchbase
+external: true                        # no manifests applied; consumer-side ConfigMap + Secret only
+host: cb-EDIT-ME.cloud.couchbase.com
+interfaces:
+  client: { port: 11207,  protocol: couchbases }
+  admin:  { port: 18091,  protocol: https }
+secrets:
+  auth:
+    type: kubernetes.io/tls
+    keys:
+      tls.crt: secrets::api-couchbase-client-cert
+      tls.key: secrets::api-couchbase-client-key
+```
 
-Add an Ingress to expose the service via `<service-id>.<namespace>.bluetext.localhost`:
+- `implements:` must match the directory's abstract id.
+- `external: true` flips the variant out of in-cluster manifest generation. The deploy pipeline still emits the consumer-side `Secret` + `ConfigMap` so consumers see the same `/etc/bluetext/links/<link>/` shape.
+- `host:` is a value-leaf; supply a string literal or a polymorphic form like `{ _: run-spec-variant-id, staging: cb-staging.cloud.couchbase.com, production: cb-prod.cloud.couchbase.com }`.
+- `secrets.<name>.keys.<file>: secrets::<value-id>` references a value at `~/.bluetext/secrets/<sys>--<hash>/{fixed,variants/<rsv>}/<value-id>`. The deploy pipeline reads each file and projects it as a Secret entry.
+
+## services/<id>/manifests/<id>/<variant>/
+
+Per-variant kustomize layout:
+
+```
+manifests/<abstract>/<variant>/
+├── base/                # invariant resources (Deployment, Service, Ingress)
+├── _default/            # required fallback overlay
+└── <run-spec-variant>/  # optional per-rsv overlay; takes precedence over _default
+```
+
+`_default/` is required (PROPOSAL §D17). The deploy pipeline picks the most specific overlay for the active run-spec-variant; absent a per-rsv overlay, `_default/` runs.
+
+### base/ conventions
+
+- Resource names + labels match the **variant id** (the bound variant, not the abstract). The CLI rewrites image references to `<abstract>-<variant>:latest` for k3d or registry-prefixed for remote clusters.
+- Use `imagePullPolicy: Never` for the k3d path; the deploy pipeline imports built images into the cluster.
+- HostPath volumes for source mount under `/var/mnt/system/` — the CLI rewrites these to `/var/mnt/systems/<system-rel>/` at apply time.
+- Cache volumes (Rust `target/`, `node_modules`) under `/var/mnt/workspace/.bluetext/cache/<abstract>/`.
+- Namespace placeholders: `{{NAMESPACE}}` in manifest YAML (CLI substitutes); `__NAMESPACE__` in mounted config files (use an initContainer + `sed` for substitution at pod startup).
+
+### Ingress
+
+Add an Ingress in `base/` to expose the service externally:
 
 ```yaml
----
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: <service-id>
+  name: <abstract-id>
 spec:
   ingressClassName: traefik
   rules:
-    - host: <service-id>.{{NAMESPACE}}.bluetext.localhost
+    - host: <abstract-id>.{{NAMESPACE}}.bluetext.localhost
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: <service-id>
+                name: <abstract-id>
                 port:
                   number: 80
 ```
 
-`{{NAMESPACE}}` is replaced at deploy time with the target namespace.
+## services/<id>/code/<id>/<variant>/
 
-## Deployment Annotations
+Source code copied into the system at `code/services/<abstract>/<variant>/`. For single-variant abstracts, the path collapses to `code/services/<abstract>/`.
 
-The CLI reads annotations from `metadata.annotations` on the **Deployment** resource (not on the pod template). These annotations control how the service is deployed and run.
+Skip build artifacts (`node_modules`, `target`, `build`, `.dart_tool`) — the CLI's copy step ignores them by default.
 
-### `bluetext.io/dev-command`
+## clients/<id>/
 
-- **Parsed from:** `Deployment.metadata.annotations`
-- **Effect:** Switches the service out of in-cluster mode. Instead of deploying the full container, the CLI deploys a stub pod and runs this command locally on the host machine.
-- **Without `bluetext.io/dev-mode`:** Uses mirrord mode — deploys a pause container as stub, then runs `mirrord exec --steal` to intercept cluster traffic and forward it to the local process.
-- **Value:** The shell command to run locally (e.g. `cargo watch -x run`, `./bin/dev`). Executed via `zsh -lc` so PATH includes user tools. **Paths are relative to the service directory** (`code/services/<service-id>/`), not the system root.
-- **Requires:** A `system` hostPath volume under `/var/mnt/system/` so the CLI can determine the local source directory (it strips the `/var/mnt/system/` prefix to get the relative path).
-
-### `bluetext.io/dev-mode`
-
-- **Parsed from:** `Deployment.metadata.annotations`
-- **Only meaningful when `bluetext.io/dev-command` is also set.**
-- **Values:**
-  - `host-forward` — Instead of mirrord, deploys an `alpine/socat` proxy pod that forwards `TCP-LISTEN:<port>` to `TCP:host.k3d.internal:<port>`. The dev command runs natively on the host without any interception layer. Use this for tools incompatible with mirrord (e.g. Flutter/Gradle).
-- **Omitted (default):** Uses mirrord mode when `dev-command` is present.
-
-### `bluetext.io/port-forwards`
-
-- **Parsed from:** `Deployment.metadata.annotations`
-- **Format:** `<service>:<local-port>:<service-port>` — comma-separated for multiple entries.
-- **Effect:** When the service starts (in **any deployment mode** — in-cluster, mirrord, or host-forward), the CLI spawns `kubectl port-forward svc/<service> <local-port>:<service-port>` for each entry, making cluster services available on localhost.
-- **Example:** `"couchbase-sync-gateway:4984:80"` — makes Sync Gateway's public API (cluster port 80, which targets container port 4984) available at `localhost:4984` on the host.
-- **PIDs:** Saved to `.bluetext/pids/<service-id>/<target-service>.port-forward.pid` and cleaned up on `b service stop`.
-- **Use case:** Services (e.g. Flutter on Android emulator) that need to connect to other cluster services from the host. The emulator can reach forwarded ports via `10.0.2.2:<local-port>`.
-
-### `bluetext.io/reload-command`
-
-- **Parsed from:** `Deployment.metadata.annotations`
-- **Effect:** Declares how to reload the service's configuration without a full restart. When the `service_reload` blueprint tool is used, the CLI execs this command inside the running pod via `kubectl exec`. If the annotation is absent, `service_reload` falls back to a full restart.
-- **Example:** `"kong reload"` — sends SIGHUP to the Kong master process, re-reading the declarative config file.
-- **Use case:** Gateway services (Kong) whose config files are mounted via hostPath. Config changes are visible inside the pod immediately, but the service needs a signal to re-read them.
-
-### `bluetext.io/reload-watch`
-
-- **Parsed from:** `Deployment.metadata.annotations`
-- **Requires:** `bluetext.io/reload-command` must also be set.
-- **Effect:** The host agent watches the specified directory (relative to system root) for file changes. When a change is detected, it automatically execs the reload command inside the running pod. Polling interval: 2 seconds.
-- **Example:** `"config/kong"` — watches the `config/kong/` directory; when `kong.yaml` is modified (by a blueprint or manually), Kong is automatically reloaded.
-- **Use case:** Hot reload during development — edit config, see changes immediately without running a command.
-
-### How the CLI Extracts Config
-
-The CLI parses each `k8s.<id>.yaml` and extracts from the Deployment:
-
-| Field | Source in YAML | ServiceConfig field |
-|---|---|---|
-| `target_port` | `Service.spec.ports[0].targetPort` | `target_port` |
-| `dev_command` | `Deployment.metadata.annotations["bluetext.io/dev-command"]` | `dev_command` |
-| `dev_mode` | `Deployment.metadata.annotations["bluetext.io/dev-mode"]` | `dev_mode` |
-| `local_dir` | `Deployment.spec.template.spec.volumes[name=system].hostPath.path` (strips `/var/mnt/system/` prefix) | `local_dir` |
-| `port_forwards` | `Deployment.metadata.annotations["bluetext.io/port-forwards"]` (parsed as comma-separated `service:localPort:servicePort`) | `port_forwards` |
-
-### Three Deploy Modes
-
-**1. In-cluster (default)** — No annotations. The full Deployment manifest is applied as-is. The container runs in k8s with hostPath volume mounts for live code. Any `bluetext.io/port-forwards` entries are started as background `kubectl port-forward` processes.
-
-**2. mirrord** — Set `bluetext.io/dev-command`. The CLI:
-  - Deploys a stub pod (pause container) + Service + Ingress
-  - Starts any `bluetext.io/port-forwards` entries as background port-forward processes
-  - Runs `mirrord exec --steal -t deployment/<id>` with the dev command locally
-  - Saves PID to `.bluetext/pids/<id>.pid`, logs to `.bluetext/logs/<id>.log`
-
-**3. host-forward** — Set both `bluetext.io/dev-command` and `bluetext.io/dev-mode: host-forward`. The CLI:
-  - Deploys a socat proxy pod forwarding `<port>` to `host.k3d.internal:<port>` + Service + Ingress
-  - Starts any `bluetext.io/port-forwards` entries as `kubectl port-forward` background processes (PIDs in `.bluetext/pids/<id>/`)
-  - Runs the dev command natively on the host
-  - Requires k3d port mapping for the target port (`-p <port>:<port>@loadbalancer`)
-  - Saves PID to `.bluetext/pids/<id>.pid`, logs to `.bluetext/logs/<id>.log`
-  - Use `registry.k8s.io/pause:3.9` as the Deployment image — the CLI replaces it with a socat proxy at deploy time, so the heavy runtime image is unnecessary
-
-## Existing Template Examples
-
-### Service Templates
-
-| Template | Type | Port | Dev Mode | Description |
-|---|---|---|---|---|
-| `web-app` | Bun/Vite | 5173 | in-cluster | Frontend with hot reload via hostPath |
-| `api` | Rust | 3030 | mirrord | Backend compiled locally, traffic proxied |
-| `couchbase` | Couchbase Server | 8091 | in-cluster | Database with persistent data volume |
-| `couchbase-sync-gateway` | Sync Gateway | 4984 | in-cluster | Couchbase Sync Gateway with namespace-templated config |
-| `service-config-manager` | Python | — | in-cluster | Init service that configures Couchbase buckets and Sync Gateway databases |
-| `flutter` | Flutter | 8080 | host-forward | Mobile app running on host emulator |
-
-## Template Extras
-
-### `config-files/` Directory
-
-Templates can include a `config-files/` directory for non-Kubernetes configuration files. When `b service add` runs, files from `config-files/` are copied directly into the system's `config/` directory (preserving subdirectory structure). This is used for:
-
-- `config-files/couchbase-sync-gateway/config.json` — Sync Gateway bootstrap config
-- `config-files/service-config-manager/managed-services.yaml` — service-config-manager manifest
-- `config-files/service-config-manager/couchbase/couchbase.yaml` — Couchbase bucket definitions
-- `config-files/service-config-manager/couchbase-sync-gateway/couchbase-sync-gateway.yaml` — Sync Gateway database definitions
-
-### Config File Namespace Templating
-
-K8s manifest files use `{{NAMESPACE}}` which the CLI replaces at deploy time. However, config files mounted via hostPath are **not** processed by the CLI. For config files that need the namespace, use the `__NAMESPACE__` placeholder and an initContainer to substitute it at pod startup:
+A typed client library a service can use to consume an upstream's connection-profile.
 
 ```yaml
-initContainers:
-  - name: config-templater
-    image: busybox:stable
-    command: ['sh', '-c', 'sed "s/__NAMESPACE__/$POD_NAMESPACE/g" /config-template/config.json > /config/config.json']
-    env:
-      - name: POD_NAMESPACE
-        valueFrom:
-          fieldRef:
-            fieldPath: metadata.namespace
+# clients/couchbase/template.yaml
+id: couchbase
+name: Couchbase Client
+description: Rust Couchbase client library with generic CRUD entity trait
+language: rust
+accepts:
+  - upstream: couchbase
+    profile: data-writer
 ```
 
-Use `__NAMESPACE__` (not `{{NAMESPACE}}`) to avoid conflict with the CLI's manifest-level replacement.
+`b client add <id>` copies the library into the system. The `accepts:` list declares which `(upstream, profile)` pairs the client wires against.
 
-## Conventions
+For Rust single-file clients, ship the file at `clients/<id>/<id>.rs`; `b client add` slots it into the system's shared `code/clients/src/<id>.rs`. For multi-file clients, ship a directory and the CLI mirrors it under `code/clients/<id>/`.
 
-- Service id = directory name = all K8s resource names = `app` label value
-- Use `ClusterIP` services (port 80 → targetPort), not NodePort
-- Add `tolerations` for control-plane scheduling if appropriate
-- Use hostPath volumes under `/var/mnt/system/` for source code and cache directories
-- Cache mounts go under `/var/mnt/workspace/.bluetext/cache/<service-id>/` (workspace-level, persists across systems)
-- Vite-based services need `allowedHosts: ['.bluetext.localhost']` in vite.config.js
+## blueprints/<category>/<id>/
+
+Atomic configuration steps. Each blueprint configures one service for one capability and ships with prerequisites, typed variables, and ordered steps.
+
+```yaml
+name: Curity OAuth profiles
+description: Configure Curity OAuth2 profiles, clients, and scopes
+tags: [auth, curity, oauth]
+prerequisites:
+  - description: Curity service exists
+    check: service_exists
+    params:
+      id: curity
+variables:
+  - name: deploy_target
+    alias: d
+    type: deploy-target
+    description: '<run-spec>/<deploy-name> — context for service restart steps'
+    required: true
+restarts: [curity]
+steps:
+  - name: Write OAuth fragment
+    tool: file_write
+    params:
+      file: config/curity/oauth-config.xml
+      content_file: files/oauth-config.xml
+  - name: Restart curity
+    tool: service_restart
+    params:
+      id: curity
+      deploy_target: "{{deploy_target}}"
+```
+
+Step tools — see [cli/docs/BLUEPRINTS.md](https://github.com/bluetext-dev/bluetext/blob/development/docs/BLUEPRINTS.md) for the full reference.
+
+## contexts/<id>.yaml
+
+A guided sequence of CLI commands and blueprint runs.
+
+```yaml
+name: RBAC Auth with Curity
+description: Full authentication stack with role-based access control
+caveats:
+  - Requires a Curity license key (free at developer.curity.io)
+steps:
+  - run: b service add curity
+  - run: b bp run auth/curity-oauth --var deploy_target=auth/development-local --no-restart
+  - run: b service add kong
+  - run: b bp run auth/kong-phantom-token --var deploy_target=auth/development-local --no-restart
+  - run: b deploy auth/development-local
+```
+
+Contexts pass `--no-restart` to blueprint steps to batch config writes, then trigger one explicit `b deploy` at the end.
+
+See `PRINCIPLES.md` for the design rules every blueprint and context follows.

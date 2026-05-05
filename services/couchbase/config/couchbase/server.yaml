@@ -12,3 +12,9 @@ secrets:
     keys:
       username: secrets::couchbase-server-username
       password: secrets::couchbase-server-password
+# The deploy pipeline materialises `secrets.auth` as the K8s Secret
+# `couchbase--auth` in couchbase's namespace because of this `mounts:`
+# declaration. The deployment manifest mounts it into the pod for the
+# postStart cluster-init hook.
+mounts:
+  - variant::auth

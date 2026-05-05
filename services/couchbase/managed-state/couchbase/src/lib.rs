@@ -1,65 +1,173 @@
 //! Couchbase managed-state worked example.
 //!
-//! Demonstrates the `#[migration]` shape: an async fn that takes a
-//! `MigrationCtx`, reads the admin link's host/port from
-//! `/etc/bluetext/links/admin/`, and talks HTTP to the upstream.
+//! Creates the buckets, scopes, and collections the system's services
+//! consume. Idempotent — every step swallows the "already exists"
+//! response, so re-running the deploy (or the host-agent watcher
+//! re-firing on source change) is a no-op against an unchanged config.
 //!
-//! ## What this example actually does
+//! ## Lifecycle position
 //!
-//! The handler probes Couchbase's `/pools` endpoint to assert the admin
-//! API is reachable from the Job's pod. That's the minimum useful
-//! migration: it proves the wave-1 → managed-state Job → wave-2 split
-//! works for your system's network topology.
+//! Runs in the per-deploy managed-state Job (between wave 1 and wave 2).
+//! By the time this handler executes, Couchbase's `postStart` lifecycle
+//! hook has finished `cluster-init` and the admin credentials in
+//! `/etc/bluetext/links/admin/{username,password}` work — see
+//! `manifests/services/couchbase/server/base/deployment.yaml`.
 //!
-//! ## Going further: real schema provisioning
+//! ## Customising
 //!
-//! Provisioning buckets/scopes/collections needs the cluster to be
-//! initialized first (Couchbase requires a `cluster-init` POST setting
-//! quota + admin credentials before any other admin endpoint accepts
-//! auth). Either:
-//!
-//! 1. Add an initContainer to `manifests/services/couchbase/server/
-//!    base/deployment.yaml` that runs `couchbase-cli cluster-init`
-//!    against the pod on first boot, then this handler can use
-//!    `Administrator`/`password` to POST to `/pools/default/buckets`.
-//!
-//! 2. Extend this handler to do the cluster-init dance inline:
-//!    POST `/pools/default` (quota), POST `/node/controller/
-//!    setupServices` (kv/index/n1ql), POST `/settings/web` (admin
-//!    credentials), then POST `/pools/default/buckets`.
-//!
-//! Both keep idempotence: Couchbase returns "already initialized" /
-//! "already exists" on re-runs.
+//! Edit `BUCKETS_AND_COLLECTIONS` below to declare what your system's
+//! services need. The example ships the layout `auth/curity-couchbase-jdbc`
+//! expects — a `curity` bucket with the collections the JDBC wrapper
+//! references — so the Curity datasource works end-to-end on first
+//! deploy.
 
 use bluetext_managed_state::{migration, MigrationCtx, Result};
 use std::time::Duration;
 
-/// Probe the Couchbase admin API on `/pools`. Returns 200 (with cluster
-/// info) when the cluster is reachable, regardless of init state — so
-/// this works as a barrier in any system layout. Replace with a real
-/// provisioning handler once your cluster is initialized.
-#[migration("probe-couchbase-admin")]
-async fn probe_couchbase_admin(ctx: &MigrationCtx) -> Result<()> {
+/// Each tuple is `(bucket, scope, collections)`. `_default` is the
+/// implicit default scope; passing it skips scope creation but still
+/// runs the per-collection step.
+const BUCKETS_AND_COLLECTIONS: &[(&str, &str, &[&str])] = &[(
+    "curity",
+    "_default",
+    &[
+        "accounts",
+        "account_resource_relations",
+        "audit",
+        "buckets",
+        "credentials",
+        "database_clients",
+        "database_client_resource_relations",
+        "database_service_providers",
+        "delegations",
+        "devices",
+        "dynamically_registered_clients",
+        "entities",
+        "entity_relations",
+        "linked_accounts",
+        "nonces",
+        "sessions",
+        "tokens",
+    ],
+)];
+
+#[migration("provision-buckets-and-collections")]
+async fn provision(ctx: &MigrationCtx) -> Result<()> {
     let admin = ctx.link("admin")?;
     let host = admin.host()?;
     let port = admin.port()?;
-    let url = format!("http://{host}:{port}/pools");
+    let user = admin.read("username")?;
+    let pw = admin.read("password")?;
+    let user = user.trim();
+    let pw = pw.trim();
 
     let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(10))
+        .timeout(Duration::from_secs(15))
         .build()
         .map_err(|e| format!("build http client: {e}"))?;
+    let base = format!("http://{host}:{port}");
 
+    for (bucket, scope, collections) in BUCKETS_AND_COLLECTIONS {
+        ensure_bucket(&client, &base, user, pw, bucket).await?;
+        if *scope != "_default" {
+            ensure_scope(&client, &base, user, pw, bucket, scope).await?;
+        }
+        for collection in *collections {
+            ensure_collection(&client, &base, user, pw, bucket, scope, collection).await?;
+        }
+    }
+    Ok(())
+}
+
+async fn ensure_bucket(
+    client: &reqwest::Client,
+    base: &str,
+    user: &str,
+    pw: &str,
+    bucket: &str,
+) -> Result<()> {
+    let url = format!("{base}/pools/default/buckets");
     let resp = client
-        .get(&url)
+        .post(&url)
+        .basic_auth(user, Some(pw))
+        .form(&[
+            ("name", bucket),
+            ("ramQuotaMB", "100"),
+            ("bucketType", "couchbase"),
+            ("durabilityMinLevel", "none"),
+        ])
         .send()
         .await
-        .map_err(|e| format!("GET {url}: {e}"))?;
-
+        .map_err(|e| format!("POST {url}: {e}"))?;
     let status = resp.status();
     if status.is_success() {
-        eprintln!("[couchbase-managed-state] couchbase admin API reachable at {url}");
+        eprintln!("[couchbase-managed-state] created bucket '{bucket}'");
         return Ok(());
     }
-    Err(format!("GET {url} returned {status}").into())
+    let body = resp.text().await.unwrap_or_default();
+    if body.contains("already exists") || body.contains("Bucket with given name already exists") {
+        eprintln!("[couchbase-managed-state] bucket '{bucket}' already exists");
+        return Ok(());
+    }
+    Err(format!("create bucket '{bucket}' failed (status {status}): {body}").into())
+}
+
+async fn ensure_scope(
+    client: &reqwest::Client,
+    base: &str,
+    user: &str,
+    pw: &str,
+    bucket: &str,
+    scope: &str,
+) -> Result<()> {
+    let url = format!("{base}/pools/default/buckets/{bucket}/scopes");
+    let resp = client
+        .post(&url)
+        .basic_auth(user, Some(pw))
+        .form(&[("name", scope)])
+        .send()
+        .await
+        .map_err(|e| format!("POST {url}: {e}"))?;
+    let status = resp.status();
+    if status.is_success() {
+        eprintln!("[couchbase-managed-state] created scope '{bucket}.{scope}'");
+        return Ok(());
+    }
+    let body = resp.text().await.unwrap_or_default();
+    if body.contains("already exists") {
+        return Ok(());
+    }
+    Err(format!("create scope '{bucket}.{scope}' failed (status {status}): {body}").into())
+}
+
+async fn ensure_collection(
+    client: &reqwest::Client,
+    base: &str,
+    user: &str,
+    pw: &str,
+    bucket: &str,
+    scope: &str,
+    collection: &str,
+) -> Result<()> {
+    let url = format!("{base}/pools/default/buckets/{bucket}/scopes/{scope}/collections");
+    let resp = client
+        .post(&url)
+        .basic_auth(user, Some(pw))
+        .form(&[("name", collection)])
+        .send()
+        .await
+        .map_err(|e| format!("POST {url}: {e}"))?;
+    let status = resp.status();
+    if status.is_success() {
+        eprintln!("[couchbase-managed-state] created collection '{bucket}.{scope}.{collection}'");
+        return Ok(());
+    }
+    let body = resp.text().await.unwrap_or_default();
+    if body.contains("already exists") {
+        return Ok(());
+    }
+    Err(
+        format!("create collection '{bucket}.{scope}.{collection}' failed (status {status}): {body}")
+            .into(),
+    )
 }

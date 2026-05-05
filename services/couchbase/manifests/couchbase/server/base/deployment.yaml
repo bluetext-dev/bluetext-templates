@@ -22,6 +22,32 @@ spec:
         - name: couchbase
           image: couchbase:enterprise-7.6.6
           imagePullPolicy: IfNotPresent
+          # Cluster-init runs once on first boot via a postStart lifecycle
+          # hook. Reads the Administrator credentials from the Secret the
+          # deploy pipeline materialises out of `secrets.auth` (named
+          # `couchbase--auth`, mounted at /run/admin/), then POSTs to the
+          # local 8091 admin API to set memory quotas, enable services,
+          # and provision the admin user. Idempotent: every step swallows
+          # "already initialised" / "already exists" responses, so pod
+          # restarts after the first boot are a no-op.
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - /bin/bash
+                  - -c
+                  - |
+                    set -u
+                    USER="$(cat /run/admin/username)"
+                    PW="$(cat /run/admin/password)"
+                    until curl -sf http://127.0.0.1:8091/pools >/dev/null 2>&1; do sleep 2; done
+                    curl -sS -u "$USER:$PW" -X POST http://127.0.0.1:8091/pools/default \
+                      -d memoryQuota=256 -d indexMemoryQuota=256 >/dev/null || true
+                    curl -sS -X POST http://127.0.0.1:8091/node/controller/setupServices \
+                      -d 'services=kv,index,n1ql' >/dev/null || true
+                    curl -sS -X POST http://127.0.0.1:8091/settings/web \
+                      -d "username=$USER" -d "password=$PW" -d port=SAME >/dev/null || true
+                    exit 0
           ports:
             - containerPort: 8091
               name: web-ui
@@ -36,16 +62,28 @@ spec:
             - containerPort: 11210
               name: data
           readinessProbe:
-            httpGet:
-              path: /ui/index.html
-              port: 8091
+            # Exec probe so the pod's mounted credentials drive
+            # `curl -u`. Readiness only flips green after cluster-init
+            # has provisioned the admin user — consumers never see a
+            # half-bootstrapped cluster.
+            exec:
+              command:
+                - /bin/bash
+                - -c
+                - 'curl -sf -u "$(cat /run/admin/username):$(cat /run/admin/password)" http://127.0.0.1:8091/pools/default >/dev/null'
             initialDelaySeconds: 10
             periodSeconds: 5
-            failureThreshold: 12
+            failureThreshold: 24
           volumeMounts:
             - name: couchbase-data
               mountPath: /opt/couchbase/var
+            - name: admin-creds
+              mountPath: /run/admin
+              readOnly: true
       volumes:
         - name: couchbase-data
           persistentVolumeClaim:
             claimName: couchbase-data
+        - name: admin-creds
+          secret:
+            secretName: couchbase--auth

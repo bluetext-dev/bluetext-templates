@@ -3,7 +3,7 @@ description: Add Kong in front of an API service and load a custom Lua plugin th
 caveats:
   - "Custom Lua plugins live under code/services/kong/lua/kong/plugins/<name>/ and are loaded via KONG_LUA_PACKAGE_PATH (set by gateway/kong-request-logger)."
   - "Kong identifies a plugin by the schema's name field plus the directory layout — when iterating, keep the directory name and schema.lua name in sync."
-  - "The api template defaults to mirrord dev mode. Without mirrord installed locally, switch the api dev mode to in-cluster in config/services/api/metadata.yaml before b deploy run."
+  - "The api template defaults to mirrord dev mode. Without mirrord installed locally, switch the api dev mode to in-cluster in config/services/api/metadata.yaml before b deploy."
 tips:
   - "Tail the plugin output — b service logs kong | grep request-logger"
   - "After hand-editing the Lua source, b bp run dev/kong-reload --var deploy_target=gateway/development-local re-runs init_worker and picks up the new module."

@@ -1,4 +1,5 @@
 id: resonate
+kind: store
 name: Resonate
 description: Durable execution server for commands
 use:

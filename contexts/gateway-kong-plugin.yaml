@@ -16,6 +16,8 @@ steps:
     description: Add Kong gateway, the API it protects, and a frontend to drive it
   - run: b run-spec set gateway -s kong,api,web-app
     description: Compose the three services into a run-spec
+  - run: b run-spec deploy add gateway development-local -v development -c k3d-local
+    description: Add the development-local deploy entry pairing run-spec-variant `development` with the k3d-local cluster
   - run: b bp run gateway/kong-proxy --var targets=api --var frontend=web-app --no-restart --var deploy_target=gateway/development-local
     description: Wire the API behind Kong and route the frontend through it
   - run: b bp run gateway/kong-request-logger --no-restart --var deploy_target=gateway/development-local

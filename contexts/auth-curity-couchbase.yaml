@@ -22,7 +22,9 @@ steps:
   - run: b service add curity --var license_key={{license_key}}
     description: Add the Curity Identity Server with license secret
   - run: b run-spec set auth -s couchbase,curity
-    description: Compose the three services into a single run-spec
+    description: Compose the two services into a single run-spec
+  - run: b run-spec deploy add auth development-local -v development -c k3d-local
+    description: Add the development-local deploy entry pairing run-spec-variant `development` with the k3d-local cluster
   - run: b bp run auth/curity-couchbase --no-restart --var deploy_target=auth/development-local
     description: Switch Curity's data source from HSQLDB to Couchbase (plugin self-provisions bucket + collections + indexes on first connect)
   - run: b bp run auth/curity-oauth --no-restart --var deploy_target=auth/development-local

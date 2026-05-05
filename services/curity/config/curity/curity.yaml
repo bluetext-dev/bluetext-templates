@@ -1,0 +1,9 @@
+id: curity
+implements: curity
+interfaces:
+  oidc:
+    port: 8443
+    protocol: https
+  admin:
+    port: 6749
+    protocol: https

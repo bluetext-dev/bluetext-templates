@@ -1,0 +1,6 @@
+id: web-app
+implements: web-app
+interfaces:
+  http:
+    port: 5173
+    protocol: http

@@ -1,0 +1,8 @@
+id: couchbase-edge-server
+use:
+  couchbase-edge-server: [_default]
+interfaces:
+  - sync
+connection-profiles:
+  sync:
+    interface: sync

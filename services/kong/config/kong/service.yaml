@@ -1,0 +1,11 @@
+id: kong
+use:
+  kong: [_default]
+interfaces:
+  - proxy        # data-plane: routes traffic to upstream services
+  - admin        # control-plane: declarative config + plugin admin
+connection-profiles:
+  proxy:
+    interface: proxy
+  admin:
+    interface: admin

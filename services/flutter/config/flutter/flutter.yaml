@@ -1,0 +1,6 @@
+id: flutter
+implements: flutter
+interfaces:
+  http:
+    port: 8080
+    protocol: http

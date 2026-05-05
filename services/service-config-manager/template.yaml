@@ -1,9 +1,0 @@
-id: service-config-manager
-name: Service Config Manager
-description: Init service that configures Couchbase buckets and Sync Gateway databases
-language: python
-ports: []
-dev_mode: in-cluster
-dependencies:
-  - couchbase
-  - couchbase-sync-gateway

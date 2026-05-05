@@ -1,3 +1,0 @@
-name: Web App
-description: Frontend with Bun and Vite, hot reload via hostPath
-language: typescript

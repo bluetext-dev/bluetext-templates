@@ -1,0 +1,8 @@
+id: resonate
+use:
+  resonate: [_default]
+interfaces:
+  - http
+connection-profiles:
+  default:
+    interface: http

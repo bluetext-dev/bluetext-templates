@@ -1,0 +1,11 @@
+id: couchbase-sync-gateway
+use:
+  couchbase-sync-gateway: [_default]
+interfaces:
+  - public        # document sync + authentication
+  - admin         # database creation, configuration
+connection-profiles:
+  public:
+    interface: public
+  admin:
+    interface: admin

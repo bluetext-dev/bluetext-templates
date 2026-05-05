@@ -3,14 +3,3 @@ name: TigerBeetle
 description: Distributed financial accounting database, single-replica development cluster
 ports:
   - 3000
-dev_mode: in-cluster
-dependencies: []
-connection_profiles:
-  data:
-    description: TigerBeetle native binary protocol for SDK clients
-    prefix: TIGERBEETLE
-    env_vars:
-      - suffix: ADDRESSES
-        default: "{{upstream}}-headless.{{upstream_ns}}.svc.cluster.local:3000"
-      - suffix: CLUSTER_ID
-        default: "0"

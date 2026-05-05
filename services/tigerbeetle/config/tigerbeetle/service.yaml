@@ -1,0 +1,8 @@
+id: tigerbeetle
+use:
+  tigerbeetle: [_default]
+interfaces:
+  - data
+connection-profiles:
+  data:
+    interface: data

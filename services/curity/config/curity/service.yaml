@@ -1,0 +1,13 @@
+id: curity
+use:
+  curity: [_default]
+interfaces:
+  - oidc          # OAuth2 / OIDC endpoints (authorize, token, JWKS, userinfo)
+  - admin         # admin UI + management API
+connection-profiles:
+  oidc:
+    interface: oidc
+  jwks:
+    interface: oidc
+  introspection:
+    interface: oidc

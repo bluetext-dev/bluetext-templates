@@ -1,0 +1,8 @@
+id: flutter
+use:
+  flutter: [_default]
+interfaces:
+  - http
+connection-profiles:
+  http:
+    interface: http

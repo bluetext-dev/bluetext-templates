@@ -1,0 +1,8 @@
+id: web-app
+use:
+  web-app: [_default]
+interfaces:
+  - http
+connection-profiles:
+  http:
+    interface: http

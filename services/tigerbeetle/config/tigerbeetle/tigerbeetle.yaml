@@ -1,0 +1,6 @@
+id: tigerbeetle
+implements: tigerbeetle
+interfaces:
+  data:
+    port: 3000
+    protocol: tcp

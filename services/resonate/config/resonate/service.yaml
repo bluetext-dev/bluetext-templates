@@ -1,4 +1,6 @@
 id: resonate
+name: Resonate
+description: Durable execution server for commands
 use:
   resonate: [_default]
 interfaces:

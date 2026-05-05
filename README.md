@@ -212,6 +212,20 @@ Source code copied into the system at `code/services/<abstract>/<variant>/`. For
 
 Skip build artifacts (`node_modules`, `target`, `build`, `.dart_tool`) — the CLI's copy step ignores them by default.
 
+## Sharing one image across abstracts — `vimage:`
+
+When N abstracts genuinely share one image — multi-tenant deploys (`api-tenant-a`, `api-tenant-b`, …) or bluetext-built sidecars consumed by many services — the variant declares `vimage: <id>` instead of inline `base/code/archs`:
+
+```yaml
+# config/services/api-tenant-a/api-tenant-a.yaml
+id: api-tenant-a
+implements: api-tenant-a
+vimage: api-runtime
+interfaces: { http: { port: 3030, protocol: http } }
+```
+
+The shared image lives at `config/vimages/api-runtime.yaml` (in the system, not in the template repo — vimages are user-side composition). The deploy pipeline builds the image once and tags it for every consumer. The CLI scaffolds a vimage with `b vimage add <id>`. See [`cli/docs/VIMAGE.md`](https://github.com/bluetext-dev/bluetext/blob/development/docs/VIMAGE.md) for the full pattern.
+
 ## clients/<id>/
 
 A typed client library a service can use to consume an upstream's connection-profile.

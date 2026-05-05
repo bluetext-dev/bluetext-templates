@@ -1,4 +1,6 @@
 id: curity
+name: Curity Identity Server
+description: OAuth 2.0 and OpenID Connect Identity Server
 use:
   curity: [_default]
 interfaces:

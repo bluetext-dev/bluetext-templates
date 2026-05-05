@@ -1,4 +1,6 @@
 id: couchbase-sync-gateway
+name: Couchbase Sync Gateway
+description: Couchbase Sync Gateway with namespace-templated config
 use:
   couchbase-sync-gateway: [_default]
 interfaces:

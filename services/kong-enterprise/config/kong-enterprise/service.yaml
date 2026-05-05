@@ -1,4 +1,6 @@
 id: kong-enterprise
+name: Kong Gateway Enterprise
+description: Kong Gateway Enterprise 3.12 — commercial distribution with bundled EE plugins
 use:
   kong-enterprise: [_default]
 interfaces:

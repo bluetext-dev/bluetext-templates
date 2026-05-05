@@ -1,4 +1,6 @@
 id: api
+name: Rust API
+description: Backend API with Axum, mirrord dev mode
 use:
   api: [_default]
 interfaces:

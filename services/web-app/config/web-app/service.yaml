@@ -1,4 +1,6 @@
 id: web-app
+name: Web App
+description: Frontend with Bun and Vite, hot reload via hostPath
 use:
   web-app: [_default]
 interfaces:

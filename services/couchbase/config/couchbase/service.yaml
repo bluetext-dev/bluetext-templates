@@ -1,4 +1,6 @@
 id: couchbase
+name: Couchbase Server
+description: Couchbase Server (in-cluster) with a Capella alternate variant
 # `b service add couchbase` ships both variants. Initial `use:` binds
 # `server` (the in-cluster Couchbase Server image) to every run-spec-
 # variant. To deploy against Capella in staging/production, edit:

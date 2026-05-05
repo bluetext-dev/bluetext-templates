@@ -49,7 +49,7 @@ public class SqlPPConnection implements Connection {
             Pattern.DOTALL
     );
 
-    // DDL and session statements — collections pre-created by service-config-manager
+    // DDL and session statements — collections pre-provisioned via the managed-state crate
     private static final Pattern DDL_PATTERN = Pattern.compile(
             "(?i)^\\s*(CREATE\\s+(TABLE|INDEX|UNIQUE\\s+INDEX|SEQUENCE)|ALTER\\s+TABLE|DROP\\s+(TABLE|INDEX|SEQUENCE)|TRUNCATE|SET\\s+).*"
     );

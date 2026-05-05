@@ -10,65 +10,21 @@ prerequisites:
     check: service_exists
     params:
       id: couchbase
-  - description: Service Config Manager exists
-    check: service_exists
-    params:
-      id: service-config-manager
 caveats:
   - Overwrites Curity deployment (custom image bundling the Couchbase JDBC wrapper)
   - For licenses that include the Plugin SDK and unrestricted data-source types, prefer auth/curity-couchbase (native plugin)
   - Curity may restart once or twice while Couchbase initializes — this is normal
   - Couchbase admin credentials are Administrator/password — change for non-dev environments
-  - Collections and Analytics datasets are provisioned by service-config-manager before Curity connects
+  - The curity bucket plus its scopes and collections must already exist before Curity connects. Provision them via the per-system managed-state crate or a one-shot script. Tracked at goals/.../move-state-to-state-machine/design/managed-state-walkthrough-todo.md.
 variables:
   - name: deploy_target
     alias: d
     description: '<run-spec>/<deploy-name> — context for service start/stop/restart steps (e.g. app/development-local)'
     type: deploy-target
     required: true
-  - name: namespace
-    alias: n
-    description: Namespace where Curity and Couchbase are running
-    type: string
-    default: main
-restarts: [service-config-manager, curity]
+restarts: [curity]
 see_also: [auth/curity-couchbase, auth/curity-oauth, auth/kong-phantom-token]
 steps:
-  - name: Add curity bucket to service-config-manager Couchbase config
-    tool: file_patch
-    params:
-      file: config/service-config-manager/couchbase/couchbase.yaml
-      operation: merge
-      path: buckets
-      content: |
-        curity:
-          defaults:
-            flush_enabled: true
-          analytics: true
-          env_settings:
-            dev:
-              ram_quota_mb: 256
-            prod:
-              ram_quota_mb: 2048
-              num_replicas: 3
-          scopes:
-            _default:
-              collections:
-                accounts: {}
-                credentials: {}
-                sessions: {}
-                tokens: {}
-                delegations: {}
-                nonces: {}
-                linked_accounts: {}
-                devices: {}
-                audit: {}
-                dynamically_registered_clients: {}
-                database_clients: {}
-                buckets: {}
-                database_service_providers: {}
-                entities: {}
-                entity_relations: {}
   - name: Overwrite Curity deployment (custom image with Couchbase JDBC driver)
     tool: file_write
     params:
@@ -96,12 +52,7 @@ steps:
           type: datasource
           label: Uses as data store
           blueprint: auth/curity-couchbase-jdbc
-  - name: Restart service-config-manager in {{namespace}}
-    tool: service_restart
-    params:
-      id: service-config-manager
-      deploy_target: "{{deploy_target}}"
-  - name: Restart curity in {{namespace}}
+  - name: Restart curity
     tool: service_restart
     params:
       id: curity

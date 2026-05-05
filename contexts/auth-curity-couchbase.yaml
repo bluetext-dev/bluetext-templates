@@ -15,7 +15,7 @@ tips:
   - "Curity login: curity.rs--development--auth--main.bluetext.localhost/authn"
   - The plugin self-provisions the curity bucket (256 MiB, configurable via `<bucket-ram-quota-mb>`), the configured scope, ten curity-* collections, and primary indexes on first connect (auto-provision=true by default)
 pitfalls:
-  - Couchbase initial cluster setup happens via the per-system managed-state crate (the v3 replacement for the retired service-config-manager); the plugin then provisions its own bucket and collections
+  - Couchbase initial cluster setup happens via the per-system managed-state crate; the Curity plugin then provisions its own bucket and collections on first connect
 steps:
   - run: b service add couchbase
     description: Add the Couchbase database service

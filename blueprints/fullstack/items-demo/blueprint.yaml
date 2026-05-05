@@ -27,7 +27,7 @@ caveats:
   - Overwrites the project's `model/` crate (lib.rs, items.rs, Cargo.toml) to define the Item state machine. Existing model content is replaced.
   - The api base image (api-api:latest) is rebuilt during the follow-up deploy. First build can take a few minutes.
   - The api ingress returns 502 until the pod's readiness probe passes. Polling the ingress is fine.
-  - Couchbase must already be initialized with the {{bucket}} bucket — provision it via the per-system managed-state crate (replacement for the retired service-config-manager).
+  - Couchbase must already be initialized with the {{bucket}} bucket before running this blueprint. The per-system managed-state crate handles bucket setup.
 
 variables:
   - name: deploy_target

@@ -10,7 +10,7 @@ import java.util.Calendar;
 /**
  * A no-op PreparedStatement that silently succeeds for DDL statements
  * (CREATE TABLE, CREATE INDEX, ALTER TABLE, etc.) that Couchbase Analytics
- * doesn't support. Collections are pre-created by service-config-manager,
+ * doesn't support. Collections are pre-provisioned via the managed-state crate,
  * so these DDL statements from Curity's PostgreSQL dialect can be safely ignored.
  */
 public class NoOpPreparedStatement implements PreparedStatement {

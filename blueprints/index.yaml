@@ -78,10 +78,6 @@ blueprints:
         check: service_exists
         params:
           id: couchbase
-      - description: Service Config Manager exists
-        check: service_exists
-        params:
-          id: service-config-manager
   - id: auth/curity-create-users
     name: Curity Create Users
     description: Create user accounts with passwords via SCIM API
@@ -186,19 +182,6 @@ blueprints:
         check: file_exists
         params:
           file: config/curity/oauth-config.xml
-  - id: database/service-config-manager-register
-    name: Register Service with Config Manager
-    description: Wire service-config-manager to an upstream service — injects connection env vars, registers in managed services, and creates the relationship
-    tags: [database, service-config-manager]
-    prerequisites:
-      - description: Service-config-manager exists
-        check: service_exists
-        params:
-          id: service-config-manager
-      - description: Upstream service exists
-        check: upstream_exists
-        params:
-          id: "{{service}}"
   - id: demo/ai-governance
     name: AI Governance Model
     description: Demo data model for an AI governance platform — users, models, policies, usage tracking

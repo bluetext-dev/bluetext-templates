@@ -18,9 +18,7 @@ pub use items::Item;
 //
 // The `#[store(collection = "_default")]` override routes documents
 // into the bucket's always-existing `_default._default` keyspace, so the
-// blueprint doesn't have to provision a dedicated collection (the
-// service-config-manager only auto-creates buckets, not nested
-// collections, by default).
+// blueprint doesn't have to provision a dedicated collection.
 #[state_machine("items-demo")]
 pub struct AppState {
     #[store(collection = "_default")]

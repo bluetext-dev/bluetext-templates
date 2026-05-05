@@ -4,4 +4,4 @@ description: Rust Couchbase client library with generic CRUD entity trait
 language: rust
 accepts:
   - upstream: couchbase
-    profile: data
+    profile: data-writer

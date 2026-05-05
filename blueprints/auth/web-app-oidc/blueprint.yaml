@@ -100,8 +100,12 @@ steps:
   - name: Switch the API to in-cluster mode (the RBAC stack runs the API as a real container, not via mirrord)
     tool: file_write
     params:
-      file: config/services/api/metadata.yaml
-      content_file: files/api-metadata.yaml
+      file: config/dev-modes.yaml
+      # Empty mapping clears the api template's mirrord dev-mode entry.
+      # With no entry, the deploy pipeline runs the API in-cluster (the
+      # default; PROPOSAL §D13: dev-modes are opt-in per (rsv, abstract)).
+      content: |
+        {}
   - name: Restart curity in {{namespace}}
     tool: service_restart
     params:

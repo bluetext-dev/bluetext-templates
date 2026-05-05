@@ -1,7 +1,0 @@
-name: Rust API
-description: Backend API with Axum (RBAC: real container in-cluster, no mirrord)
-language: rust
-environments:
-  development:
-    mode: in-cluster
-start_prerequisites: []

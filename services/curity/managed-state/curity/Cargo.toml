@@ -1,0 +1,14 @@
+[package]
+name = "curity-managed-state"
+version = "0.1.0"
+edition = "2024"
+description = "Worked-example managed-state crate for Curity. Probes admin readiness; replace with RESTCONF calls to provision OAuth profiles, clients, and scopes."
+
+[lib]
+name = "curity_managed_state"
+path = "src/lib.rs"
+
+[dependencies]
+bluetext-managed-state = { path = "../../../code/bluetext-managed-state" }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }

@@ -1,0 +1,12 @@
+id: curity
+kind: managed-state
+name: Curity migrations
+description: |
+  Worked-example managed-state crate. Demonstrates the shape for
+  bootstrapping Curity at deploy time — OAuth profiles, clients,
+  scopes, and roles. The example ships a readiness probe; replace
+  with your system's RESTCONF calls against the admin API to
+  provision real config.
+
+links:
+  oidc: curity/oidc

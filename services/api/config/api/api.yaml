@@ -4,3 +4,8 @@ interfaces:
   http:
     port: 3030
     protocol: http
+# Workspace-style build: the api Dockerfile pulls in shared crates that
+# only exist at the system root (`code/bluetext-model*/`, `model/`,
+# `code/clients/`), so the build context must be the system root.
+code: .
+dockerfile: code/services/api/Dockerfile

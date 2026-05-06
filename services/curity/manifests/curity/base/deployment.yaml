@@ -24,7 +24,25 @@ spec:
       initContainers:
         - name: config-templater
           image: busybox:stable
-          command: ['sh', '-c', 'for f in /config-template/*.xml; do sed "s/__NAMESPACE__/$POD_NAMESPACE/g" "$f" > "/config/$(basename $f)"; done']
+          # The license Secret can't be mounted at /opt/idsvr/etc/init/license
+          # directly because that path is inside the `init-config` emptyDir
+          # mount; nested mounts produce an empty inner dir on k3d/containerd.
+          # Workaround: mount the Secret at a sibling path (`/license-source`),
+          # copy it into `/config/license/default` here. Curity's startup
+          # scanner reads any file in `/opt/idsvr/etc/init/license/` and
+          # parses it as a JSON license wrapper.
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              for f in /config-template/*.xml; do
+                sed "s/__NAMESPACE__/$POD_NAMESPACE/g" "$f" > "/config/$(basename $f)"
+              done
+              mkdir -p /config/license
+              if [ -f /license-source/license-key ]; then
+                cp /license-source/license-key /config/license/default
+              fi
           env:
             - name: POD_NAMESPACE
               valueFrom:
@@ -35,6 +53,9 @@ spec:
               mountPath: /config-template
             - name: init-config
               mountPath: /config
+            - name: license
+              mountPath: /license-source
+              readOnly: true
       containers:
         - name: curity
           image: curity.azurecr.io/curity/idsvr:latest
@@ -58,9 +79,6 @@ spec:
           volumeMounts:
             - name: init-config
               mountPath: /opt/idsvr/etc/init
-            - name: license
-              mountPath: /opt/idsvr/etc/init/license
-              readOnly: true
       volumes:
         - name: config-template
           hostPath:
@@ -71,7 +89,12 @@ spec:
         - name: license
           secret:
             secretName: curity--license
-            optional: true
-            items:
-              - key: license-key
-                path: default
+            # No items: mapping. Curity scans every file in
+            # /opt/idsvr/etc/init/license/ at startup and parses each
+            # one as a JSON license wrapper, so the projected key name
+            # `license-key` is fine — the deploy pipeline wraps the
+            # raw JWT as {"License":"…"} via the `secrets:` template
+            # on the curity variant. Items mappings with `:latest`
+            # symlink layouts don't project under k3d's containerd
+            # image of secrets the way the spec implies, so we let
+            # Kubernetes do the natural projection instead.

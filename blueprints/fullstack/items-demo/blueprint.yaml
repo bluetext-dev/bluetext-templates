@@ -71,6 +71,7 @@ steps:
     params:
       file: config/services/{{api_service}}/service.yaml
       operation: merge
+      path: ""
       content: |
         links:
           database: {{upstream_couchbase}}/data-writer

@@ -24,7 +24,7 @@ services/<abstract-id>/
   manifests/<abstract-id>/<variant-id>/
     base/                             # invariant kustomize base
     _default/                         # required fallback overlay
-    <run-spec-variant>/               # optional per-rsv overlay (takes precedence over _default)
+    <run-spec-variant>/               # optional per-run-spec-variant overlay (takes precedence over _default)
   code/<abstract-id>/<variant-id>/    # source dir copied to system code/services/...
                                       # single-variant collapses to code/<abstract-id>/
 
@@ -159,7 +159,7 @@ secrets:
 - `implements:` must match the directory's abstract id.
 - `external: true` flips the variant out of in-cluster manifest generation. The deploy pipeline still emits the consumer-side `Secret` + `ConfigMap` so consumers see the same `/etc/bluetext/links/<link>/` shape.
 - `host:` is a value-leaf; supply a string literal or a polymorphic form like `{ _: run-spec-variant-id, staging: cb-staging.cloud.couchbase.com, production: cb-prod.cloud.couchbase.com }`.
-- `secrets.<name>.keys.<file>: secrets::<value-id>` references a value at `~/.bluetext/secrets/<sys>--<hash>/{fixed,variants/<rsv>}/<value-id>`. The deploy pipeline reads each file and projects it as a Secret entry.
+- `secrets.<name>.keys.<file>: secrets::<value-id>` references a value at `~/.bluetext/secrets/<sys>--<hash>/{fixed,variants/<run-spec-variant>}/<value-id>`. The deploy pipeline reads each file and projects it as a Secret entry.
 
 ## services/<id>/manifests/<id>/<variant>/
 
@@ -169,10 +169,10 @@ Per-variant kustomize layout:
 manifests/<abstract>/<variant>/
 ├── base/                # invariant resources (Deployment, Service, Ingress)
 ├── _default/            # required fallback overlay
-└── <run-spec-variant>/  # optional per-rsv overlay; takes precedence over _default
+└── <run-spec-variant>/  # optional per-run-spec-variant overlay; takes precedence over _default
 ```
 
-`_default/` is required (PROPOSAL §D17). The deploy pipeline picks the most specific overlay for the active run-spec-variant; absent a per-rsv overlay, `_default/` runs.
+`_default/` is required (PROPOSAL §D17). The deploy pipeline picks the most specific overlay for the active run-spec-variant; absent a per-run-spec-variant overlay, `_default/` runs.
 
 ### base/ conventions
 

@@ -103,7 +103,7 @@ steps:
       file: config/dev-modes.yaml
       # Empty mapping clears the api template's mirrord dev-mode entry.
       # With no entry, the deploy pipeline runs the API in-cluster (the
-      # default; PROPOSAL §D13: dev-modes are opt-in per (rsv, abstract)).
+      # default; PROPOSAL §D13: dev-modes are opt-in per (run-spec-variant, abstract)).
       content: |
         {}
   - name: Restart curity in {{namespace}}

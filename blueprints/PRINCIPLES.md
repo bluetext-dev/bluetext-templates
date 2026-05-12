@@ -93,7 +93,7 @@ Every blueprint is tagged with the services it touches. Tag queries work across 
 ## Principle 9: Credentials live in the secret store, not in YAML
 <a id="bp-9"></a>
 
-Secret values land at `~/.bluetext/secrets/<sys>--<hash>/{fixed/, variants/<rsv>/}/<value-id>` — one raw file per value, outside the system tree, never in git. Service variants reference them via `secrets.<name>.keys.<file>: secrets::<value-id>`; the deploy pipeline reads each file and projects it into a K8s `Secret`.
+Secret values land at `~/.bluetext/secrets/<sys>--<hash>/{fixed/, variants/<run-spec-variant>/}/<value-id>` — one raw file per value, outside the system tree, never in git. Service variants reference them via `secrets.<name>.keys.<file>: secrets::<value-id>`; the deploy pipeline reads each file and projects it into a K8s `Secret`.
 
 Blueprints never write secret values. When a blueprint needs a credential to exist, it relies on the value being present at the documented path; if the value is missing, deploy fails fast with the path the user must populate.
 

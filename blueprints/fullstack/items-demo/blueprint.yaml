@@ -137,7 +137,7 @@ steps:
       # Empty mapping clears the api template's auto-seeded mirrord
       # entry. With no entry, the deploy pipeline runs the api
       # in-cluster (the default; PROPOSAL §D13: dev-modes are opt-in
-      # per (rsv, abstract)).
+      # per (run-spec-variant, abstract)).
       content: |
         {}
 

@@ -1,8 +1,7 @@
-id: kong-enterprise
 name: Kong Gateway Enterprise
 description: Kong Gateway Enterprise 3.12 — commercial distribution with bundled EE plugins
 use:
-  kong-enterprise: [_default]
+  _default: kong-enterprise
 interfaces:
   - proxy        # data-plane: routes traffic to upstream services
   - admin        # control-plane: declarative config + plugin admin

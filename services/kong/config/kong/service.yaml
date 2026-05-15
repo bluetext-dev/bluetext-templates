@@ -1,8 +1,7 @@
-id: kong
 name: Kong Gateway
 description: API gateway with phantom token plugin for token introspection
 use:
-  kong: [_default]
+  _default: kong
 interfaces:
   - proxy        # data-plane: routes traffic to upstream services
   - admin        # control-plane: declarative config + plugin admin

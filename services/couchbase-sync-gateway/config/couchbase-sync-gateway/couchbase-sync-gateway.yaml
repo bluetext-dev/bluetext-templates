@@ -1,5 +1,3 @@
-id: couchbase-sync-gateway
-implements: couchbase-sync-gateway
 interfaces:
   public:
     port: 4984

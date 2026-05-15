@@ -1,4 +1,3 @@
-id: couchbase
 kind: store
 name: Couchbase Server
 description: Couchbase Server (in-cluster) with a Capella alternate variant
@@ -6,12 +5,14 @@ description: Couchbase Server (in-cluster) with a Capella alternate variant
 # `server` (the in-cluster Couchbase Server image) to every run-spec-
 # variant. To deploy against Capella in staging/production, edit:
 #   use:
-#     server: [development, test]
-#     capella: [staging, production]
+#     development: server
+#     test:        server
+#     staging:     capella
+#     production:  capella
 # Then populate ~/.bluetext/secrets/<sys>--<hash>/variants/staging/
 # (and production/) with `api-couchbase-client-cert` + `-client-key`.
 use:
-  server: [_default]
+  _default: server
 interfaces:
   - client    # SDK / KV / query / search
   - admin     # management API (cluster init, bucket CRUD)

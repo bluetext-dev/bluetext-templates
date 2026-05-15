@@ -1,5 +1,3 @@
-id: kong-enterprise
-implements: kong-enterprise
 interfaces:
   proxy:
     port: 8000

@@ -1,9 +1,8 @@
-id: resonate
 kind: store
 name: Resonate
 description: Durable execution server for commands
 use:
-  resonate: [_default]
+  _default: resonate
 interfaces:
   - http
 connection-profiles:

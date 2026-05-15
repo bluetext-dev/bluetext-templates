@@ -1,5 +1,3 @@
-id: capella
-implements: couchbase
 external: true
 host: cb-EDIT-ME.cloud.couchbase.com
 interfaces:

@@ -1,5 +1,3 @@
-id: resonate
-implements: resonate
 interfaces:
   http:
     port: 8001

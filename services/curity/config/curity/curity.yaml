@@ -1,5 +1,3 @@
-id: curity
-implements: curity
 interfaces:
   oidc:
     port: 8443

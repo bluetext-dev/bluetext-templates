@@ -1,8 +1,7 @@
-id: curity
 name: Curity Identity Server
 description: OAuth 2.0 and OpenID Connect Identity Server
 use:
-  curity: [_default]
+  _default: curity
 interfaces:
   - oidc          # OAuth2 / OIDC endpoints (authorize, token, JWKS, userinfo)
   - admin         # admin UI + management API

@@ -1,5 +1,3 @@
-id: kong
-implements: kong
 interfaces:
   proxy:
     port: 8000

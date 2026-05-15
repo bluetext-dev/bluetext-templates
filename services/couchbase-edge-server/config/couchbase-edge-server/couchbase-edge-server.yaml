@@ -1,5 +1,3 @@
-id: couchbase-edge-server
-implements: couchbase-edge-server
 interfaces:
   sync:
     port: 59840

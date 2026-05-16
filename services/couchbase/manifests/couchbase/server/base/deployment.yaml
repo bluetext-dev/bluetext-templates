@@ -1,25 +1,25 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: couchbase
+  name: couchbase--server
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: couchbase
+      app: couchbase--server
   template:
     metadata:
       labels:
-        app: couchbase
+        app: couchbase--server
     spec:
       hostname: couchbase
-      subdomain: couchbase-headless
+      subdomain: couchbase--server-headless
       tolerations:
         - key: node-role.kubernetes.io/control-plane
           operator: Exists
           effect: NoSchedule
       containers:
-        - name: couchbase
+        - name: couchbase--server
           image: couchbase:enterprise-7.6.6
           imagePullPolicy: IfNotPresent
           # Cluster-init runs once on first boot via a postStart lifecycle
@@ -83,7 +83,7 @@ spec:
       volumes:
         - name: couchbase-data
           persistentVolumeClaim:
-            claimName: couchbase-data
+            claimName: couchbase--server-data
         - name: admin-creds
           secret:
             secretName: couchbase--auth

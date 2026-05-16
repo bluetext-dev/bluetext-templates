@@ -6,7 +6,7 @@ patches:
   - path: patches.yaml
   - target:
       kind: Ingress
-      name: couchbase-edge-server
+      name: couchbase-edge-server--couchbase-edge-server
     patch: |
       - op: replace
         path: /spec/rules/0/host

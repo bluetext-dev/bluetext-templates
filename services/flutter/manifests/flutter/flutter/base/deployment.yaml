@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: flutter
+  name: flutter--flutter
   annotations:
     bluetext.io/adb-server: "true"
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: flutter
+      app: flutter--flutter
   template:
     metadata:
       labels:
-        app: flutter
+        app: flutter--flutter
     spec:
       containers:
         - name: app
-          image: bluetext-flutter:latest
+          image: flutter-flutter:latest
           imagePullPolicy: Never
           command: ["sh", "-c", "cd /app && ./bin/init && exec ./bin/dev"]
           ports:

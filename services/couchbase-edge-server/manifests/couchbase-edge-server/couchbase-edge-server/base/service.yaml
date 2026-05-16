@@ -1,11 +1,11 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: couchbase-edge-server
+  name: couchbase-edge-server--couchbase-edge-server
 spec:
   type: ClusterIP
   selector:
-    app: couchbase-edge-server
+    app: couchbase-edge-server--couchbase-edge-server
   ports:
     - name: public
       port: 80

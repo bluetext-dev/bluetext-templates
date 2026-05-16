@@ -1,12 +1,12 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: couchbase
+  name: couchbase--server
 spec:
   template:
     spec:
       containers:
-        - name: couchbase
+        - name: couchbase--server
           imagePullPolicy: Always
           resources:
             requests:

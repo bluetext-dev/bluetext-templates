@@ -1,11 +1,11 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: couchbase-sync-gateway
+  name: couchbase-sync-gateway--couchbase-sync-gateway
 spec:
   type: ClusterIP
   selector:
-    app: couchbase-sync-gateway
+    app: couchbase-sync-gateway--couchbase-sync-gateway
   ports:
     - name: public
       port: 80

@@ -6,7 +6,7 @@ patches:
   - path: patches.yaml
   - target:
       kind: Ingress
-      name: couchbase-sync-gateway
+      name: couchbase-sync-gateway--couchbase-sync-gateway
     patch: |
       - op: replace
         path: /spec/rules/0/host

@@ -1,16 +1,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: couchbase-sync-gateway
+  name: couchbase-sync-gateway--couchbase-sync-gateway
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: couchbase-sync-gateway
+      app: couchbase-sync-gateway--couchbase-sync-gateway
   template:
     metadata:
       labels:
-        app: couchbase-sync-gateway
+        app: couchbase-sync-gateway--couchbase-sync-gateway
     spec:
       tolerations:
         - key: node-role.kubernetes.io/control-plane
@@ -31,7 +31,7 @@ spec:
             - name: config
               mountPath: /config
       containers:
-        - name: couchbase-sync-gateway
+        - name: couchbase-sync-gateway--couchbase-sync-gateway
           image: couchbase/sync-gateway:3.1.1-enterprise
           args:
             - "-bootstrap.use_tls_server=false"

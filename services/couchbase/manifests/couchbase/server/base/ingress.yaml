@@ -1,7 +1,7 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: couchbase
+  name: couchbase--server
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web
 spec:
@@ -14,6 +14,6 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: couchbase
+                name: couchbase--server
                 port:
                   number: 80

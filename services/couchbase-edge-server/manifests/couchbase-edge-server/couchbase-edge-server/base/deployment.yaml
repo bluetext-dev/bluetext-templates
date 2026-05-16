@@ -1,16 +1,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: couchbase-edge-server
+  name: couchbase-edge-server--couchbase-edge-server
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: couchbase-edge-server
+      app: couchbase-edge-server--couchbase-edge-server
   template:
     metadata:
       labels:
-        app: couchbase-edge-server
+        app: couchbase-edge-server--couchbase-edge-server
     spec:
       tolerations:
         - key: node-role.kubernetes.io/control-plane
@@ -31,7 +31,7 @@ spec:
             - name: config
               mountPath: /config
       containers:
-        - name: couchbase-edge-server
+        - name: couchbase-edge-server--couchbase-edge-server
           image: couchbase/edge-server:latest
           command: ["couchbase-edge-server"]
           args: ["--verbose", "/etc/edge-server/config.json"]

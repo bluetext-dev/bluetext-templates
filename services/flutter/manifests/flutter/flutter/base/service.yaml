@@ -1,11 +1,11 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: flutter
+  name: flutter--flutter
 spec:
   type: ClusterIP
   selector:
-    app: flutter
+    app: flutter--flutter
   ports:
     - port: 80
       targetPort: 8080

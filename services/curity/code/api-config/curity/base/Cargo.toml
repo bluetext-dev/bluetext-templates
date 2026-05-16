@@ -1,0 +1,32 @@
+# Empty [workspace] table opts this crate out of the surrounding bluetext
+# repo workspace — the handler crate lives in the templates clone (a
+# sibling of the bluetext repo on disk) and the v3 image-build slice
+# writes its own workspace shim alongside the staged crates.
+[workspace]
+
+[package]
+name = "curity-api-config-base"
+version = "0.1.0"
+edition = "2024"
+description = "Curity api-config bundle: license install + OAuth profiles + clients + scopes + roles, driven by the bluetext-api-config harness."
+
+[[bin]]
+name = "curity-api-config-base"
+path = "src/main.rs"
+
+[dependencies]
+# Platform harness — path dependency resolved through the staging
+# workspace Cargo.toml the v3 image-build slice writes alongside the
+# crate (see src/operations/deploy/v3/api_config_image.rs).
+bluetext-api-config = { path = "../../../../../../../crates/bluetext-api-config" }
+
+# Async runtime.
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+
+# HTTPS client for Curity admin RESTCONF (8443/6749 by default).
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+
+# JSON shaping for RESTCONF bodies; YAML for state.yaml ensure traversal.
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yml = "0.0.12"

@@ -143,9 +143,12 @@ pub async fn ensure_state(ctx: &ApiConfigCtx, state: &Value) -> Result<()> {
 /// exercise once `verify_license` returns 200 in the smoke.
 async fn ensure_oauth_profiles(_peer: &PeerData, value: &Value) -> Result<()> {
     let count = value.as_sequence().map(|s| s.len()).unwrap_or(0);
-    eprintln!(
-        "[curity-api-config] ensure: {count} oauth-profile(s) declared — STUB (X3c follow-up; needs licensed Curity smoke to verify endpoint)"
-    );
+    if count > 0 {
+        return Err(format!(
+            "ensure_oauth_profiles is STUB (X3c follow-up needs licensed-Curity smoke to verify the RESTCONF endpoint shape). state.yaml::oauth-profiles declares {count} entry/entries that would silently be ignored if this returned Ok. Either drop the oauth-profiles section from state.yaml or implement the handler against /admin/api/restconf/data/se.curity:profiles."
+        ).into());
+    }
+    eprintln!("[curity-api-config] ensure: oauth-profiles section empty — nothing to do");
     Ok(())
 }
 
@@ -169,9 +172,12 @@ async fn ensure_oauth_profiles(_peer: &PeerData, value: &Value) -> Result<()> {
 /// scope ids that must already exist — order this AFTER ensure_scopes).
 async fn ensure_clients(_peer: &PeerData, value: &Value) -> Result<()> {
     let count = value.as_sequence().map(|s| s.len()).unwrap_or(0);
-    eprintln!(
-        "[curity-api-config] ensure: {count} client(s) declared — STUB (X3c follow-up; depends on ensure_scopes + ensure_oauth_profiles ordering)"
-    );
+    if count > 0 {
+        return Err(format!(
+            "ensure_clients is STUB. state.yaml::clients declares {count} entry/entries that would silently be ignored if this returned Ok. Either drop the clients section from state.yaml or implement the handler against the profile's client-store endpoint."
+        ).into());
+    }
+    eprintln!("[curity-api-config] ensure: clients section empty — nothing to do");
     Ok(())
 }
 
@@ -192,9 +198,12 @@ async fn ensure_clients(_peer: &PeerData, value: &Value) -> Result<()> {
 /// `ensure_state`'s walk order matters (scopes before clients).
 async fn ensure_scopes(_peer: &PeerData, value: &Value) -> Result<()> {
     let count = value.as_sequence().map(|s| s.len()).unwrap_or(0);
-    eprintln!(
-        "[curity-api-config] ensure: {count} scope(s) declared — STUB (X3c follow-up; must precede ensure_clients)"
-    );
+    if count > 0 {
+        return Err(format!(
+            "ensure_scopes is STUB. state.yaml::scopes declares {count} entry/entries that would silently be ignored if this returned Ok. Either drop the scopes section from state.yaml or implement the handler against the profile's scopes endpoint."
+        ).into());
+    }
+    eprintln!("[curity-api-config] ensure: scopes section empty — nothing to do");
     Ok(())
 }
 
@@ -213,9 +222,12 @@ async fn ensure_scopes(_peer: &PeerData, value: &Value) -> Result<()> {
 /// translates directly — same role-id surface.
 async fn ensure_roles(_peer: &PeerData, value: &Value) -> Result<()> {
     let count = value.as_sequence().map(|s| s.len()).unwrap_or(0);
-    eprintln!(
-        "[curity-api-config] ensure: {count} role(s) declared — STUB (X3c follow-up; independent of profiles/clients/scopes ordering)"
-    );
+    if count > 0 {
+        return Err(format!(
+            "ensure_roles is STUB. state.yaml::roles declares {count} entry/entries that would silently be ignored if this returned Ok. Either drop the roles section from state.yaml or implement the handler against /admin/api/restconf/data/se.curity:authorization/.../role."
+        ).into());
+    }
+    eprintln!("[curity-api-config] ensure: roles section empty — nothing to do");
     Ok(())
 }
 

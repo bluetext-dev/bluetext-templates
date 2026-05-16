@@ -57,24 +57,30 @@ async fn classify_probe(status: reqwest::StatusCode, label: &str) -> Result<()> 
         eprintln!("[curity-api-config] verify_license: RESTCONF reachable ({status}, {label})");
         return Ok(());
     }
-    // 401 is fine for verification: RESTCONF served a response, meaning
-    // the runtime is licensed. Auth itself is a separate concern handled
-    // by individual handlers.
+    // 401 alone is NOT proof the license is in place — Curity's auth
+    // check fires *before* the license check, so an unlicensed runtime
+    // also returns 401 on bad credentials. Treat it as inconclusive:
+    // log and continue, but don't gate success on it.
     if status.as_u16() == 401 {
         eprintln!(
-            "[curity-api-config] verify_license: RESTCONF reachable ({status}, {label}); auth needs operator password rotation but license is in place"
+            "[curity-api-config] verify_license: got 401 with {label}. \
+             Auth failed before the license check ran, so the license \
+             status is inconclusive. If the curity pod is in CrashLoopBackOff \
+             this is the symptom of an unparsable license JWT — check \
+             `kubectl logs <curity-pod>` for `LicenseKeyValidationCallback - \
+             License was the wrong issuer or had not subject`."
         );
         return Ok(());
     }
     if status.as_u16() == 503 {
         return Err(format!(
-            "Curity admin RESTCONF returned 503 — license isn't in place. \
+            "Curity admin RESTCONF returned 503 FeatureViolationException — license isn't in place. \
              Curity reads the license file at /opt/idsvr/etc/init/license/default; \
              the deploy pipeline populates it via the curity--license Secret \
              mounted by the curity deployment's config-templater init container. \
              Likely cause: `b secret set fixed/curity-license-key --from-env CURITY_LICENSE_KEY` \
-             wasn't run before deploy, or the curity pod hasn't restarted since the \
-             license Secret was created."
+             wasn't run before deploy, or the license JWT in CURITY_LICENSE_KEY is not a complete \
+             signed JWT (must contain two `.` separators between header.payload.signature)."
         )
         .into());
     }

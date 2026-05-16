@@ -67,9 +67,31 @@ b secret set fixed/curity-admin-password --from-env CURITY_ADMIN_PASSWORD  # ope
 ```
 
 The first command is mandatory — Curity will start in license-gated
-mode (admin port up, runtime port down) without it. The api-config
-Job's `verify_license` handler will fail loudly with the exact
-remediation command if the license is missing at deploy time.
+mode (admin port up, runtime port down) without it.
+
+### Required JWT format for `CURITY_LICENSE_KEY`
+
+The env var must contain the **complete signed JWT** that Curity
+issued — three base64url segments separated by `.`:
+
+```
+<base64-header>.<base64-payload>.<base64-signature>
+```
+
+A common pitfall: copy/pasting only the claims portion (the
+base64-encoded JSON of `{"iss":"Curity AB EU","sub":"<account>",…}`).
+That's just the payload section — Curity rejects it at boot with
+`LicenseKeyValidationCallback - License was the wrong issuer or had
+not subject`, because the signature it needs to validate isn't there.
+
+Sanity check the env var before populating the secret:
+
+```bash
+echo -n "$CURITY_LICENSE_KEY" | tr -cd '.' | wc -c   # must print 2
+```
+
+If the count is 0, the JWT is incomplete — re-download from the
+Curity portal.
 
 ## What NOT to assume
 

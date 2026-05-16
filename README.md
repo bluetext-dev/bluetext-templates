@@ -94,10 +94,12 @@ The abstract + variant contract.
 
 ### service.yaml — the abstract
 
+The abstract's id comes from its directory name (`services/<abstract-id>/`); the file describes only the contract.
+
 ```yaml
-id: api
+name: Rust API
 use:
-  api: [_default]                     # bind variant `api` to every run-spec-variant
+  _default: api                       # bind variant `api` to every run-spec-variant
 interfaces:
   - http
 connection-profiles:
@@ -109,27 +111,26 @@ links:
     profile: data-writer              # connection-profile on that upstream
 ```
 
-- `use:` maps each defined variant id to a list of run-spec-variants. Use `_default` to mean "every run-spec-variant that no other variant claims."
+- `use:` maps each run-spec-variant to the variant id that binds for it. `_default:` covers every run-spec-variant that isn't named explicitly. Polymorphic example: `{ development: server, test: server, staging: capella, production: capella }`.
 - `interfaces:` is a bare list — names the network surfaces the service exposes. The variant fills in port + protocol per name.
 - `connection-profiles:` declare the consumer-facing views of those interfaces. `secret: variant::<name>` looks up a same-named `secrets:` block on the bound variant — useful when the secret shape differs per variant (Opaque username/password vs typed `kubernetes.io/tls`).
 - `links:` (optional) declares upstream dependencies. The deploy pipeline auto-mounts the upstream's connection-profile at `/etc/bluetext/links/<link>/`.
 
 ### <variant-id>.yaml — an implementation
 
+The variant's id comes from its filename (`<variant-id>.yaml`) and the abstract it implements is the directory's id; the file describes only the implementation.
+
 ```yaml
-# Single-variant case: variant id == abstract id
-id: api
-implements: api
+# Single-variant case: variant id == abstract id (file: api.yaml under services/api/config/api/)
 interfaces:
   http:
     port: 3030
     protocol: http
+code-dir: code/services/api
 ```
 
 ```yaml
-# Multi-variant: server (in-cluster) + capella (external)
-id: server
-implements: couchbase
+# Multi-variant: server (in-cluster) under services/couchbase/config/couchbase/server.yaml
 interfaces:
   client: { port: 11210, protocol: couchbase }
   admin:  { port: 8091,  protocol: https }
@@ -141,8 +142,7 @@ secrets:
 ```
 
 ```yaml
-id: capella
-implements: couchbase
+# Multi-variant: capella (external) under services/couchbase/config/couchbase/capella.yaml
 external: true                        # no manifests applied; consumer-side ConfigMap + Secret only
 host: cb-EDIT-ME.cloud.couchbase.com
 interfaces:
@@ -155,8 +155,6 @@ secrets:
       tls.crt: secrets::api-couchbase-client-cert
       tls.key: secrets::api-couchbase-client-key
 ```
-
-- `implements:` must match the directory's abstract id.
 - `external: true` flips the variant out of in-cluster manifest generation. The deploy pipeline still emits the consumer-side `Secret` + `ConfigMap` so consumers see the same `/etc/bluetext/links/<link>/` shape.
 - `host:` is a value-leaf; supply a string literal or a polymorphic form like `{ _: run-spec-variant-id, staging: cb-staging.cloud.couchbase.com, production: cb-prod.cloud.couchbase.com }`.
 - `secrets.<name>.keys.<file>: secrets::<value-id>` references a value at `~/.bluetext/secrets/<sys>--<hash>/{fixed,variants/<run-spec-variant>}/<value-id>`. The deploy pipeline reads each file and projects it as a Secret entry.
@@ -217,9 +215,7 @@ Skip build artifacts (`node_modules`, `target`, `build`, `.dart_tool`) — the C
 When N abstracts genuinely share one image — multi-tenant deploys (`api-tenant-a`, `api-tenant-b`, …) or bluetext-built sidecars consumed by many services — the variant declares `vimage: <id>` instead of inline `base/code/archs`:
 
 ```yaml
-# config/services/api-tenant-a/api-tenant-a.yaml
-id: api-tenant-a
-implements: api-tenant-a
+# config/services/api-tenant-a/api-tenant-a.yaml (variant id from filename, abstract from dir)
 vimage: api-runtime
 interfaces: { http: { port: 3030, protocol: http } }
 ```

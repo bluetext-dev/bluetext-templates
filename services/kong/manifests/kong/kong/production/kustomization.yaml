@@ -5,7 +5,7 @@ resources:
 patches:
   - target:
       kind: Deployment
-      name: kong
+      name: kong--kong
     patch: |
       - op: replace
         path: /spec/replicas

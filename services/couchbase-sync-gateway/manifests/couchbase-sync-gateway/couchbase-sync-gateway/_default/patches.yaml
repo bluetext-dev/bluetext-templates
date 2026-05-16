@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: couchbase-sync-gateway--couchbase-sync-gateway
   annotations:
-    bluetext.io/port-forwards: "couchbase-sync-gateway:4984:80"
+    bluetext.io/port-forwards: "couchbase-sync-gateway--couchbase-sync-gateway:4984:80"
 spec:
   template:
     spec:

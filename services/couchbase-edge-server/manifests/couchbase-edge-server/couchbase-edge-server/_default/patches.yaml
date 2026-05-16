@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: couchbase-edge-server--couchbase-edge-server
   annotations:
-    bluetext.io/port-forwards: "couchbase-edge-server:59840:80"
+    bluetext.io/port-forwards: "couchbase-edge-server--couchbase-edge-server:59840:80"
 spec:
   template:
     spec:

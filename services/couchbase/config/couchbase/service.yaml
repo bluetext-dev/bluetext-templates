@@ -1,4 +1,3 @@
-kind: store
 name: Couchbase Server
 description: Couchbase Server (in-cluster) with a Capella alternate variant
 # `b service add couchbase` ships both variants. Initial `use:` binds

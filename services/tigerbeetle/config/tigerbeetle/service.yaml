@@ -1,4 +1,3 @@
-kind: store
 name: TigerBeetle
 description: Distributed financial accounting database, single-replica development cluster
 use:

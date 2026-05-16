@@ -60,14 +60,14 @@ pub async fn post_license(ctx: &ApiConfigCtx) -> Result<()> {
     // Try the operator-set password first. On 401 fall back to the
     // bootstrap admin/admin (Curity's seeded credentials on a fresh
     // ConfD store). Either path that returns 2xx counts as success.
-    eprintln!("[curity-api-config] POST {url} (user={username}, operator creds)");
+    eprintln!("[curity-api-config] PUT {url} (user={username}, operator creds first)");
     let res = client
-        .post(&url)
+        .put(&url)
         .basic_auth(&username, Some(&operator_password))
         .json(&body)
         .send()
         .await
-        .map_err(|e| format!("POST {url} with operator creds: {e}"))?;
+        .map_err(|e| format!("PUT {url} with operator creds: {e}"))?;
     let status = res.status();
     if status.is_success() {
         eprintln!("[curity-api-config] license installed ({status})");
@@ -76,7 +76,7 @@ pub async fn post_license(ctx: &ApiConfigCtx) -> Result<()> {
     if status.as_u16() != 401 {
         let text = res.text().await.unwrap_or_default();
         return Err(format!(
-            "POST {url} with operator creds returned {status}: {text}"
+            "PUT {url} with operator creds returned {status}: {text}"
         )
         .into());
     }
@@ -85,17 +85,17 @@ pub async fn post_license(ctx: &ApiConfigCtx) -> Result<()> {
         "[curity-api-config] operator creds rejected (401) — retrying with bootstrap admin/admin"
     );
     let res = client
-        .post(&url)
+        .put(&url)
         .basic_auth(&username, Some(BOOTSTRAP_PASSWORD))
         .json(&body)
         .send()
         .await
-        .map_err(|e| format!("POST {url} with bootstrap creds: {e}"))?;
+        .map_err(|e| format!("PUT {url} with bootstrap creds: {e}"))?;
     let status = res.status();
     if !status.is_success() {
         let text = res.text().await.unwrap_or_default();
         return Err(format!(
-            "POST {url} with bootstrap creds returned {status}: {text}"
+            "PUT {url} with bootstrap creds returned {status}: {text}"
         )
         .into());
     }

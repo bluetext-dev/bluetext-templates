@@ -15,6 +15,12 @@ connection-profiles:
     secret: variant::admin-credentials
 secrets:
   admin-credentials:
+    # license-key bundled into the admin-credentials Secret because
+    # api_config_peers.rs projects one secret per peer. The license JWT
+    # is consumed by the post_license handler alongside the admin
+    # username/password, and projecting both through the same Secret
+    # keeps the peer projection model uniform.
     keys:
-      username: secrets::fixed/curity-admin-username
-      password: secrets::fixed/curity-admin-password
+      username:    secrets::fixed/curity-admin-username
+      password:    secrets::fixed/curity-admin-password
+      license-key: secrets::fixed/curity-license-key

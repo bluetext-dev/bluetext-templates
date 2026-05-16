@@ -1,29 +1,29 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: kong-enterprise
+  name: kong-enterprise--kong-enterprise
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web
 spec:
   ingressClassName: traefik
   rules:
-    - host: kong-enterprise.{{NAMESPACE}}.bluetext.localhost
+    - host: kong-enterprise.$bt{{ deploy::namespace }}.bluetext.localhost
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: kong-enterprise
+                name: kong-enterprise--kong-enterprise
                 port:
                   number: 80
-    - host: kong-enterprise.{{NAMESPACE}}.bluetext.lvh.me
+    - host: kong-enterprise.$bt{{ deploy::namespace }}.bluetext.lvh.me
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: kong-enterprise
+                name: kong-enterprise--kong-enterprise
                 port:
                   number: 80

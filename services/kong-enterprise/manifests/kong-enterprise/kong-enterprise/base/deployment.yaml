@@ -1,9 +1,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: kong-enterprise
+  name: kong-enterprise--kong-enterprise
   labels:
-    app: kong-enterprise
+    app: kong-enterprise--kong-enterprise
   annotations:
     bluetext.io/reload-command: kong reload
     bluetext.io/reload-watch: config/kong-enterprise
@@ -11,18 +11,18 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: kong-enterprise
+      app: kong-enterprise--kong-enterprise
   template:
     metadata:
       labels:
-        app: kong-enterprise
+        app: kong-enterprise--kong-enterprise
     spec:
       tolerations:
         - key: node-role.kubernetes.io/control-plane
           operator: Exists
           effect: NoSchedule
       containers:
-        - name: kong
+        - name: kong-enterprise--kong-enterprise
           image: kong/kong-gateway:3.12
           ports:
             - containerPort: 8000

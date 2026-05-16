@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: curity
+  name: curity--curity
   annotations:
     # `idsvr -r` reloads etc/init XML and merges with the running config —
     # ConfD-backed dynamic reload, no process restart, no downtime.
@@ -11,11 +11,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: curity
+      app: curity--curity
   template:
     metadata:
       labels:
-        app: curity
+        app: curity--curity
     spec:
       tolerations:
         - key: node-role.kubernetes.io/control-plane

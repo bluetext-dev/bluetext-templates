@@ -1,6 +1,6 @@
 apiVersion: traefik.io/v1alpha1
 kind: ServersTransport
 metadata:
-  name: curity-transport
+  name: curity--curity-transport
 spec:
   insecureSkipVerify: true

@@ -5,18 +5,16 @@ interfaces:
   admin:
     port: 6749
     protocol: https
+connection-profiles:
+  # Reserved api-config profile. Variant-level (vs the oidc/jwks/introspection
+  # profiles on the abstract) because admin credentials are variant-bound:
+  # the bootstrap-admin password lives in the local secret store and rotates
+  # to the operator-set value on first Job run.
+  api-config:
+    interface: admin
+    secret: variant::admin-credentials
 secrets:
-  license:
+  admin-credentials:
     keys:
-      # Curity's idsvr expects the license file as a JSON wrapper around
-      # the raw JWT: `{"License": "<jwt>"}`. The deploy pipeline reads the
-      # raw JWT from `~/.bluetext/secrets/<sys>--<hash>/fixed/curity-license-key`
-      # and composes the wrapper at render time.
-      license-key: '{"License":"$bt{{ secrets::fixed/curity-license-key }}"}'
-mounts:
-  # Materialise `curity--license` Secret in the curity namespace so the
-  # base deployment's volume mount finds it. The Secret is `optional: true`
-  # in the manifest, but Curity's idsvr requires the license to start —
-  # `b secret set fixed/curity-license-key --from-env CURITY_LICENSE_KEY`
-  # before deploy.
-  - variant::license
+      username: secrets::fixed/curity-admin-username
+      password: secrets::fixed/curity-admin-password

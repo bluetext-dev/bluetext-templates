@@ -1,0 +1,19 @@
+# 001 — bootstrap license.
+#
+# Install the Curity license via admin RESTCONF before any structural
+# ensure (Curity rejects writes on an unlicensed runtime). On the very
+# first Job run the bootstrap-admin credentials are admin/admin per the
+# Curity image's HSQLDB seed; post_license rotates them atomically to
+# the operator-set fixed/curity-admin-password and re-authenticates the
+# session with the rotated credential set, so subsequent handlers in
+# the same Job run see the persisted admin user.
+
+description: |
+  Install Curity license via admin RESTCONF before any structural
+  ensure. License must precede every other RESTCONF call (Curity
+  rejects writes on an unlicensed runtime).
+
+steps:
+  - id: install-license
+    handler: post_license
+    args: {}

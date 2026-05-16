@@ -1,0 +1,51 @@
+# Curity api-config bundle — declared end-state.
+#
+# Authored against Curity's RESTCONF schema; each entry maps 1-to-1 to a
+# JSON body the bundle's handlers POST to /admin/api/restconf/data on the
+# admin port (6749). Ensure runs on every deploy and converges what's
+# missing; removing an entry here does NOT delete the structure from
+# Curity — that lives in a drop-steps migration.
+
+license:
+  # The handler reads the raw JWT from the projected admin-credentials
+  # peer secret at /etc/bluetext/peers/self/. License JWT itself lives
+  # in the local secret store under fixed/curity-license-key — set with
+  # `b secret set fixed/curity-license-key --from-env CURITY_LICENSE_KEY`
+  # before the first deploy.
+  source:
+    secret: license-key
+
+oauth-profiles:
+  - id: auth-service
+    type: authentication
+    endpoints:
+      - { id: auth-service-authentication, uri: /authn,                 kind: auth-authentication }
+      - { id: auth-service-registration,   uri: /authn/registration,    kind: auth-registration }
+    authenticators:
+      - { id: html-form, kind: html-form, account-manager: default, credential-manager: default }
+  - id: token-service
+    type: oauth
+    endpoints:
+      - { id: token-service-token,      uri: /oauth/v2/oauth-token,      kind: oauth-token }
+      - { id: token-service-userinfo,   uri: /oauth/v2/oauth-userinfo,   kind: oauth-userinfo }
+      - { id: token-service-introspect, uri: /oauth/v2/oauth-introspect, kind: oauth-introspect }
+
+clients:
+  - id: flutter-app
+    type: public
+    grant-types: [authorization-code]
+    pkce:
+      required: true
+    redirect-uris:
+      - bluetext://callback
+    scopes: [openid, profile, email]
+
+scopes:
+  - { id: openid }
+  - { id: profile, claims: [given-name, family-name] }
+  - { id: email,   claims: [email, email-verified] }
+
+roles:
+  # Surface drawn from the auth/curity-rbac blueprint (roles-scope.xml).
+  - { id: admin }
+  - { id: moderator }

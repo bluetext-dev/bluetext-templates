@@ -12,3 +12,9 @@ connection-profiles:
     interface: oidc
   introspection:
     interface: oidc
+api-config-bundles:
+  - curity/base                 # config/api/curity/base/ — license install + OAuth profiles + clients + scopes + roles
+api-config-peers:
+  - name: self
+    service: curity
+    profile: api-config         # variant-level profile on curity.yaml; projects admin creds at /etc/bluetext/peers/self/

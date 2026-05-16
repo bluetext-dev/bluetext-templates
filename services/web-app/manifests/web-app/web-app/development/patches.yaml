@@ -20,7 +20,7 @@ spec:
       volumes:
         - name: system
           hostPath:
-            path: /var/mnt/system/code/services/web-app
+            path: /var/mnt/systems/$bt{{ deploy::system-rel }}/code/services/web-app
             type: Directory
         - name: node-modules
           hostPath:
@@ -28,5 +28,5 @@ spec:
             type: DirectoryOrCreate
         - name: clients
           hostPath:
-            path: /var/mnt/system/code/clients
+            path: /var/mnt/systems/$bt{{ deploy::system-rel }}/code/clients
             type: Directory

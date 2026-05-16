@@ -36,7 +36,7 @@ spec:
       volumes:
         - name: system
           hostPath:
-            path: /var/mnt/system/code/services/flutter
+            path: /var/mnt/systems/$bt{{ deploy::system-rel }}/code/services/flutter
             type: Directory
         - name: pub-cache
           hostPath:

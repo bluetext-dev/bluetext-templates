@@ -17,13 +17,13 @@ spec:
       volumes:
         - name: system
           hostPath:
-            path: /var/mnt/system/code/services/api
+            path: /var/mnt/systems/$bt{{ deploy::system-rel }}/code/services/api
             type: Directory
         - name: clients
           hostPath:
-            path: /var/mnt/system/code/clients
+            path: /var/mnt/systems/$bt{{ deploy::system-rel }}/code/clients
             type: Directory
         - name: models
           hostPath:
-            path: /var/mnt/system/code/models
+            path: /var/mnt/systems/$bt{{ deploy::system-rel }}/code/models
             type: DirectoryOrCreate

@@ -13,5 +13,5 @@ spec:
       volumes:
         - name: config-template
           hostPath:
-            path: /var/mnt/system/config/couchbase-edge-server
+            path: /var/mnt/systems/$bt{{ deploy::system-rel }}/config/couchbase-edge-server
             type: Directory

@@ -60,9 +60,9 @@ spec:
       volumes:
         - name: system
           hostPath:
-            path: /var/mnt/system/code/services/kong
+            path: /var/mnt/systems/$bt{{ deploy::system-rel }}/code/services/kong
             type: Directory
         - name: kong-config
           hostPath:
-            path: /var/mnt/system/config/kong
+            path: /var/mnt/systems/$bt{{ deploy::system-rel }}/config/kong
             type: Directory

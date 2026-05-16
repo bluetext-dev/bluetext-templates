@@ -115,39 +115,107 @@ pub async fn ensure_state(ctx: &ApiConfigCtx, state: &Value) -> Result<()> {
     Ok(())
 }
 
-/// Ensure OAuth profile declarations. STUB — the X3c full pass writes
-/// the read-modify-write loop against Curity's
-/// `<RESTCONF_BASE>/profiles/profile`. Each entry in state.yaml's
-/// `oauth-profiles[]` maps to a JSON body shape mirroring Curity's
-/// XML schema (id, type, endpoints, authenticators).
+/// Ensure OAuth profile declarations against Curity's RESTCONF.
+///
+/// **Endpoint shape (UNVERIFIED — needs licensed-Curity smoke):**
+///
+/// ```text
+/// PUT https://<peer.host>:<peer.port>{RESTCONF_BASE}/se.curity:profiles
+///   Content-Type: application/yang-data+json
+///   Authorization: xBasic <admin-creds>
+///   Body: { "se.curity:profiles": { "profile": [ <profile-1>, ... ] } }
+/// ```
+///
+/// Each profile in `state.yaml::oauth-profiles[]` maps to a JSON object:
+/// `{ "id": "auth-service", "type": "authentication", "endpoints": [...],
+///   "authenticators": [...] }`. Curity's RESTCONF mirrors its XML
+/// schema 1-to-1 — the JSON keys match the XML element names.
+///
+/// Idempotency strategy: PUT (create-or-replace) the entire profiles
+/// list. Removing an entry from state.yaml does NOT delete it from
+/// Curity — that's a separate drop-step migration (per X3 plan §2a).
+///
+/// **Why this is a stub:** Curity RESTCONF is license-gated (returns
+/// 503 FeatureViolationException on every endpoint until a license is
+/// in place via the file-init channel). Until the license bootstrap
+/// is verified working, the exact endpoint path + body shape can't be
+/// validated against a live Curity. Replacing this stub is a focused
+/// exercise once `verify_license` returns 200 in the smoke.
 async fn ensure_oauth_profiles(_peer: &PeerData, value: &Value) -> Result<()> {
     let count = value.as_sequence().map(|s| s.len()).unwrap_or(0);
-    eprintln!("[curity-api-config] ensure: {count} oauth-profile(s) declared — STUB (X3c follow-up)");
+    eprintln!(
+        "[curity-api-config] ensure: {count} oauth-profile(s) declared — STUB (X3c follow-up; needs licensed Curity smoke to verify endpoint)"
+    );
     Ok(())
 }
 
-/// Ensure OAuth client declarations. STUB — full pass writes
-/// `<RESTCONF_BASE>/profiles/profile/token-service/settings/.../client-store/config-backed/client`
-/// per entry.
+/// Ensure OAuth client declarations against Curity's RESTCONF.
+///
+/// **Endpoint shape (UNVERIFIED — needs licensed-Curity smoke):**
+///
+/// ```text
+/// PUT https://<peer.host>:<peer.port>{RESTCONF_BASE}/se.curity:profiles/profile=<profile-id>/se.curity.profile.oauth:settings/client-store/config-backed
+///   Content-Type: application/yang-data+json
+///   Body: { "client": [ <client-1>, ... ] }
+/// ```
+///
+/// Each client in `state.yaml::clients[]` maps to:
+/// `{ "id": "flutter-app", "client-type": "public",
+///   "grant-types": ["authorization-code"], "pkce": { "required": true },
+///   "redirect-uris": ["bluetext://callback"], "scope": [...] }`.
+///
+/// Public-vs-confidential distinction sits under `client-type`;
+/// PKCE flags under `pkce`; scope binding under `scope` (a list of
+/// scope ids that must already exist — order this AFTER ensure_scopes).
 async fn ensure_clients(_peer: &PeerData, value: &Value) -> Result<()> {
     let count = value.as_sequence().map(|s| s.len()).unwrap_or(0);
-    eprintln!("[curity-api-config] ensure: {count} client(s) declared — STUB (X3c follow-up)");
+    eprintln!(
+        "[curity-api-config] ensure: {count} client(s) declared — STUB (X3c follow-up; depends on ensure_scopes + ensure_oauth_profiles ordering)"
+    );
     Ok(())
 }
 
-/// Ensure OAuth scope declarations. STUB — full pass writes
-/// `<RESTCONF_BASE>/profiles/profile/token-service/settings/.../scopes` per entry.
+/// Ensure OAuth scope declarations against Curity's RESTCONF.
+///
+/// **Endpoint shape (UNVERIFIED — needs licensed-Curity smoke):**
+///
+/// ```text
+/// PUT https://<peer.host>:<peer.port>{RESTCONF_BASE}/se.curity:profiles/profile=<profile-id>/se.curity.profile.oauth:settings/scopes
+///   Content-Type: application/yang-data+json
+///   Body: { "scope": [ <scope-1>, ... ] }
+/// ```
+///
+/// Each scope in `state.yaml::scopes[]` maps to:
+/// `{ "id": "openid" }` or `{ "id": "profile", "claim": ["given-name", "family-name"] }`.
+///
+/// Scopes must exist before clients reference them via `scope:` —
+/// `ensure_state`'s walk order matters (scopes before clients).
 async fn ensure_scopes(_peer: &PeerData, value: &Value) -> Result<()> {
     let count = value.as_sequence().map(|s| s.len()).unwrap_or(0);
-    eprintln!("[curity-api-config] ensure: {count} scope(s) declared — STUB (X3c follow-up)");
+    eprintln!(
+        "[curity-api-config] ensure: {count} scope(s) declared — STUB (X3c follow-up; must precede ensure_clients)"
+    );
     Ok(())
 }
 
-/// Ensure RBAC role declarations. STUB — full pass writes
-/// `<RESTCONF_BASE>/authorization-manager/configuration-based/role` per entry.
+/// Ensure RBAC role declarations against Curity's RESTCONF.
+///
+/// **Endpoint shape (UNVERIFIED — needs licensed-Curity smoke):**
+///
+/// ```text
+/// PUT https://<peer.host>:<peer.port>{RESTCONF_BASE}/se.curity:authorization/se.curity.authorization.configuration-based:configuration-based/role
+///   Content-Type: application/yang-data+json
+///   Body: { "role": [ { "id": "admin" }, { "id": "moderator" } ] }
+/// ```
+///
+/// Each role in `state.yaml::roles[]` maps to `{ "id": "<role-id>" }`.
+/// Today's auth/curity-rbac blueprint's roles-scope.xml fragment
+/// translates directly — same role-id surface.
 async fn ensure_roles(_peer: &PeerData, value: &Value) -> Result<()> {
     let count = value.as_sequence().map(|s| s.len()).unwrap_or(0);
-    eprintln!("[curity-api-config] ensure: {count} role(s) declared — STUB (X3c follow-up)");
+    eprintln!(
+        "[curity-api-config] ensure: {count} role(s) declared — STUB (X3c follow-up; independent of profiles/clients/scopes ordering)"
+    );
     Ok(())
 }
 

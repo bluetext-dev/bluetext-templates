@@ -12,7 +12,7 @@ secrets:
       # the raw JWT: `{"License": "<jwt>"}`. The deploy pipeline reads the
       # raw JWT from `~/.bluetext/secrets/<sys>--<hash>/fixed/curity-license-key`
       # and composes the wrapper at render time.
-      license-key: '{"License":"{{secrets::fixed/curity-license-key}}"}'
+      license-key: '{"License":"$bt{{ secrets::fixed/curity-license-key }}"}'
 mounts:
   # Materialise `curity--license` Secret in the curity namespace so the
   # base deployment's volume mount finds it. The Secret is `optional: true`

@@ -82,7 +82,7 @@ spec:
       volumes:
         - name: config-template
           hostPath:
-            path: /var/mnt/system/config/curity
+            path: /var/mnt/systems/$bt{{ deploy::system-rel }}/config/curity
             type: DirectoryOrCreate
         - name: init-config
           emptyDir: {}

@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: web-app
+  name: web-app--web-app
 spec:
   template:
     spec:
@@ -9,7 +9,7 @@ spec:
         - name: app
           env:
             - name: API_URL
-              value: "http://api.{{NS:main}}.svc.cluster.local"
+              value: "http://api--api.$bt{{ deploy::ns.api }}.svc.cluster.local"
           volumeMounts:
             - name: system
               mountPath: /app

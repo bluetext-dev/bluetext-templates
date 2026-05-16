@@ -1,17 +1,17 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: web-app
+  name: web-app--web-app
 spec:
   ingressClassName: traefik
   rules:
-    - host: web-app.{{NAMESPACE}}.bluetext.localhost
+    - host: web-app.$bt{{ deploy::namespace }}.bluetext.localhost
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: web-app
+                name: web-app--web-app
                 port:
                   number: 80

@@ -1,16 +1,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: web-app
+  name: web-app--web-app
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: web-app
+      app: web-app--web-app
   template:
     metadata:
       labels:
-        app: web-app
+        app: web-app--web-app
     spec:
       tolerations:
         - key: node-role.kubernetes.io/control-plane

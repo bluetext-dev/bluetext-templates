@@ -82,11 +82,11 @@ steps:
   - name: Remove direct ingress for api
     tool: file_delete
     params:
-      file: manifests/services/api/base/ingress.yaml
+      file: config/k8s/api/api/base/ingress.yaml
   - name: Add gateway annotations to api
     tool: file_patch
     params:
-      file: manifests/services/api/base/deployment.yaml
+      file: config/k8s/api/api/base/deployment.yaml
       operation: merge
       path: spec.template.metadata.annotations
       content: |

@@ -62,11 +62,11 @@ steps:
       - name: "Remove direct ingress for {{item}}"
         tool: file_delete
         params:
-          file: "manifests/services/{{item}}/base/ingress.yaml"
+          file: "config/k8s/{{item}}/{{item}}/base/ingress.yaml"
       - name: "Add gateway annotations to {{item}}"
         tool: file_patch
         params:
-          file: "manifests/services/{{item}}/base/deployment.yaml"
+          file: "config/k8s/{{item}}/{{item}}/base/deployment.yaml"
           operation: merge
           path: spec.template.metadata.annotations
           content: |

@@ -66,6 +66,31 @@ spec:
             - name: license
               mountPath: /license-source
               readOnly: true
+        - name: init-db
+          # HSQLDB schema-init. Idempotent: skips when the schema file
+          # already exists, so re-deploys are no-ops. The image ships
+          # SqlTool + the canonical hsqldb-create_database.sql at
+          # /opt/idsvr/etc/. Runs unconditionally — when Curity is wired
+          # to a different datasource (Couchbase via auth/curity-couchbase
+          # blueprints), the resulting schema file is unused but harmless,
+          # avoiding a kustomize-overlay patch for the dev-default case.
+          image: curity.azurecr.io/curity/idsvr:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              if [ ! -f /hsqldb/curity.script ] || ! grep -q "CREATE TABLE" /hsqldb/curity.script; then
+                java -cp "/opt/idsvr/lib/hsqldb-cli/sqltool-2.7.2.jar:/opt/idsvr/lib/hsqldb-cli/hsqldb-2.7.2.jar" \
+                  org.hsqldb.cmdline.SqlTool \
+                  --autoCommit \
+                  --inlineRc="url=jdbc:hsqldb:file:/hsqldb/curity,user=,password=" \
+                  /opt/idsvr/etc/hsqldb-create_database.sql
+              fi
+          volumeMounts:
+            - name: hsqldb-data
+              mountPath: /hsqldb
       containers:
         - name: curity--curity
           image: curity.azurecr.io/curity/idsvr:latest
@@ -89,6 +114,8 @@ spec:
           volumeMounts:
             - name: init-config
               mountPath: /opt/idsvr/etc/init
+            - name: hsqldb-data
+              mountPath: /opt/idsvr/var/hsqldb
       volumes:
         - name: config-template
           hostPath:
@@ -96,6 +123,13 @@ spec:
             type: DirectoryOrCreate
         - name: init-config
           emptyDir: {}
+        - name: hsqldb-data
+          # Per-system hostPath so the schema survives pod restarts. Lives
+          # outside the .bluetext/ cache (under the systems-dir root) so a
+          # `b cache clean` doesn't wipe Curity's account/token store.
+          hostPath:
+            path: /var/mnt/systems/$bt{{ deploy::system-rel }}/.bluetext/curity-db
+            type: DirectoryOrCreate
         - name: license
           secret:
             secretName: curity--license

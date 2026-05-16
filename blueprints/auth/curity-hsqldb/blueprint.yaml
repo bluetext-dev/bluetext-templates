@@ -23,11 +23,10 @@ variables:
 restarts: [curity]
 see_also: [auth/curity-oauth, auth/curity-couchbase]
 steps:
-  - name: Overwrite Curity deployment with HSQLDB version (init container + data volume)
-    tool: file_write
-    params:
-      file: manifests/services/curity/base/deployment.yaml
-      content_file: files/deployment.yaml
+  # HSQLDB is the Curity template's default storage shape — the base
+  # manifest ships the schema-init container and the persistence volume.
+  # This blueprint only writes the JDBC datasource XML so Curity wires
+  # its authn/token services to the same on-disk path.
   - name: Write datasource config (HSQLDB)
     tool: file_write
     params:

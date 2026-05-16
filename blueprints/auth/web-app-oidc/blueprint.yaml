@@ -40,7 +40,7 @@ steps:
   - name: Drop the Flutter ADB-tunnel port forwarding (use plain port 80 for browser flows)
     tool: file_write
     params:
-      file: manifests/services/curity/base/middleware.yaml
+      file: config/k8s/curity/curity/base/middleware.yaml
       content_file: files/curity-middleware.yaml
   - name: Repoint Curity's base-url at the browser-reachable hostname (no :8888)
     tool: file_write
@@ -95,7 +95,7 @@ steps:
   - name: Inject KONG_URL/CURITY_URL into the web-app pod (FQDN — Vite proxy needs it)
     tool: file_write
     params:
-      file: manifests/services/web-app/_default/patches.yaml
+      file: config/k8s/web-app/web-app/_default/patches.yaml
       content_file: files/web-app-development-patches.yaml
   - name: Switch the API to in-cluster mode (the RBAC stack runs the API as a real container, not via mirrord)
     tool: file_write

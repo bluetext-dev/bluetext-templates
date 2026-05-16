@@ -144,7 +144,7 @@ steps:
   - name: Simplify api development overlay (drop mirrord hostPath patches; base image handles it)
     tool: file_write
     params:
-      file: manifests/services/{{api_service}}/_default/kustomization.yaml
+      file: config/k8s/{{api_service}}/{{api_service}}/_default/kustomization.yaml
       content: |
         apiVersion: kustomize.config.k8s.io/v1beta1
         kind: Kustomization

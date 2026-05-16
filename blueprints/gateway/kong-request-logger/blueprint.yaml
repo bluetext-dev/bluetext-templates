@@ -42,7 +42,7 @@ steps:
     tool: shell_exec
     params:
       command: >-
-        F=manifests/services/{{gateway}}/base/deployment.yaml &&
+        F=config/k8s/{{gateway}}/{{gateway}}/base/deployment.yaml &&
         awk 'prev ~ /name: KONG_PLUGINS/ && /value:/ {
           sub(/"$/, ",request-logger\"");
           print;

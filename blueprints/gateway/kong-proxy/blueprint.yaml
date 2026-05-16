@@ -47,11 +47,11 @@ steps:
       - name: "Remove direct ingress for {{item}}"
         tool: file_delete
         params:
-          file: "manifests/services/{{item}}/base/ingress.yaml"
+          file: "config/k8s/{{item}}/{{item}}/base/ingress.yaml"
       - name: "Add gateway annotation to {{item}}"
         tool: file_patch
         params:
-          file: "manifests/services/{{item}}/base/deployment.yaml"
+          file: "config/k8s/{{item}}/{{item}}/base/deployment.yaml"
           operation: merge
           match_kind: Deployment
           path: spec.template.metadata.annotations
@@ -86,12 +86,12 @@ steps:
   - name: "Update frontend ingress — route /api to Kong"
     tool: file_write
     params:
-      file: "manifests/services/{{frontend}}/base/ingress.yaml"
+      file: "config/k8s/{{frontend}}/{{frontend}}/base/ingress.yaml"
       content_file: files/frontend-ingress.yaml
   - name: "Update frontend dev overlay — point API to Kong"
     tool: file_write
     params:
-      file: "manifests/services/{{frontend}}/_default/patches.yaml"
+      file: "config/k8s/{{frontend}}/{{frontend}}/_default/patches.yaml"
       content_file: files/frontend-dev-patches.yaml
   - name: "Register frontend-kong relationship"
     tool: file_patch

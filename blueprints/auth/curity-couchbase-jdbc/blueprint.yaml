@@ -28,7 +28,7 @@ steps:
   - name: Overwrite Curity deployment (custom image with Couchbase JDBC driver)
     tool: file_write
     params:
-      file: manifests/services/curity/base/deployment.yaml
+      file: config/k8s/curity/curity/base/deployment.yaml
       content_file: files/deployment.yaml
   - name: Write Dockerfile (Curity + pre-built Couchbase JDBC wrapper from GCS)
     tool: file_write

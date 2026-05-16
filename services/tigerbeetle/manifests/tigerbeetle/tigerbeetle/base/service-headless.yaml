@@ -1,12 +1,12 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: tigerbeetle-headless
+  name: tigerbeetle--tigerbeetle-headless
 spec:
   clusterIP: None
   publishNotReadyAddresses: true
   selector:
-    app: tigerbeetle
+    app: tigerbeetle--tigerbeetle
   ports:
     - name: cluster
       port: 3000

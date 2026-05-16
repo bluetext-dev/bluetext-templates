@@ -1,12 +1,12 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: tigerbeetle
+  name: tigerbeetle--tigerbeetle
 spec:
   template:
     spec:
       containers:
-        - name: tigerbeetle
+        - name: tigerbeetle--tigerbeetle
           imagePullPolicy: Always
           resources:
             requests:

@@ -1,21 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: tigerbeetle
+  name: tigerbeetle--tigerbeetle
 spec:
   replicas: 1
   strategy:
     type: Recreate
   selector:
     matchLabels:
-      app: tigerbeetle
+      app: tigerbeetle--tigerbeetle
   template:
     metadata:
       labels:
-        app: tigerbeetle
+        app: tigerbeetle--tigerbeetle
     spec:
       hostname: tigerbeetle
-      subdomain: tigerbeetle-headless
+      subdomain: tigerbeetle--tigerbeetle-headless
       tolerations:
         - key: node-role.kubernetes.io/control-plane
           operator: Exists
@@ -36,7 +36,7 @@ spec:
             - name: tigerbeetle-data
               mountPath: /data
       containers:
-        - name: tigerbeetle
+        - name: tigerbeetle--tigerbeetle
           image: ghcr.io/tigerbeetle/tigerbeetle:0.16.78
           imagePullPolicy: IfNotPresent
           command:
@@ -65,4 +65,4 @@ spec:
       volumes:
         - name: tigerbeetle-data
           persistentVolumeClaim:
-            claimName: tigerbeetle-data
+            claimName: tigerbeetle--tigerbeetle-data

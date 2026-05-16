@@ -1,11 +1,11 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: tigerbeetle
+  name: tigerbeetle--tigerbeetle
 spec:
   type: ClusterIP
   selector:
-    app: tigerbeetle
+    app: tigerbeetle--tigerbeetle
   ports:
     - name: cluster
       port: 3000

@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: curity
+  name: curity--curity
 spec:
   replicas: 2
   template:
@@ -10,7 +10,7 @@ spec:
         - name: config-templater
           imagePullPolicy: Always
       containers:
-        - name: curity
+        - name: curity--curity
           imagePullPolicy: Always
           resources:
             requests:

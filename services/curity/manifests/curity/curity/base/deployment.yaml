@@ -57,7 +57,7 @@ spec:
               mountPath: /license-source
               readOnly: true
       containers:
-        - name: curity
+        - name: curity--curity
           image: curity.azurecr.io/curity/idsvr:latest
           imagePullPolicy: IfNotPresent
           ports:

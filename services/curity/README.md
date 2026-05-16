@@ -69,49 +69,37 @@ b secret set fixed/curity-admin-password --from-env CURITY_ADMIN_PASSWORD  # ope
 The first command is mandatory — Curity will start in license-gated
 mode (admin port up, runtime port down) without it.
 
-### `CURITY_LICENSE_KEY` format
+### `CURITY_LICENSE_KEY` must be the complete signed JWT
 
-The env var holds the license as **base64-encoded JSON** (Curity's
-custom token format — not a JWT compact serialization). Download it
-from Curity's developer portal as a single token; populate the env
-var with that token verbatim, then `b secret set
-fixed/curity-license-key --from-env CURITY_LICENSE_KEY`. The deploy
-pipeline wraps the token into `{"License":"<token>"}` at render time
-(see `curity.yaml`'s `secrets.license.keys.license-key` template),
-writes it to a Secret, and the curity deployment's
-`config-templater` init container copies it into Curity's startup-
-scan path.
+Curity downloads from the developer portal arrive as a JSON envelope:
 
-Sanity-check that the env var decodes to a valid JSON document with
-the expected claim shape (`iss`, `sub`, `Product`, `Expiration Date`):
-
-```bash
-echo -n "$CURITY_LICENSE_KEY=" | base64 -d | python3 -m json.tool | head -10
+```json
+{"Company":"...","Tier":"Trial","Issued":"YYYY-MM-DD",
+ "License":"<base64-header>.<base64-payload>.<base64-signature>"}
 ```
 
-(The trailing `=` covers the unpadded tail Curity's portal emits;
-macOS's `base64 -d` silently drops the last 2 bytes without it.)
+The value of the `License` field is the actual JWT — three base64
+segments joined by **two `.` separators**. `CURITY_LICENSE_KEY` must
+contain exactly that JWT string. Sanity-check before populating the
+secret:
 
-### When Curity rejects a valid-looking license
+```bash
+echo -n "$CURITY_LICENSE_KEY" | tr -cd '.' | wc -c   # must print 2
+```
 
-If the boot log shows `LicenseKeyValidationCallback - License was the
-wrong issuer or had not subject` while the env var decodes to valid
-JSON with both `iss` and `sub` populated, the most likely cause is a
-**license-schema version mismatch**:
+If the count is 0, the env var contains only the JWT's *payload*
+section (the middle base64 between the dots — it'll base64-decode to
+valid-looking JSON with `iss` and `sub` claims). Curity will reject
+this with the misleading `LicenseKeyValidationCallback - License was
+the wrong issuer or had not subject` error and CrashLoopBackOff;
+without the header + signature it can't validate the token, so its
+structural-validation error fires before it can read iss/sub.
 
-- The Curity image is pinned to `curity.azurecr.io/curity/idsvr:latest`
-  in `manifests/curity/curity/base/deployment.yaml`, which floats
-  across Curity releases.
-- Curity occasionally tightens the license-claims schema between
-  versions (e.g. case-sensitivity on claim names; required new
-  fields). A license issued against an earlier schema can be valid
-  base64, valid JSON, and still get rejected by a newer Curity at
-  parse-validation time.
-
-Remediation: refresh the license from the Curity portal so it's
-issued against the running Curity's schema, or pin the Curity image
-tag in `manifests/curity/curity/base/deployment.yaml` to a release
-known to accept the license you have.
+Re-extract the full `License` field value from the portal JSON and
+`b secret set fixed/curity-license-key --from-env CURITY_LICENSE_KEY`
+again. Verified empirically: with the complete 2-dot JWT, Curity
+boots licensed against `curity.azurecr.io/curity/idsvr:latest`
+(license schema version 4.3, runtime version current).
 
 ## What NOT to assume
 

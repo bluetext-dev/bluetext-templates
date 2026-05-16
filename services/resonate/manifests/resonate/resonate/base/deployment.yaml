@@ -1,24 +1,24 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: resonate
+  name: resonate--resonate
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: resonate
+      app: resonate--resonate
   template:
     metadata:
       labels:
-        app: resonate
+        app: resonate--resonate
     spec:
       tolerations:
         - key: node-role.kubernetes.io/control-plane
           operator: Exists
           effect: NoSchedule
       containers:
-        - name: resonate
-          image: bluetext-resonate:latest
+        - name: resonate--resonate
+          image: resonate-resonate:latest
           imagePullPolicy: Never
           ports:
             - containerPort: 8001

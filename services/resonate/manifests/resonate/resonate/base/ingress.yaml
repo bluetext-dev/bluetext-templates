@@ -1,19 +1,19 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: resonate
+  name: resonate--resonate
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web
 spec:
   ingressClassName: traefik
   rules:
-    - host: resonate.{{NAMESPACE}}.bluetext.localhost
+    - host: resonate.$bt{{ deploy::namespace }}.bluetext.localhost
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: resonate
+                name: resonate--resonate
                 port:
                   number: 80

@@ -53,7 +53,7 @@ ensure flows owned by an api-config bundle.
 
 | Surface | Lands at | Authoring location |
 |---|---|---|
-| License JWT (in JSON wrapper) | `/opt/idsvr/etc/init/license/default` | `config/curity/curity.yaml::secrets.license` → `curity--license` Secret → `config-templater` init container copies in |
+| License token (in JSON wrapper) | `/opt/idsvr/etc/init/license/default` | `config/curity/curity.yaml::secrets.license` → `curity--license` Secret → `config-templater` init container copies in |
 | XML init configs | `/opt/idsvr/etc/init/*.xml` | `config-files/*.xml` (hostPath mount + `__NAMESPACE__` sed) |
 | Admin credentials for RESTCONF | `/etc/bluetext/peers/self/{username,password}` on the api-config Job pod | `config/curity/curity.yaml::secrets.admin-credentials` projected by `api_config_peers.rs` |
 | OAuth profiles / clients / scopes / roles | RESTCONF API once licensed | `api-config/curity/base/state.yaml` + the paired handler crate at `code/api-config/curity/base/` |
@@ -69,29 +69,49 @@ b secret set fixed/curity-admin-password --from-env CURITY_ADMIN_PASSWORD  # ope
 The first command is mandatory — Curity will start in license-gated
 mode (admin port up, runtime port down) without it.
 
-### Required JWT format for `CURITY_LICENSE_KEY`
+### `CURITY_LICENSE_KEY` format
 
-The env var must contain the **complete signed JWT** that Curity
-issued — three base64url segments separated by `.`:
+The env var holds the license as **base64-encoded JSON** (Curity's
+custom token format — not a JWT compact serialization). Download it
+from Curity's developer portal as a single token; populate the env
+var with that token verbatim, then `b secret set
+fixed/curity-license-key --from-env CURITY_LICENSE_KEY`. The deploy
+pipeline wraps the token into `{"License":"<token>"}` at render time
+(see `curity.yaml`'s `secrets.license.keys.license-key` template),
+writes it to a Secret, and the curity deployment's
+`config-templater` init container copies it into Curity's startup-
+scan path.
 
-```
-<base64-header>.<base64-payload>.<base64-signature>
-```
-
-A common pitfall: copy/pasting only the claims portion (the
-base64-encoded JSON of `{"iss":"Curity AB EU","sub":"<account>",…}`).
-That's just the payload section — Curity rejects it at boot with
-`LicenseKeyValidationCallback - License was the wrong issuer or had
-not subject`, because the signature it needs to validate isn't there.
-
-Sanity check the env var before populating the secret:
+Sanity-check that the env var decodes to a valid JSON document with
+the expected claim shape (`iss`, `sub`, `Product`, `Expiration Date`):
 
 ```bash
-echo -n "$CURITY_LICENSE_KEY" | tr -cd '.' | wc -c   # must print 2
+echo -n "$CURITY_LICENSE_KEY=" | base64 -d | python3 -m json.tool | head -10
 ```
 
-If the count is 0, the JWT is incomplete — re-download from the
-Curity portal.
+(The trailing `=` covers the unpadded tail Curity's portal emits;
+macOS's `base64 -d` silently drops the last 2 bytes without it.)
+
+### When Curity rejects a valid-looking license
+
+If the boot log shows `LicenseKeyValidationCallback - License was the
+wrong issuer or had not subject` while the env var decodes to valid
+JSON with both `iss` and `sub` populated, the most likely cause is a
+**license-schema version mismatch**:
+
+- The Curity image is pinned to `curity.azurecr.io/curity/idsvr:latest`
+  in `manifests/curity/curity/base/deployment.yaml`, which floats
+  across Curity releases.
+- Curity occasionally tightens the license-claims schema between
+  versions (e.g. case-sensitivity on claim names; required new
+  fields). A license issued against an earlier schema can be valid
+  base64, valid JSON, and still get rejected by a newer Curity at
+  parse-validation time.
+
+Remediation: refresh the license from the Curity portal so it's
+issued against the running Curity's schema, or pin the Curity image
+tag in `manifests/curity/curity/base/deployment.yaml` to a release
+known to accept the license you have.
 
 ## What NOT to assume
 

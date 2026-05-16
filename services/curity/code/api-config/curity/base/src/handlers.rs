@@ -174,7 +174,7 @@ fn license_missing_error() -> String {
      mounted by the curity deployment's config-templater init container. \
      Likely causes: \
      (1) `b secret set fixed/curity-license-key --from-env CURITY_LICENSE_KEY` wasn't run before deploy; \
-     (2) the license JWT in CURITY_LICENSE_KEY isn't a complete signed JWT (Curity rejects with `License was the wrong issuer or had not subject` in the curity pod logs — check `echo -n \"$CURITY_LICENSE_KEY\" | tr -cd '.' | wc -c` — must print 2 for a valid JWT); \
+     (2) the license is rejected at parse-validation by the running Curity image (check the curity pod logs for `LicenseKeyValidationCallback - License was the wrong issuer or had not subject`; if visible, the license-claims schema doesn't match the Curity image — refresh the license from the Curity portal or pin the curity image tag to a known-compatible release); \
      (3) the curity pod hasn't restarted since the Secret was populated (its init container reads the Secret at boot)."
         .to_string()
 }

@@ -24,12 +24,23 @@ spec:
       initContainers:
         - name: config-templater
           image: busybox:stable
-          # Templates XML init config from /config-template (hostPath) into
-          # /config (emptyDir mounted at /opt/idsvr/etc/init on the main
-          # container). License delivery happens out-of-band via the api-config
-          # Job's post_license handler against Curity's admin RESTCONF — the
-          # file-based license channel (mounted Secret + cp into the init
-          # tree) retired in Slice X3.
+          # Two-step init: (a) namespace-stamp the XML init configs from
+          # the hostPath /config-template into the emptyDir /config (which
+          # mounts at /opt/idsvr/etc/init on the main container), then
+          # (b) copy the license JSON from the mounted Secret at
+          # /license-source into /config/license/default.
+          #
+          # The license can't be a direct mount at
+          # /opt/idsvr/etc/init/license because that path is nested inside
+          # the init-config emptyDir mount; k3d/containerd produces an
+          # empty inner dir on nested mounts. Copy via this init container
+          # instead — Curity's startup scanner reads any file under
+          # /opt/idsvr/etc/init/license/ and parses it as JSON-wrapped JWT.
+          #
+          # The api-config Job (post-apply) handles the post-license
+          # RESTCONF surface (OAuth profiles, clients, scopes, roles).
+          # License install itself is NOT API-installable on Curity —
+          # see services/curity/README.md and curity.yaml::secrets.license.
           command:
             - sh
             - -c
@@ -38,6 +49,10 @@ spec:
               for f in /config-template/*.xml; do
                 sed "s/__NAMESPACE__/$POD_NAMESPACE/g" "$f" > "/config/$(basename $f)"
               done
+              mkdir -p /config/license
+              if [ -f /license-source/license-key ]; then
+                cp /license-source/license-key /config/license/default
+              fi
           env:
             - name: POD_NAMESPACE
               valueFrom:
@@ -48,6 +63,9 @@ spec:
               mountPath: /config-template
             - name: init-config
               mountPath: /config
+            - name: license
+              mountPath: /license-source
+              readOnly: true
       containers:
         - name: curity--curity
           image: curity.azurecr.io/curity/idsvr:latest
@@ -78,3 +96,11 @@ spec:
             type: DirectoryOrCreate
         - name: init-config
           emptyDir: {}
+        - name: license
+          secret:
+            secretName: curity--license
+            # No items: mapping. Curity scans every file in
+            # /opt/idsvr/etc/init/license/ at startup and parses each
+            # one as a JSON license wrapper. The deploy pipeline wraps
+            # the raw JWT as {"License":"…"} via the curity.yaml
+            # secrets.license.keys.license-key template.

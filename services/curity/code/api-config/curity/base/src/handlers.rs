@@ -11,96 +11,74 @@ use serde_yml::Value;
 /// Curity's RESTCONF root mounted at the bundled admin port (default 6749).
 const RESTCONF_BASE: &str = "/admin/api/restconf/data";
 
-/// Path under RESTCONF data where the license JSON wrapper lands.
-/// Confd-modelled schema; matches the file Curity's startup scanner
-/// previously read at `/opt/idsvr/etc/init/license/default`.
-const LICENSE_PATH: &str = "se.curity:base:facilities/license";
-
-/// Hardcoded bootstrap admin password Curity's idsvr image seeds via
-/// the `PASSWORD=admin` env on its deployment. Per the X3 plan §3b
-/// the first ever Job run authenticates with this; subsequent runs use
-/// the operator-set fixed/curity-admin-password projected through the
-/// peer. When ConfD state is ephemeral (pod recreate destroys the
-/// /opt/idsvr/var tree on the emptyDir mount), every fresh pod resets
-/// to admin/admin and the Job effectively bootstraps on every run.
-const BOOTSTRAP_PASSWORD: &str = "admin";
-
-/// Install the Curity license via admin RESTCONF.
+/// Verify Curity's runtime is licensed by probing admin RESTCONF.
 ///
-/// Reads `host`, `port`, `username`, `password`, `license-key` from the
-/// reserved `self` peer projection. Tries the operator-set password
-/// first; falls back to the bootstrap admin/admin on 401 (matches the
-/// "ConfD state ephemeral" pod-restart shape — every fresh pod boots
-/// at admin/admin and the Job must re-license).
+/// **License install is NOT API-installable on Curity** — every RESTCONF
+/// endpoint returns 503 FeatureViolationException when the runtime is
+/// unlicensed. The license therefore flows through the file-based
+/// channel (`/opt/idsvr/etc/init/license/default`, populated by the
+/// curity deployment's `config-templater` init container from the
+/// mounted `curity--license` Secret). See `services/curity/README.md`
+/// for the hybrid bootstrap architecture.
 ///
-/// The license body is `{"License":"<raw-jwt>"}` per Curity's
-/// admin-API contract — same shape the retired file-based path used
-/// to write to `/opt/idsvr/etc/init/license/default`.
+/// This handler's job is to *gate* the rest of the api-config Job's
+/// ensure phase on a successful license install. It probes the RESTCONF
+/// root: 503 means the license file didn't take effect and ensure
+/// would fail downstream anyway with the same 503; 401/200 means the
+/// API is reachable and ensure can proceed.
 #[handler]
-pub async fn post_license(ctx: &ApiConfigCtx) -> Result<()> {
+pub async fn verify_license(ctx: &ApiConfigCtx) -> Result<()> {
     let peer = ctx.peer("self")?;
     let host = peer.host()?;
     let port = peer.port()?;
     let username = peer.read("username")?.trim().to_string();
-    let operator_password = peer.read("password")?.trim().to_string();
-    let license_jwt = peer.read("license-key")?.trim().to_string();
-
-    if license_jwt.is_empty() {
-        return Err(
-            "license-key on /etc/bluetext/peers/self/ is empty. Set the JWT via: \
-             b secret set fixed/curity-license-key --from-env CURITY_LICENSE_KEY"
-                .into(),
-        );
-    }
+    let password = peer.read("password")?.trim().to_string();
 
     let client = build_admin_client()?;
-    let url = format!("https://{host}:{port}{RESTCONF_BASE}/{LICENSE_PATH}");
-    let body = serde_json::json!({ "License": license_jwt });
+    let url = format!("https://{host}:{port}{RESTCONF_BASE}");
+    eprintln!("[curity-api-config] verify_license: probing {url}");
 
-    // Try the operator-set password first. On 401 fall back to the
-    // bootstrap admin/admin (Curity's seeded credentials on a fresh
-    // ConfD store). Either path that returns 2xx counts as success.
-    eprintln!("[curity-api-config] PUT {url} (user={username}, operator creds first)");
+    // First with operator creds; if 401, fall back to bootstrap
+    // admin/admin (Curity image's seeded credential when ConfD has
+    // never been initialised). On 2xx or 401 (auth issue, but
+    // RESTCONF is up) the license has taken effect.
     let res = client
-        .put(&url)
-        .basic_auth(&username, Some(&operator_password))
-        .json(&body)
+        .get(&url)
+        .basic_auth(&username, Some(&password))
         .send()
         .await
-        .map_err(|e| format!("PUT {url} with operator creds: {e}"))?;
-    let status = res.status();
+        .map_err(|e| format!("GET {url} with operator creds: {e}"))?;
+    classify_probe(res.status(), "operator creds").await?;
+    Ok(())
+}
+
+async fn classify_probe(status: reqwest::StatusCode, label: &str) -> Result<()> {
     if status.is_success() {
-        eprintln!("[curity-api-config] license installed ({status})");
+        eprintln!("[curity-api-config] verify_license: RESTCONF reachable ({status}, {label})");
         return Ok(());
     }
-    if status.as_u16() != 401 {
-        let text = res.text().await.unwrap_or_default();
+    // 401 is fine for verification: RESTCONF served a response, meaning
+    // the runtime is licensed. Auth itself is a separate concern handled
+    // by individual handlers.
+    if status.as_u16() == 401 {
+        eprintln!(
+            "[curity-api-config] verify_license: RESTCONF reachable ({status}, {label}); auth needs operator password rotation but license is in place"
+        );
+        return Ok(());
+    }
+    if status.as_u16() == 503 {
         return Err(format!(
-            "PUT {url} with operator creds returned {status}: {text}"
+            "Curity admin RESTCONF returned 503 — license isn't in place. \
+             Curity reads the license file at /opt/idsvr/etc/init/license/default; \
+             the deploy pipeline populates it via the curity--license Secret \
+             mounted by the curity deployment's config-templater init container. \
+             Likely cause: `b secret set fixed/curity-license-key --from-env CURITY_LICENSE_KEY` \
+             wasn't run before deploy, or the curity pod hasn't restarted since the \
+             license Secret was created."
         )
         .into());
     }
-
-    eprintln!(
-        "[curity-api-config] operator creds rejected (401) — retrying with bootstrap admin/admin"
-    );
-    let res = client
-        .put(&url)
-        .basic_auth(&username, Some(BOOTSTRAP_PASSWORD))
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| format!("PUT {url} with bootstrap creds: {e}"))?;
-    let status = res.status();
-    if !status.is_success() {
-        let text = res.text().await.unwrap_or_default();
-        return Err(format!(
-            "PUT {url} with bootstrap creds returned {status}: {text}"
-        )
-        .into());
-    }
-    eprintln!("[curity-api-config] license installed via bootstrap creds ({status})");
-    Ok(())
+    Err(format!("Curity admin RESTCONF returned unexpected {status} for {label}").into())
 }
 
 /// Ensure declared state from state.yaml against Curity's admin

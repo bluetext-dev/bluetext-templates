@@ -6,14 +6,14 @@
 # missing; removing an entry here does NOT delete the structure from
 # Curity — that lives in a drop-steps migration.
 
-license:
-  # The handler reads the raw JWT from the projected admin-credentials
-  # peer secret at /etc/bluetext/peers/self/. License JWT itself lives
-  # in the local secret store under fixed/curity-license-key — set with
-  # `b secret set fixed/curity-license-key --from-env CURITY_LICENSE_KEY`
-  # before the first deploy.
-  source:
-    secret: license-key
+# NOTE: license is intentionally NOT in this bundle's ensure surface.
+# Curity's admin RESTCONF is gated behind a valid license (503
+# FeatureViolationException on every call when unlicensed), so the
+# license itself flows through the file-based channel — curity.yaml's
+# secrets.license + the curity deployment's config-templater init
+# container. The 001-verify-license migration in this bundle just
+# probes RESTCONF to fail loudly if the file install didn't land.
+# See services/curity/README.md for the architecture.
 
 oauth-profiles:
   - id: auth-service

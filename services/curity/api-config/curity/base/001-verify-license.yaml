@@ -1,0 +1,24 @@
+  # 001 — verify license.
+#
+# Curity's admin RESTCONF API is gated behind a valid license: every
+# endpoint returns 503 FeatureViolationException when the runtime is
+# unlicensed. License install therefore CANNOT happen through this
+# Job; it flows through the file-based channel (curity.yaml's
+# secrets.license + the deployment's config-templater init container
+# copy into /opt/idsvr/etc/init/license/default).
+#
+# This migration's job is to fail loudly if the file-based install
+# didn't take effect, before the ensure phase tries to write OAuth
+# profiles / clients / scopes / roles to a 503-returning RESTCONF.
+#
+# See services/curity/README.md for the hybrid bootstrap architecture.
+
+description: |
+  Verify Curity is licensed by probing admin RESTCONF root. Fails fast
+  with an actionable error if the file-based license install didn't
+  take effect.
+
+steps:
+  - id: probe-restconf
+    handler: verify_license
+    args: {}

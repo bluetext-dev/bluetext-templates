@@ -6,21 +6,43 @@ interfaces:
     port: 6749
     protocol: https
 connection-profiles:
-  # Reserved api-config profile. Variant-level (vs the oidc/jwks/introspection
-  # profiles on the abstract) because admin credentials are variant-bound:
-  # the bootstrap-admin password lives in the local secret store and rotates
-  # to the operator-set value on first Job run.
+  # Variant-level api-config profile (vs the oidc/jwks/introspection
+  # profiles on the abstract): admin credentials are variant-bound.
+  # The api-config Job uses these to call Curity's admin RESTCONF
+  # ONCE the license is in place via the file-based channel below.
   api-config:
     interface: admin
     secret: variant::admin-credentials
 secrets:
-  admin-credentials:
-    # license-key bundled into the admin-credentials Secret because
-    # api_config_peers.rs projects one secret per peer. The license JWT
-    # is consumed by the post_license handler alongside the admin
-    # username/password, and projecting both through the same Secret
-    # keeps the peer projection model uniform.
+  # File-based license bootstrap. CRITICAL: Curity's admin RESTCONF API
+  # is gated behind a valid license — every endpoint returns 503
+  # FeatureViolationException when the runtime is unlicensed (verified
+  # by direct probe; see also reference_curity_config.md). The license
+  # therefore CANNOT be installed via API; Curity's only license-input
+  # surface is the file `/opt/idsvr/etc/init/license/default`, which
+  # the startup scanner reads on first boot.
+  #
+  # The format is the JSON wrapper around the raw JWT:
+  #   {"License": "<jwt>"}
+  # The deploy pipeline reads the raw JWT from the local secret store at
+  # `~/.bluetext/secrets/<sys>--<hash>/fixed/curity-license-key`
+  # and composes the wrapper at render time.
+  license:
     keys:
-      username:    secrets::fixed/curity-admin-username
-      password:    secrets::fixed/curity-admin-password
-      license-key: secrets::fixed/curity-license-key
+      license-key: '{"License":"$bt{{ secrets::fixed/curity-license-key }}"}'
+  # Admin credentials projected to the api-config Job pod at
+  # /etc/bluetext/peers/self/. The Job uses these for the post-license
+  # RESTCONF surface (OAuth profiles, clients, scopes, roles).
+  # Distinct from the license bootstrap above because the two flow
+  # through different mechanisms: license via the file-init channel,
+  # admin creds via the api-config peer projection.
+  admin-credentials:
+    keys:
+      username: secrets::fixed/curity-admin-username
+      password: secrets::fixed/curity-admin-password
+mounts:
+  # Materialise `curity--license` Secret in the curity namespace so the
+  # base deployment's volume mount finds it. The init container's
+  # license-copy block copies it into Curity's /opt/idsvr/etc/init/
+  # license/default for the startup scanner to read.
+  - variant::license

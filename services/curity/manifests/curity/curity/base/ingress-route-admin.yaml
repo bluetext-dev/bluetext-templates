@@ -6,7 +6,7 @@ spec:
   entryPoints:
     - web
   routes:
-    - match: Host(`curity-admin.{{NAMESPACE}}.bluetext.localhost`)
+    - match: Host(`curity-admin.$bt{{ deploy::namespace }}.bluetext.localhost`)
       kind: Rule
       services:
         - name: curity--curity-admin

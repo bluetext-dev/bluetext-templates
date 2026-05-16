@@ -10,7 +10,7 @@ patches:
     patch: |
       - op: replace
         path: /spec/rules/0/host
-        value: couchbase-sync-gateway.{{NAMESPACE}}.bluetext.localhost
+        value: couchbase-sync-gateway.$bt{{ deploy::namespace }}.bluetext.localhost
       - op: add
         path: /spec/ingressClassName
         value: traefik

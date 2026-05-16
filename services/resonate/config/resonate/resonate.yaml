@@ -2,4 +2,4 @@ interfaces:
   http:
     port: 8001
     protocol: http
-code: code/services/resonate
+code-dir: code/services/resonate

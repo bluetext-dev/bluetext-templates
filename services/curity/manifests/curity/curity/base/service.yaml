@@ -10,3 +10,9 @@ spec:
     - name: runtime
       port: 80
       targetPort: 8443
+    # Admin RESTCONF — port matches the variant's connection-profiles.api-config
+    # interface declaration so the api-config Job pod can reach Curity at the
+    # peer-projected host/port without a separate Service lookup.
+    - name: admin
+      port: 6749
+      targetPort: 6749

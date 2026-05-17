@@ -1,6 +1,6 @@
 //! Curity api-config Job binary.
 //!
-//! Built by `src/operations/deploy/v3/api_config_image.rs` into the image
+//! Built by `src/operations/deploy/api_config_image.rs` into the image
 //! `bluetext-api-config/curity--curity:latest` and run as a K8s Job in the
 //! bound variant's namespace. The Job pod's env carries `BLUETEXT_ABSTRACT`,
 //! `BLUETEXT_VARIANT`, `BLUETEXT_RSV`, and `BLUETEXT_LEDGER_COLLECTION`.

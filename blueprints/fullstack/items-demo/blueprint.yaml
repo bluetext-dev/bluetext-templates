@@ -62,7 +62,7 @@ variables:
 restarts: [api, web-app]
 
 steps:
-  # Wire api → couchbase/data-writer as a v3 link entry. The deploy
+  # Wire api → couchbase/data-writer as a link entry. The deploy
   # pipeline auto-mounts the couchbase variant's `auth` secret +
   # endpoint metadata at /etc/bluetext/links/database/ in the api pod
   # (PROPOSAL §D4: file-mount only, no env-var injection).

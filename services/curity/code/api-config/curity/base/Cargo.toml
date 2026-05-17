@@ -1,6 +1,6 @@
 # Empty [workspace] table opts this crate out of the surrounding bluetext
 # repo workspace — the handler crate lives in the templates clone (a
-# sibling of the bluetext repo on disk) and the v3 image-build slice
+# sibling of the bluetext repo on disk) and the image-build slice
 # writes its own workspace shim alongside the staged crates.
 [workspace]
 
@@ -16,8 +16,8 @@ path = "src/main.rs"
 
 [dependencies]
 # Platform harness — path dependency resolved through the staging
-# workspace Cargo.toml the v3 image-build slice writes alongside the
-# crate (see src/operations/deploy/v3/api_config_image.rs).
+# workspace Cargo.toml the image-build slice writes alongside the
+# crate (see src/operations/deploy/api_config_image.rs).
 bluetext-api-config = { path = "../../../../../../../crates/bluetext-api-config" }
 
 # Async runtime.

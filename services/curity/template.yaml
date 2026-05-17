@@ -21,5 +21,5 @@ start_prerequisites:
       id: fixed/curity-license-key
     hint: |
       Curity needs the license file to start. Free trial at developer.curity.io.
-      Write it via the v3 secret store:
+      Write it via the secret store:
         b secret set fixed/curity-license-key --from-env CURITY_LICENSE_KEY

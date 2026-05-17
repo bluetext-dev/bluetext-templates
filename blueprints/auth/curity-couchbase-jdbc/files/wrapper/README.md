@@ -94,7 +94,7 @@ gs://bluetext-cli-releases/plugins/couchbase-postgres-wrapper-<version>.jar
 ## Requirements
 
 - Couchbase Enterprise Edition with Query service (`n1ql`)
-- Primary indexes on all collections (provisioned via the managed-state crate)
+- Primary indexes on all collections (provisioned via the couchbase api-config bundle at deploy time)
 - JDK 21 (matching Curity's runtime)
 
 ## License Compatibility

@@ -20,7 +20,7 @@ tips:
   - The {{app_id}} service auto-configures ADB reverse (emulator:8888 → host:80) for ingress access on start
 pitfalls:
   - Don't skip auth/curity-oauth — phantom-token needs the introspect endpoint configured
-  - Couchbase initial cluster setup happens via the per-system managed-state crate (the replacement for the retired service-config-manager); the plugin then provisions its own bucket and collections
+  - Couchbase initial cluster setup happens via the couchbase api-config bundle at deploy time; the plugin then provisions its own bucket and collections
   - The API routes through Kong — direct API ingress is removed
 steps:
   - run: b service add couchbase

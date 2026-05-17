@@ -22,3 +22,9 @@ connection-profiles:
   ops:
     interface: admin
     secret: variant::auth
+api-config-bundles:
+  - couchbase/base                # config/api/couchbase/base/ — bucket/scope/collection provisioning
+api-config-peers:
+  - name: self
+    service: couchbase
+    profile: ops                  # admin REST API + auth credentials at /etc/bluetext/peers/self/

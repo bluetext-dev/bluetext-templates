@@ -1,0 +1,16 @@
+# 001 — provision buckets, scopes, and collections.
+#
+# Reads `state.yaml` and converges Couchbase to that layout via the
+# admin REST API on the `ops` connection-profile (projected at
+# /etc/bluetext/peers/self/). Idempotent — each step swallows the
+# "already exists" response so re-running the deploy is a no-op
+# against an unchanged config.
+
+description: |
+  Create buckets, scopes, and collections declared in state.yaml via
+  the Couchbase admin REST API. Idempotent on re-run.
+
+steps:
+  - id: ensure-buckets-and-collections
+    handler: provision
+    args: {}

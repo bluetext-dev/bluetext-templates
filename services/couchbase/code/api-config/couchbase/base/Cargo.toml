@@ -1,0 +1,31 @@
+# Empty [workspace] table opts this crate out of the surrounding bluetext
+# repo workspace — the handler crate lives in the templates clone (a
+# sibling of the bluetext repo on disk) and the image-build slice
+# writes its own workspace shim alongside the staged crates.
+[workspace]
+
+[package]
+name = "couchbase-api-config-base"
+version = "0.1.0"
+edition = "2024"
+description = "Couchbase api-config bundle: provisions buckets/scopes/collections declared in state.yaml via the admin REST API."
+
+[[bin]]
+name = "couchbase-api-config-base"
+path = "src/main.rs"
+
+[dependencies]
+# Platform harness — path dependency resolved through the staging
+# workspace Cargo.toml the image-build slice writes alongside the
+# crate (see src/operations/deploy/api_config_image.rs).
+bluetext-api-config = { path = "../../../../../../../crates/bluetext-api-config" }
+
+# Async runtime.
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+
+# HTTP client for the Couchbase admin REST API (port 8091).
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+
+# YAML parsing for state.yaml traversal.
+serde = { version = "1", features = ["derive"] }
+serde_yml = "0.0.12"

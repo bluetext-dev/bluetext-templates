@@ -1,0 +1,45 @@
+# Couchbase api-config bundle — declared end-state.
+#
+# Each `buckets:` entry describes one bucket the bundle's `ensure_state`
+# handler converges via Couchbase's admin REST API (port 8091, basic
+# auth from /etc/bluetext/peers/self/{username,password}). The default
+# example ships the layout `auth/curity-couchbase-jdbc` needs so the
+# Curity datasource works end-to-end on first deploy.
+#
+# Customising:
+#
+# - Add bucket / scope / collection entries for your system's services.
+#   Each section is idempotent — re-running the deploy against an
+#   existing bucket is a no-op.
+# - For non-default scopes, list them under `scopes:` on the bucket.
+#   The `_default` scope always exists; collections placed there don't
+#   need a scope entry.
+#
+# Bucket fields:
+#   name             — required
+#   ram-quota-mb     — optional; defaults to 100 (Couchbase Server's minimum)
+#   bucket-type      — optional; defaults to "couchbase"
+#   durability-min-level — optional; defaults to "none"
+
+buckets:
+  - name: curity
+    scopes:
+      - name: _default
+        collections:
+          - accounts
+          - account_resource_relations
+          - audit
+          - buckets
+          - credentials
+          - database_clients
+          - database_client_resource_relations
+          - database_service_providers
+          - delegations
+          - devices
+          - dynamically_registered_clients
+          - entities
+          - entity_relations
+          - linked_accounts
+          - nonces
+          - sessions
+          - tokens

@@ -15,7 +15,7 @@ caveats:
   - For licenses that include the Plugin SDK and unrestricted data-source types, prefer auth/curity-couchbase (native plugin)
   - Curity may restart once or twice while Couchbase initializes — this is normal
   - Couchbase admin credentials are Administrator/password — change for non-dev environments
-  - The curity bucket plus its scopes and collections must already exist before Curity connects. Add a `#[migration(...)]` handler under `managed-state/services/couchbase/src/lib.rs` (the worked example shipped by the couchbase template) that creates the curity bucket and the collections referenced by the JDBC wrapper. The deploy pipeline runs the assembled managed-state Job between store-apply and consumer-apply automatically (PROPOSAL §D19).
+  - The curity bucket plus its scopes and collections must already exist before Curity connects. Add a `#[handler]` to a system-shipped api-config bundle at `code/api-config/couchbase/<bundle>/src/lib.rs` (alongside the platform-shipped `base` bundle) that creates the curity bucket and the collections referenced by the JDBC wrapper, then declare the bundle on couchbase's `api-config-bundles:` in `config/system/services/couchbase/service.yaml`. The deploy pipeline runs the api-config Job between store-apply and consumer-apply automatically.
 variables:
   - name: deploy_target
     alias: d

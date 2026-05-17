@@ -14,11 +14,16 @@ caveats:
   - Uses a shared password for all users — for development only
   - Requires Curity to be running with the User Management profile
 variables:
+  - name: deploy_target
+    alias: d
+    description: '<run-spec>/<deploy-name> — resolves the namespace Curity is running in'
+    type: deploy-target
+    required: true
   - name: users
     description: "Comma-separated username:password pairs (e.g. alice:Pass1,bob:Pass2)"
     type: string
   - name: namespace
-    description: Namespace where Curity is running
+    description: ns-key within the run-spec (default `main`); the runtime expands `{{namespace}}` to the full namespace via `deploy_target`
     type: string
     default: main
 see_also: [auth/curity-assign-roles, auth/api-rbac]

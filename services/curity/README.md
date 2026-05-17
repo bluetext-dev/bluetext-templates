@@ -98,8 +98,8 @@ structural-validation error fires before it can read iss/sub.
 Re-extract the full `License` field value from the portal JSON and
 `b secret set fixed/curity-license-key --from-env CURITY_LICENSE_KEY`
 again. Verified empirically: with the complete 2-dot JWT, Curity
-boots licensed against `curity.azurecr.io/curity/idsvr:latest`
-(license schema version 4.3, runtime version current).
+boots licensed against `curity.azurecr.io/curity/idsvr:11.2.0`
+(license schema version 4.3, runtime version 11.2.0).
 
 ## What NOT to assume
 

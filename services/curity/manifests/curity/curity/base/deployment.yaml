@@ -74,7 +74,7 @@ spec:
           # to a different datasource (Couchbase via auth/curity-couchbase
           # blueprints), the resulting schema file is unused but harmless,
           # avoiding a kustomize-overlay patch for the dev-default case.
-          image: curity.azurecr.io/curity/idsvr:latest
+          image: curity.azurecr.io/curity/idsvr:11.2.0
           imagePullPolicy: IfNotPresent
           command:
             - sh
@@ -93,7 +93,7 @@ spec:
               mountPath: /hsqldb
       containers:
         - name: curity--curity
-          image: curity.azurecr.io/curity/idsvr:latest
+          image: curity.azurecr.io/curity/idsvr:11.2.0
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8443

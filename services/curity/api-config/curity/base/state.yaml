@@ -4,8 +4,8 @@
 # meant to map 1-to-1 to a JSON body the bundle's handlers POST to
 # /admin/api/restconf/data on the admin port (6749).
 #
-# **Current scope (Curity 4.3 / idsvr:latest):** RESTCONF on this
-# Curity version permits READ on every path under `/admin/api/restconf/data`
+# **Current scope (Curity 11.2.0, license schema 4.3):** RESTCONF on
+# this Curity version permits READ on every path under `/admin/api/restconf/data`
 # but refuses CREATE on profile / client / scope / role list-key URIs.
 # Probed live 2026-05-17:
 #

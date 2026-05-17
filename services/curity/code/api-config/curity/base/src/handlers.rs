@@ -186,7 +186,14 @@ fn license_missing_error() -> String {
 /// skipping them).
 pub async fn ensure_state(ctx: &ApiConfigCtx, state: &Value) -> Result<()> {
     let Some(map) = state.as_mapping() else {
-        eprintln!("[curity-api-config] ensure_state: state.yaml is not a mapping — skipping");
+        // Empty / comment-only state.yaml. Curity's RESTCONF surface on
+        // this version doesn't support CREATE on profile/client/scope/role
+        // list-key URIs (probed live: PUT → 404 "uri keypath not found",
+        // POST → 403 "access denied"). The bundle's load-bearing piece on
+        // current Curity is the 001-verify-license migration; the ensure
+        // pass is a clean no-op until a Curity version lights up the
+        // RESTCONF CREATE surface. See state.yaml header for details.
+        eprintln!("[curity-api-config] ensure_state: state.yaml has no declared sections — verify_license is the only load-bearing migration on this Curity version");
         return Ok(());
     };
     let peer = ctx.peer("self")?;

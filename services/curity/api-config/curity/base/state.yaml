@@ -1,51 +1,34 @@
 # Curity api-config bundle — declared end-state.
 #
-# Authored against Curity's RESTCONF schema; each entry maps 1-to-1 to a
-# JSON body the bundle's handlers POST to /admin/api/restconf/data on the
-# admin port (6749). Ensure runs on every deploy and converges what's
-# missing; removing an entry here does NOT delete the structure from
-# Curity — that lives in a drop-steps migration.
+# Authored against Curity's RESTCONF schema; each entry was originally
+# meant to map 1-to-1 to a JSON body the bundle's handlers POST to
+# /admin/api/restconf/data on the admin port (6749).
+#
+# **Current scope (Curity 4.3 / idsvr:latest):** RESTCONF on this
+# Curity version permits READ on every path under `/admin/api/restconf/data`
+# but refuses CREATE on profile / client / scope / role list-key URIs.
+# Probed live 2026-05-17:
+#
+#   PUT  /base:profiles/profile=<id>      → 404 "uri keypath not found"
+#   POST /base:profiles                   → 403 "access denied"
+#
+# The list-key URL form is not exposed for these resources regardless
+# of the operator role; Curity's canonical install surface for them is
+# the file-based `/opt/idsvr/etc/init/*.xml` init dir (the same path
+# the file-based license install uses, mounted via the deployment's
+# config-templater init container). That's what the `auth/curity-oauth`
+# and `auth/api-rbac` blueprints already write to.
+#
+# This bundle's load-bearing migration is **001-verify-license**: it
+# probes the admin RESTCONF root to fail loudly when the file-based
+# license install didn't take effect — before any blueprint or
+# downstream service expects a working OAuth surface. The handler set
+# (ensure_oauth_profiles / ensure_clients / ensure_scopes /
+# ensure_roles) remains in the source tree for a later Curity version
+# whose RESTCONF surface supports CREATE on these list-key URIs; the
+# state.yaml sections were emptied here so the Job's ensure_state pass
+# is a clean no-op against the current API.
+#
+# See services/curity/README.md for the hybrid bootstrap architecture.
 
-# NOTE: license is intentionally NOT in this bundle's ensure surface.
-# Curity's admin RESTCONF is gated behind a valid license (503
-# FeatureViolationException on every call when unlicensed), so the
-# license itself flows through the file-based channel — curity.yaml's
-# secrets.license + the curity deployment's config-templater init
-# container. The 001-verify-license migration in this bundle just
-# probes RESTCONF to fail loudly if the file install didn't land.
-# See services/curity/README.md for the architecture.
-
-oauth-profiles:
-  - id: auth-service
-    type: authentication
-    endpoints:
-      - { id: auth-service-authentication, uri: /authn,                 kind: auth-authentication }
-      - { id: auth-service-registration,   uri: /authn/registration,    kind: auth-registration }
-    authenticators:
-      - { id: html-form, kind: html-form, account-manager: default, credential-manager: default }
-  - id: token-service
-    type: oauth
-    endpoints:
-      - { id: token-service-token,      uri: /oauth/v2/oauth-token,      kind: oauth-token }
-      - { id: token-service-userinfo,   uri: /oauth/v2/oauth-userinfo,   kind: oauth-userinfo }
-      - { id: token-service-introspect, uri: /oauth/v2/oauth-introspect, kind: oauth-introspect }
-
-clients:
-  - id: flutter-app
-    type: public
-    grant-types: [authorization-code]
-    pkce:
-      required: true
-    redirect-uris:
-      - bluetext://callback
-    scopes: [openid, profile, email]
-
-scopes:
-  - { id: openid }
-  - { id: profile, claims: [given-name, family-name] }
-  - { id: email,   claims: [email, email-verified] }
-
-roles:
-  # Surface drawn from the auth/curity-rbac blueprint (roles-scope.xml).
-  - { id: admin }
-  - { id: moderator }
+# Intentionally empty: every section above is XML-installed for now.

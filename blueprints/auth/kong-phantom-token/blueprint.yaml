@@ -80,7 +80,7 @@ steps:
           path: services
           content: |
             - name: "{{item}}"
-              url: "http://{{item}}.{{namespace}}.svc.cluster.local"
+              url: "http://{{item}}--{{item}}.{{namespace}}.svc.cluster.local"
               routes:
                 - name: "{{item}}-route"
                   paths:

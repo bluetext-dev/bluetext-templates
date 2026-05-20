@@ -4,7 +4,8 @@
       "mode": "local"
     },
     "network": {
-      "incoming": "steal"
+      "incoming": "steal",
+      "outgoing": false
     }
   }
 }

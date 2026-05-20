@@ -1,0 +1,20 @@
+[package]
+name = "api"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = { version = "0.8", features = ["macros"] }
+tokio = { version = "1", features = ["full"] }
+tokio-stream = "0.1"
+futures-util = "0.3"
+bytes = "1"
+tower-http = { version = "0.6", features = ["cors"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+# rustls-tls: the runner has OpenSSL headers but the native-tls linker path
+# is non-standard and produces intermittent link failures.
+reqwest = { version = "0.12", features = ["json", "stream", "rustls-tls"], default-features = false }
+models = { path = "../../../model" }
+clients = { path = "../../clients" }

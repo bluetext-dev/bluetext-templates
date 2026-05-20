@@ -1,0 +1,47 @@
+name: Workshop step 2 — OpenRouter chat agent
+description: >-
+  Scaffolds `prompts/02-chat-agent.md` and overwrites the api Cargo.toml
+  with streaming-ready dependencies (reqwest rustls, tokio-stream,
+  futures-util, tower-http cors, anyhow) so the participant only writes
+  business code, not dependency bookkeeping.
+tags: [workshop, api, web-app, openrouter, sse]
+
+prerequisites:
+  - description: web-app service exists
+    check: service_exists
+    params:
+      id: "{{web_service}}"
+  - description: api service exists
+    check: service_exists
+    params:
+      id: "{{api_service}}"
+
+caveats:
+  - Overwrites `code/services/<api>/Cargo.toml`. If you have local edits there, commit first.
+
+variables:
+  - name: web_service
+    alias: w
+    description: Web-app service that hosts the chat UI.
+    type: service
+    accepts: [web-app]
+    default: web-app
+  - name: api_service
+    alias: a
+    description: Rust axum api service that fronts OpenRouter.
+    type: service
+    accepts: [api]
+    default: api
+
+steps:
+  - name: Write step-2 prompt to prompts/02-chat-agent.md
+    tool: file_write
+    params:
+      file: prompts/02-chat-agent.md
+      content_file: files/prompts/02-chat-agent.md
+
+  - name: Overwrite api Cargo.toml with streaming-ready deps
+    tool: file_write
+    params:
+      file: code/services/{{api_service}}/Cargo.toml
+      content_file: files/api/Cargo.toml

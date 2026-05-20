@@ -1,0 +1,39 @@
+name: Workshop step 3 — RAG + Arbetsförmedlingen risk assessor
+description: >-
+  Scaffolds `prompts/03-rag-assessor.md`. Extends the chat agent from
+  step 2 to accept Arbetsförmedlingen URLs, query the bluetext RAG MCP
+  server for AMLR document chunks, and stream a cited risk assessment.
+  No code changes — the streaming deps in `code/services/<api>/Cargo.toml`
+  are already in place from step 2.
+tags: [workshop, api, rag, mcp, jobtech]
+
+prerequisites:
+  - description: web-app service exists
+    check: service_exists
+    params:
+      id: "{{web_service}}"
+  - description: api service exists
+    check: service_exists
+    params:
+      id: "{{api_service}}"
+
+variables:
+  - name: web_service
+    alias: w
+    description: Web-app service that hosts the chat UI from step 2.
+    type: service
+    accepts: [web-app]
+    default: web-app
+  - name: api_service
+    alias: a
+    description: Rust axum api service whose /chat endpoint will be extended.
+    type: service
+    accepts: [api]
+    default: api
+
+steps:
+  - name: Write step-3 prompt to prompts/03-rag-assessor.md
+    tool: file_write
+    params:
+      file: prompts/03-rag-assessor.md
+      content_file: files/prompts/03-rag-assessor.md

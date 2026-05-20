@@ -87,11 +87,23 @@ is not REST.
 ### Required headers on every POST
 
 ```
-Authorization: Bearer rag_JkrlFRaGITL1X_WpLOefbfY98jGuiweX3vUbce-fxYc
+Authorization: Bearer <BLUETEXT_RAG_TOKEN>
 Content-Type: application/json
 Accept: application/json, text/event-stream
 Mcp-Session-Id: <id from the initialize response>
 ```
+
+The token is injected into the runner pod's environment as
+`BLUETEXT_RAG_TOKEN` by the lab orchestrator. Read it from Rust the
+same way you read `OPENROUTER_API_KEY`:
+
+```rust
+let rag_token = std::env::var("BLUETEXT_RAG_TOKEN")
+    .expect("BLUETEXT_RAG_TOKEN missing");
+```
+
+Don't hard-code the literal token in source — it's a shared workshop
+credential and rotates between sessions.
 
 `Accept` must include `text/event-stream` — without it the server
 returns 406. Omit `Mcp-Session-Id` on `initialize`; reuse the returned

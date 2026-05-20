@@ -197,3 +197,38 @@ blueprints:
         check: service_exists
         params:
           id: "{{gateway}}"
+  - id: workshop/01-game
+    name: Workshop step 1 — web-app game
+    description: Scaffolds `prompts/01-game.md` at the system root. The participant uses pi to replace the default home page with a small browser game. No api work in this step.
+    tags: [workshop, web-app]
+    prerequisites:
+      - description: web-app service exists
+        check: service_exists
+        params:
+          id: "{{web_service}}"
+  - id: workshop/02-chat-agent
+    name: Workshop step 2 — OpenRouter chat agent
+    description: Scaffolds `prompts/02-chat-agent.md` and overwrites the api Cargo.toml with streaming-ready dependencies (reqwest rustls, tokio-stream, futures-util, tower-http cors, anyhow) so the participant only writes business code, not dependency bookkeeping.
+    tags: [workshop, api, web-app, openrouter, sse]
+    prerequisites:
+      - description: web-app service exists
+        check: service_exists
+        params:
+          id: "{{web_service}}"
+      - description: api service exists
+        check: service_exists
+        params:
+          id: "{{api_service}}"
+  - id: workshop/03-rag-assessor
+    name: Workshop step 3 — RAG + Arbetsförmedlingen risk assessor
+    description: Scaffolds `prompts/03-rag-assessor.md`. Extends the chat agent from step 2 to accept Arbetsförmedlingen URLs, query the bluetext RAG MCP server for AMLR document chunks, and stream a cited risk assessment. No code changes — the streaming deps in `code/services/<api>/Cargo.toml` are already in place from step 2.
+    tags: [workshop, api, rag, mcp, jobtech]
+    prerequisites:
+      - description: web-app service exists
+        check: service_exists
+        params:
+          id: "{{web_service}}"
+      - description: api service exists
+        check: service_exists
+        params:
+          id: "{{api_service}}"

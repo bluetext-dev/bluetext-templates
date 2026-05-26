@@ -1,7 +1,13 @@
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
-  name: curity-headers
+  # Must match the canonical `<abstract>--<resource>` form the curity
+  # service template's ingress-route.yaml references. Earlier copies
+  # of this file dropped the `curity--` prefix; Traefik then rejected
+  # the route with `middleware "curity--curity-headers" does not exist`
+  # and every host that depended on it (the OAuth flow itself) 404'd
+  # from Traefik's catch-all.
+  name: curity--curity-headers
 spec:
   headers:
     customRequestHeaders:

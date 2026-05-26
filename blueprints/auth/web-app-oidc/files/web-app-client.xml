@@ -20,6 +20,18 @@
                 <capabilities>
                   <code/>
                 </capabilities>
+                <!-- Required presence container for any client using the Code
+                     flow (per the profile-oauth YANG: user-authentication
+                     "Must be set if Code, Implicit, Assisted or Device Flow is
+                     used"). Without it Curity logs "No user authentication
+                     settings were provided, but using an authenticated flow.
+                     The configuration is wrong … will be made mandatory in a
+                     future release." allowed-authenticators is a leafref into
+                     the bound authentication-profile's authenticators — here
+                     the html-form authenticator from oauth-config.xml. -->
+                <user-authentication>
+                  <allowed-authenticators>html-form</allowed-authenticators>
+                </user-authentication>
                 <proof-key>
                   <require-proof-key>true</require-proof-key>
                 </proof-key>

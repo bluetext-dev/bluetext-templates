@@ -3,8 +3,8 @@
 # Each `buckets:` entry describes one bucket the bundle's `ensure_state`
 # handler converges via Couchbase's admin REST API (port 8091, basic
 # auth from /etc/bluetext/peers/self/{username,password}). The default
-# example ships the layout `auth/curity-couchbase-jdbc` needs so the
-# Curity datasource works end-to-end on first deploy.
+# ships a single empty `default` bucket so couchbase boots usable on
+# first deploy without committing the system to a particular schema.
 #
 # Customising:
 #
@@ -14,6 +14,9 @@
 # - For non-default scopes, list them under `scopes:` on the bucket.
 #   The `_default` scope always exists; collections placed there don't
 #   need a scope entry.
+# - To use this couchbase as the Curity datasource, uncomment the
+#   `curity` bucket below. Pair with the `auth/curity-couchbase-jdbc`
+#   blueprint.
 #
 # Bucket fields:
 #   name             — required
@@ -22,24 +25,31 @@
 #   durability-min-level — optional; defaults to "none"
 
 buckets:
-  - name: curity
-    scopes:
-      - name: _default
-        collections:
-          - accounts
-          - account_resource_relations
-          - audit
-          - buckets
-          - credentials
-          - database_clients
-          - database_client_resource_relations
-          - database_service_providers
-          - delegations
-          - devices
-          - dynamically_registered_clients
-          - entities
-          - entity_relations
-          - linked_accounts
-          - nonces
-          - sessions
-          - tokens
+  - name: default
+
+# Example: Curity datasource schema. Uncomment when running
+# `auth/curity-couchbase-jdbc`. Ships the 18-collection layout the
+# Curity JDBC datasource expects so the blueprint works end-to-end
+# on first deploy.
+#
+#  - name: curity
+#    scopes:
+#      - name: _default
+#        collections:
+#          - accounts
+#          - account_resource_relations
+#          - audit
+#          - buckets
+#          - credentials
+#          - database_clients
+#          - database_client_resource_relations
+#          - database_service_providers
+#          - delegations
+#          - devices
+#          - dynamically_registered_clients
+#          - entities
+#          - entity_relations
+#          - linked_accounts
+#          - nonces
+#          - sessions
+#          - tokens

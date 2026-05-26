@@ -1,0 +1,13 @@
+# Appended to the web-app `development` overlay's container env list by the
+# auth/web-app-oidc blueprint (file_patch append_list). These are the Vite
+# dev-server proxy targets for the OIDC flow:
+#   /api/*    → Kong   (phantom-token + RBAC enforcement)
+#   /curity/* → Curity (same-origin OIDC token POST, no CORS preflight)
+# FQDNs are mandatory — Vite's http-proxy doesn't honour the pod's
+# /etc/resolv.conf search domains, so short hostnames (`http://kong`) give
+# ECONNREFUSED. The `$bt{{ deploy::ns.<abstract> }}` placeholders resolve to
+# each peer's namespace at deploy time.
+- name: KONG_URL
+  value: "http://kong--kong.$bt{{ deploy::ns.kong }}.svc.cluster.local"
+- name: CURITY_URL
+  value: "http://curity--curity.$bt{{ deploy::ns.curity }}.svc.cluster.local"

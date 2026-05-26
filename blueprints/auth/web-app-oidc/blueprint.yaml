@@ -92,11 +92,21 @@ steps:
     params:
       file: code/services/web-app/vite.config.ts
       content_file: files/vite.config.ts
-  - name: Inject KONG_URL/CURITY_URL into the web-app pod (FQDN — Vite proxy needs it)
-    tool: file_write
+  - name: Inject KONG_URL/CURITY_URL into the web-app dev overlay (Vite proxy targets — FQDN)
+    # Append to the env list of the existing `development` overlay (which
+    # the web-app template ships carrying API_URL). Writing a separate
+    # `_default/patches.yaml` does NOT work: the deploy pipeline picks the
+    # most-specific overlay for the active run-spec-variant, so a `development`
+    # deploy uses `development/patches.yaml` and silently ignores `_default/`.
+    # append_list (not file_write) preserves the template's API_URL + volume
+    # mounts and just adds the two proxy targets the OIDC flow needs.
+    tool: file_patch
     params:
-      file: config/k8s/web-app/web-app/_default/patches.yaml
-      content_file: files/web-app-development-patches.yaml
+      file: config/k8s/web-app/web-app/development/patches.yaml
+      operation: append_list
+      match_kind: Deployment
+      path: spec.template.spec.containers.0.env
+      content_file: files/web-app-proxy-env.yaml
   - name: Switch the API to in-cluster mode (the RBAC stack runs the API as a real container, not via mirrord)
     tool: file_write
     params:

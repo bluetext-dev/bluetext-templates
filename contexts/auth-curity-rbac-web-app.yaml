@@ -44,6 +44,8 @@ steps:
     description: Register the web-app Curity client, add the React auth provider, and rewire /api through Kong
   - run: b deploy rbac/development-local
     description: Render manifests, build images, and apply the run-spec to the local cluster
+  - run: b service restart web-app -d rbac/development-local
+    description: Restart web-app so its Vite dev server re-reads routes.ts — React Router 7 framework mode builds the route manifest once at process boot, so the auth/callback route the web-app-oidc blueprint added needs a fresh process (a re-deploy with unchanged Deployment spec won't roll the pod on its own)
   - run: b bp run auth/curity-create-users --var users=alice:Password1,bob:Password1 --var deploy_target=rbac/development-local
     description: Create test user accounts with passwords
   - run: b bp run auth/curity-assign-roles --var users=alice:admin,bob:moderator --var deploy_target=rbac/development-local

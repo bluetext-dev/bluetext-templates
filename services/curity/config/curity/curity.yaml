@@ -24,12 +24,14 @@ secrets:
   #
   # The format is the JSON wrapper around the raw JWT:
   #   {"License": "<jwt>"}
-  # The deploy pipeline reads the raw JWT from the local secret store at
-  # `~/.bluetext/secrets/<sys>--<hash>/fixed/curity-license-key`
-  # and composes the wrapper at render time.
+  # The wrapped form is stored verbatim in Vault under
+  # `fixed/curity-license-wrapped` — the deploy pipeline copies bytes
+  # straight through to the K8s Secret. (The templated-keys slice that
+  # would let the deploy pipeline compose the wrap at render time from
+  # the raw JWT is deferred to a future ESO `templateRef` cutover.)
   license:
     keys:
-      license-key: '{"License":"$bt{{ secrets::fixed/curity-license-key }}"}'
+      license-key: secrets::fixed/curity-license-wrapped
   # Admin credentials projected to the api-config Job pod at
   # /etc/bluetext/peers/self/. The Job uses these for the post-license
   # RESTCONF surface (OAuth profiles, clients, scopes, roles).

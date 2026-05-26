@@ -15,11 +15,14 @@ start_prerequisites:
         b bp run auth/curity-hsqldb           (embedded file-based, for development)
         b bp run auth/curity-couchbase        (Couchbase via native plugin — recommended)
         b bp run auth/curity-couchbase-jdbc   (Couchbase via JDBC wrapper — for licenses restricted to JDBC)
-  - description: Curity license written to the secret store
+  - description: Curity license (JSON-wrapped form) written to the secret store
     check: secret_exists
     params:
-      id: fixed/curity-license-key
+      id: fixed/curity-license-wrapped
     hint: |
       Curity needs the license file to start. Free trial at developer.curity.io.
-      Write it via the secret store:
-        b secret set fixed/curity-license-key --from-env CURITY_LICENSE_KEY
+      The Vault entry stores the JSON-wrapped form (`{"License":"<jwt>"}`),
+      which the deploy pipeline copies verbatim into the K8s Secret that
+      Curity's init container reads. Write it like this:
+        CURITY_LICENSE_WRAPPED='{"License":"'"$CURITY_LICENSE_KEY"'"}' \
+          b secret set fixed/curity-license-wrapped --from-env CURITY_LICENSE_WRAPPED

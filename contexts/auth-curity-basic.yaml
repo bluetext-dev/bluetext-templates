@@ -12,8 +12,9 @@ pitfalls:
 steps:
   - run: b service add curity
     description: Add the Curity Identity Server abstract
-  - run: b secret set fixed/curity-license-key --from-env CURITY_LICENSE_KEY
-    description: Write the license JWT to the secret store (the deploy pipeline composes the JSON wrapper Curity expects)
+  - run: |
+      CURITY_LICENSE_WRAPPED=$(printf '%s' "$CURITY_LICENSE_KEY" | "$BLUETEXT_TEMPLATES_DIR/services/curity/scripts/wrap-license.sh") b secret set fixed/curity-license-wrapped --from-env CURITY_LICENSE_WRAPPED
+    description: Normalize $CURITY_LICENSE_KEY (accepts the portal envelope JSON, the raw JWT, or fails loud on payload-only input) into the wrapped `{"License":"<jwt>"}` form Curity reads at startup, then write it to the secret store
   - run: b run-spec set auth -s curity
     description: Compose Curity into a single-service run-spec
   - run: b run-spec deploy add auth development-local -v development -c k3d-local

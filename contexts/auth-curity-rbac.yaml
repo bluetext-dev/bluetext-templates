@@ -22,8 +22,9 @@ pitfalls:
 steps:
   - run: b service add curity
     description: Add the Curity Identity Server abstract
-  - run: b secret set fixed/curity-license-key --from-env CURITY_LICENSE_KEY
-    description: Write the Curity license JWT to the secret store (free trial at developer.curity.io; export CURITY_LICENSE_KEY in your shell first)
+  - run: |
+      CURITY_LICENSE_WRAPPED=$(printf '%s' "$CURITY_LICENSE_KEY" | "$BLUETEXT_TEMPLATES_DIR/services/curity/scripts/wrap-license.sh") b secret set fixed/curity-license-wrapped --from-env CURITY_LICENSE_WRAPPED
+    description: Normalize $CURITY_LICENSE_KEY (accepts the portal envelope JSON, the raw JWT, or fails loud on payload-only input) into the wrapped `{"License":"<jwt>"}` form Curity reads at startup, then write it to the secret store (free trial at developer.curity.io)
   - run: b service add kong
     description: Add the Kong API Gateway
   - run: b service add api

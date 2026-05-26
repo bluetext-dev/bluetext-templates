@@ -60,46 +60,53 @@ ensure flows owned by an api-config bundle.
 
 ## Operator prerequisites before `b deploy`
 
+The license has to land in Vault as the JSON-wrapped form Curity reads
+at startup (`{"License":"<jwt>"}`). The wrapper script next to this
+README normalizes whatever shape `$CURITY_LICENSE_KEY` happens to
+carry — full portal envelope JSON, just the raw JWT, or (failing
+loud) the payload-only blob the portal sometimes leaves on the
+clipboard:
+
 ```bash
-b secret set fixed/curity-license-key   --from-env CURITY_LICENSE_KEY
-b secret set fixed/curity-admin-username --from-env CURITY_ADMIN_USERNAME  # defaults: "admin"
+# Recommended — straight from the file the portal hands you:
+export CURITY_LICENSE_KEY=$(jq -r .License /path/to/cillers.com_Trial_*.json)
+
+# Pipe through the normalizer and write to Vault:
+CURITY_LICENSE_WRAPPED=$(printf '%s' "$CURITY_LICENSE_KEY" \
+    | "$BLUETEXT_TEMPLATES_DIR/services/curity/scripts/wrap-license.sh") \
+    b secret set fixed/curity-license-wrapped --from-env CURITY_LICENSE_WRAPPED
+
+# Admin credentials for the RESTCONF surface:
+b secret set fixed/curity-admin-username --from-env CURITY_ADMIN_USERNAME  # default: "admin"
 b secret set fixed/curity-admin-password --from-env CURITY_ADMIN_PASSWORD  # operator-set
 ```
 
-The first command is mandatory — Curity will start in license-gated
-mode (admin port up, runtime port down) without it.
+Every `auth/*-curity-*` context bundles these steps already; the form
+above is only relevant for ad-hoc / scripted setups outside a context.
 
-### `CURITY_LICENSE_KEY` must be the complete signed JWT
+### Why the wrap exists
 
-Curity downloads from the developer portal arrive as a JSON envelope:
+Curity reads the license from the file `/opt/idsvr/etc/init/license/
+default`, and the format must be the JSON envelope `{"License":"<jwt>"}`
+— not the raw JWT. The deploy pipeline copies the wrapped bytes from
+Vault straight into the `curity--license` K8s Secret; the `config-
+templater` init container projects the Secret's `license-key` key
+into the file Curity reads.
 
-```json
-{"Company":"...","Tier":"Trial","Issued":"YYYY-MM-DD",
- "License":"<base64-header>.<base64-payload>.<base64-signature>"}
-```
+### Why payload-only inputs fail loud
 
-The value of the `License` field is the actual JWT — three base64
-segments joined by **two `.` separators**. `CURITY_LICENSE_KEY` must
-contain exactly that JWT string. Sanity-check before populating the
-secret:
-
-```bash
-echo -n "$CURITY_LICENSE_KEY" | tr -cd '.' | wc -c   # must print 2
-```
-
-If the count is 0, the env var contains only the JWT's *payload*
-section (the middle base64 between the dots — it'll base64-decode to
-valid-looking JSON with `iss` and `sub` claims). Curity will reject
-this with the misleading `LicenseKeyValidationCallback - License was
-the wrong issuer or had not subject` error and CrashLoopBackOff;
-without the header + signature it can't validate the token, so its
-structural-validation error fires before it can read iss/sub.
-
-Re-extract the full `License` field value from the portal JSON and
-`b secret set fixed/curity-license-key --from-env CURITY_LICENSE_KEY`
-again. Verified empirically: with the complete 2-dot JWT, Curity
-boots licensed against `curity.azurecr.io/curity/idsvr:11.2.0`
-(license schema version 4.3, runtime version 11.2.0).
+The portal sometimes leaves only the JWT's *middle* base64 segment
+on the clipboard (no header, no signature, zero `.` separators).
+It decodes cleanly to JSON with `iss`/`sub` claims, so it *looks*
+right — but Curity rejects it at boot with the misleading
+`LicenseKeyValidationCallback - License was the wrong issuer or had
+not subject` and the pod CrashLoopBackOffs. The wrapper script
+catches this at `b secret set` time and emits the actionable fix
+(re-extract from the portal JSON) instead of letting the error
+surface 90 seconds into a deploy. Verified empirically: with the
+complete 2-dot JWT, Curity boots licensed against
+`curity.azurecr.io/curity/idsvr:11.2.0` (license schema 4.3,
+runtime 11.2.0).
 
 ## What NOT to assume
 

@@ -258,7 +258,7 @@ variables:
   - name: deploy_target
     alias: d
     type: deploy-target
-    description: '<run-spec>/<deploy-name> — context for service restart steps'
+    description: '<run-spec-abstract>/<deployment-name> — context for service restart steps'
     required: true
 restarts: [curity]
 steps:

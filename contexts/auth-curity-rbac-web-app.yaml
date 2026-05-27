@@ -28,10 +28,10 @@ steps:
     description: Add the API service
   - run: b service add web-app
     description: Add the web-app service
-  - run: b run-spec set rbac -s curity,kong,api,web-app
-    description: Compose the four services into a single run-spec
-  - run: b run-spec deploy add rbac development-local -v development -c k3d-local
-    description: Add the development-local deploy entry pairing run-spec-variant `development` with the k3d-local cluster
+  - run: b run-spec-abstract set rbac -s curity,kong,api,web-app
+    description: Compose the four services into a single run-spec-abstract
+  - run: b run-spec-abstract deployment add rbac development-local -v development -c k3d-local
+    description: Add the development-local deployment pairing run-spec-variant `development` with the k3d-local cluster
   - run: b bp run auth/curity-hsqldb --no-restart --var deploy_target=rbac/development-local
     description: Configure HSQLDB as the data store
   - run: b bp run auth/curity-oauth --no-restart --var deploy_target=rbac/development-local
@@ -43,7 +43,7 @@ steps:
   - run: b bp run auth/web-app-oidc --no-restart --var deploy_target=rbac/development-local
     description: Register the web-app Curity client, add the React auth provider, and rewire /api through Kong
   - run: b deploy rbac/development-local
-    description: Render manifests, build images, and apply the run-spec to the local cluster
+    description: Render manifests, build images, and apply the run-spec-abstract to the local cluster
   - run: b service restart web-app -d rbac/development-local
     description: Restart web-app so its Vite dev server re-reads routes.ts — React Router 7 framework mode builds the route manifest once at process boot, so the auth/callback route the web-app-oidc blueprint added needs a fresh process (a re-deploy with unchanged Deployment spec won't roll the pod on its own)
   - run: b bp run auth/curity-create-users --var users=alice:Password1,bob:Password1 --var deploy_target=rbac/development-local

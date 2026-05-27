@@ -32,7 +32,7 @@ caveats:
 variables:
   - name: deploy_target
     alias: d
-    description: '<run-spec>/<deploy-name> — owns the api deployment for the follow-up build + apply (e.g. app/development-local)'
+    description: '<run-spec-abstract>/<deployment-name> — owns the api deployment for the follow-up build + apply (e.g. app/development-local)'
     type: deploy-target
     required: true
   - name: api_service

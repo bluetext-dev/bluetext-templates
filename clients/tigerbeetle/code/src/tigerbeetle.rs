@@ -21,7 +21,7 @@ impl TigerbeetleConf {
     /// Read config from `<PREFIX>_ADDRESSES` and `<PREFIX>_CLUSTER_ID`.
     /// Both have defaults so a system that hasn't run `b client configure`
     /// against tigerbeetle still gets a working client when the
-    /// templated tigerbeetle service is in the run-spec under id `tigerbeetle`.
+    /// templated tigerbeetle service is in the run-spec-abstract under id `tigerbeetle`.
     pub fn from_env(prefix: &str) -> Self {
         let prefix = prefix.to_uppercase().replace('-', "_");
         Self {

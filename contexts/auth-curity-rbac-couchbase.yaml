@@ -36,10 +36,10 @@ steps:
     description: Add the API service
   - run: b service add {{app_id}}
     description: Add the {{app_id}} service
-  - run: b run-spec set rbac -s couchbase,curity,kong,api,{{app_id}}
-    description: Compose the five services into a single run-spec
-  - run: b run-spec deploy add rbac development-local -v development -c k3d-local
-    description: Add the development-local deploy entry pairing run-spec-variant `development` with the k3d-local cluster
+  - run: b run-spec-abstract set rbac -s couchbase,curity,kong,api,{{app_id}}
+    description: Compose the five services into a single run-spec-abstract
+  - run: b run-spec-abstract deployment add rbac development-local -v development -c k3d-local
+    description: Add the development-local deployment pairing run-spec-variant `development` with the k3d-local cluster
   - run: b bp run auth/curity-couchbase --no-restart --var deploy_target=rbac/development-local
     description: Switch Curity to Couchbase (plugin self-provisions bucket + 10 curity-* collections + indexes; deploys custom Curity image with the plugin)
   - run: b bp run auth/curity-oauth --no-restart --var deploy_target=rbac/development-local
@@ -51,7 +51,7 @@ steps:
   - run: b bp run auth/app-oidc --var app_id={{app_id}} --no-restart --var deploy_target=rbac/development-local
     description: Add OIDC login flow to the app
   - run: b deploy rbac/development-local
-    description: Render manifests, build images, and apply the run-spec to the local cluster
+    description: Render manifests, build images, and apply the run-spec-abstract to the local cluster
   - run: b bp run auth/curity-create-users --var users=alice:Password1,bob:Password1 --var deploy_target=rbac/development-local
     description: Create test user accounts with passwords
   - run: b bp run auth/curity-assign-roles --var users=alice:admin,bob:moderator --var deploy_target=rbac/development-local

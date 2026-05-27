@@ -16,14 +16,14 @@ caveats:
 variables:
   - name: deploy_target
     alias: d
-    description: '<run-spec>/<deploy-name> — resolves the namespace Curity is running in'
+    description: '<run-spec-abstract>/<deployment-name> — resolves the namespace Curity is running in'
     type: deploy-target
     required: true
   - name: users
     description: "Comma-separated username:role pairs (e.g. alice:admin,bob:moderator)"
     type: string
   - name: namespace
-    description: ns-key within the run-spec (default `main`); the runtime expands `{{namespace}}` to the full namespace via `deploy_target`
+    description: ns-key within the run-spec-abstract (default `main`); the runtime expands `{{namespace}}` to the full namespace via `deploy_target`
     type: string
     default: main
 see_also: [auth/curity-create-users, auth/api-rbac]

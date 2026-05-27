@@ -28,8 +28,13 @@ steps:
     params:
       file: config/curity/oauth-config.xml
       content_file: files/oauth-config.xml
-  - name: Restart curity in {{namespace}}
-    tool: service_restart
+  # Curity declares `bluetext.io/reload-command: idsvr -r` — a ConfD-backed
+  # dynamic reload that re-reads etc/init XML and merges it into the running
+  # config with no process restart, no downtime. This blueprint only adds an
+  # init-XML fragment (oauth-config.xml), so reload is the right mechanism;
+  # restart would churn the pod for a change reload applies in place.
+  - name: Reload curity in {{namespace}}
+    tool: service_reload
     params:
       id: curity
       deploy_target: "{{deploy_target}}"

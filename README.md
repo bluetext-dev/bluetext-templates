@@ -267,8 +267,11 @@ steps:
     params:
       file: config/curity/oauth-config.xml
       content_file: files/oauth-config.xml
-  - name: Restart curity
-    tool: service_restart
+  # Curity declares `bluetext.io/reload-command: idsvr -r`, so config changes
+  # apply via reload (no downtime). Use `service_restart` for services without
+  # a reload command, or for changes a reload can't apply.
+  - name: Reload curity
+    tool: service_reload
     params:
       id: curity
       deploy_target: "{{deploy_target}}"

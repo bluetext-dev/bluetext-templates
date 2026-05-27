@@ -110,12 +110,16 @@ Services that support multiple config files (like Curity's init directory) use s
 
 **Why:** Each blueprint should own exactly the config it's responsible for — and nothing else. When a blueprint ships a complete config file that includes other blueprints' concerns, any change to a shared concern (like adding a scope) requires updating every blueprint that embeds it. Fragments give each blueprint a single place to define its contribution, matching the single-responsibility principle.
 
-## Principle 11: Restarts are part of configuration
+## Principle 11: Applying config is part of configuration
 <a id="bp-11"></a>
 
-Blueprints restart services after writing config files. This is within scope of "configure" — writing a config that isn't picked up is not a complete configuration. A restart is the self-contained final step of making the config live.
+Blueprints make their config live after writing the files — writing a config that isn't picked up is not a complete configuration. Applying it is the self-contained final step.
 
-**Why:** Configuration means making a capability active, not just writing files to disk. If the config isn't loaded, the blueprint hasn't finished its job. The restart doesn't cross responsibility boundaries — it's the natural completion of the configuration step, not lifecycle management.
+**How it's applied depends on the service.** A service that declares `bluetext.io/reload-command` (e.g. Curity's `idsvr -r`, Kong's `kong reload`) is reloaded via `service_reload` — config merges into the running process with no downtime. A service without a reload command is restarted via `service_restart`. Use `service_restart` over `service_reload` only for changes a reload can't apply — image, environment, or other pod-spec edits (e.g. adding gateway annotations to a target service).
+
+Both step forms skip gracefully when the service isn't deployed yet, so a config blueprint can run before the first deploy (the next `b deploy` applies the written config); the `b service restart` / `b service reload` CLI verbs stay strict.
+
+**Why:** Configuration means making a capability active, not just writing files to disk. If the config isn't loaded, the blueprint hasn't finished its job. Applying it doesn't cross responsibility boundaries — it's the natural completion of the configuration step, not lifecycle management. Reaching for the lightest mechanism the service supports (reload over restart) keeps a config change from churning a pod it didn't need to.
 
 ## Principle 12: `see_also`, not `next_steps`
 <a id="bp-12"></a>

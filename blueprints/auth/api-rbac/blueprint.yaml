@@ -33,9 +33,10 @@ variables:
     type: string
     default: main
   - name: datastore
-    alias: d
-    description: Data store backend (hsqldb or couchbase)
-    type: string
+    alias: s
+    description: Data store backend
+    type: enum
+    options: [hsqldb, couchbase]
     default: hsqldb
 restarts: [curity, kong, api]
 see_also: [auth/kong-phantom-token, auth/curity-oauth, auth/service-jwt]

@@ -25,8 +25,9 @@ variables:
     type: deploy-target
     required: true
   - name: namespace
-    description: Namespace where Curity and Kong are running
-    type: string
+    description: Service group within the run-spec
+    type: namespace
+    depends_on: deploy_target
     default: main
   - name: targets
     description: Services to protect with phantom tokens

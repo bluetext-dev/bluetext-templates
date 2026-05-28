@@ -23,8 +23,9 @@ variables:
     description: "Comma-separated username:password pairs (e.g. alice:Pass1,bob:Pass2)"
     type: string
   - name: namespace
-    description: ns-key within the run-spec-abstract (default `main`); the runtime expands `{{namespace}}` to the full namespace via `deploy_target`
-    type: string
+    description: Service group within the run-spec
+    type: namespace
+    depends_on: deploy_target
     default: main
 see_also: [auth/curity-assign-roles, auth/api-rbac]
 steps:

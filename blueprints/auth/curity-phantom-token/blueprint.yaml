@@ -23,8 +23,9 @@ variables:
     type: deploy-target
     required: true
   - name: namespace
-    description: Target namespace for Curity and Kong
-    type: string
+    description: Service group within the run-spec
+    type: namespace
+    depends_on: deploy_target
     default: auth
   - name: license_key
     description: Curity license key (get a free dev license at developer.curity.io)

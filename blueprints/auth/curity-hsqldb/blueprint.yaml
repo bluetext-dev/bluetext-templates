@@ -17,8 +17,9 @@ variables:
     required: true
   - name: namespace
     alias: n
-    description: Namespace where Curity is running
-    type: string
+    description: Service group within the run-spec
+    type: namespace
+    depends_on: deploy_target
     default: main
 restarts: [curity]
 see_also: [auth/curity-oauth, auth/curity-couchbase]

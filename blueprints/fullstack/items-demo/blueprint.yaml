@@ -57,7 +57,7 @@ variables:
     alias: b
     description: Couchbase bucket to store items in. Must already exist.
     type: string
-    default: main
+    default: default
 
 restarts: [api, web-app]
 
@@ -69,7 +69,7 @@ steps:
   - name: Add `database` link from {{api_service}} to {{upstream_couchbase}}/data-writer
     tool: file_patch
     params:
-      file: config/services/{{api_service}}/service.yaml
+      file: config/system/services/{{api_service}}/service.yaml
       operation: merge
       path: ""
       content: |

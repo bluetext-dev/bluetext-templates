@@ -13,13 +13,18 @@ pub use items::Item;
 // controller calls in production (docs/MODELING.md).
 //
 // The `#[state_machine]` attribute injects a hidden `__stores` field
-// and synthesizes `__connect()` that reads the COUCHBASE_* env vars and
-// binds each state-var. No manual `connect()` to write here.
+// and synthesizes `__connect()`, which reads the connection — host plus
+// Vault/ESO-delivered credentials — from the `database` link mount at
+// `/etc/bluetext/links/database/`, never from env vars. No manual
+// `connect()` to write here.
 //
-// The `#[store(collection = "_default")]` override routes documents
-// into the bucket's always-existing `_default._default` keyspace, so the
-// blueprint doesn't have to provision a dedicated collection.
+// `#[store(couchbase, link = "database")]` names the link this model
+// reads, matching the `links: database: couchbase/data-writer` entry the
+// blueprint adds to the api service. `#[store(collection = "_default")]`
+// routes documents into the bucket's always-existing `_default._default`
+// keyspace, so the blueprint doesn't have to provision a collection.
 #[state_machine("items-demo")]
+#[store(couchbase, link = "database")]
 pub struct AppState {
     #[store(collection = "_default")]
     items: CouchbaseCollection<Item>,

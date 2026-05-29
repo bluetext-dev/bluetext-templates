@@ -26,28 +26,39 @@ pub struct CouchbaseConf {
 }
 
 impl CouchbaseConf {
-    /// Build config from environment variables using a prefix.
-    /// e.g. prefix "COUCHBASE" reads COUCHBASE_URL, COUCHBASE_USERNAME, etc.
+    /// Build config from the link mount the deploy pipeline projects at
+    /// `/etc/bluetext/links/<link>/`.
     ///
-    /// URL, USERNAME, and PASSWORD are required. BUCKET has a sensible
-    /// default ("main").
-    pub fn from_env(prefix: &str) -> Result<Self, String> {
-        let prefix = prefix.to_uppercase().replace('-', "_");
+    /// `b service link <consumer> couchbase/<profile>` places `host`,
+    /// `port`, `protocol`, and the credential files (`username`,
+    /// `password`) there; this reads them. `host` / `username` /
+    /// `password` are required — a missing file fails loud (no silent
+    /// fallback), because it means this service isn't linked to couchbase.
+    /// `bucket` defaults to "default" (the bucket
+    /// `api-config/couchbase/base/state.yaml` provisions on first deploy),
+    /// overridable with an optional `bucket` file in the mount.
+    pub fn from_link(link_name: &str) -> Result<Self, String> {
+        let dir = std::path::Path::new("/etc/bluetext/links").join(link_name);
+        let read = |file: &str| -> Result<String, String> {
+            std::fs::read_to_string(dir.join(file))
+                .map(|s| s.trim().to_string())
+                .map_err(|_| {
+                    format!(
+                        "Couchbase link mount file {}/{file} is missing — is this service linked to \
+                         couchbase? Run `b service link <this-service> couchbase/<profile>`.",
+                        dir.display()
+                    )
+                })
+        };
 
-        let url = std::env::var(format!("{prefix}_URL")).map_err(|_| {
-            format!("Required env var {prefix}_URL is not set. Run 'b client configure' to inject it.")
-        })?;
-        let username = std::env::var(format!("{prefix}_USERNAME")).map_err(|_| {
-            format!("Required env var {prefix}_USERNAME is not set. Run 'b client configure' to inject it.")
-        })?;
-        let password = std::env::var(format!("{prefix}_PASSWORD")).map_err(|_| {
-            format!("Required env var {prefix}_PASSWORD is not set. Run 'b client configure' to inject it.")
-        })?;
-        let bucket =
-            std::env::var(format!("{prefix}_BUCKET")).unwrap_or_else(|_| "main".into());
+        let host = read("host")?;
+        let protocol = read("protocol").unwrap_or_else(|_| "couchbase".to_string());
+        let username = read("username")?;
+        let password = read("password")?;
+        let bucket = read("bucket").unwrap_or_else(|_| "default".to_string());
 
         Ok(Self {
-            url,
+            url: format!("{protocol}://{host}"),
             username,
             password,
             bucket,
@@ -72,15 +83,16 @@ pub async fn register_client(name: &str, conf: CouchbaseConf) -> Result<(), Stri
     Ok(())
 }
 
-/// Get a client by name. Auto-registers from env vars using `prefix` if not found.
-pub async fn get_client(name: &str, prefix: &str) -> Result<CouchbaseClient, String> {
+/// Get a client for a link. Auto-connects by reading the link mount at
+/// `/etc/bluetext/links/<link_name>/` if not already registered.
+pub async fn get_client(link_name: &str) -> Result<CouchbaseClient, String> {
     let mut clients = registry().lock().await;
-    if let Some(client) = clients.get(name) {
+    if let Some(client) = clients.get(link_name) {
         return Ok(client.clone());
     }
-    let conf = CouchbaseConf::from_env(prefix)?;
+    let conf = CouchbaseConf::from_link(link_name)?;
     let client = CouchbaseClient::new(conf).await?;
-    clients.insert(name.to_string(), client.clone());
+    clients.insert(link_name.to_string(), client.clone());
     Ok(client)
 }
 
@@ -290,24 +302,34 @@ pub struct Document<T> {
 /// Implement this trait on your entity types to get CRUD operations.
 ///
 /// # Example
+///
+/// Implement `Entity` on a struct **local to your crate**, with
+/// `type Data = Self`. Do *not* write `impl Entity for Document<YourData>`
+/// (e.g. via `pub type Task = Document<TaskData>`): both `Entity` and
+/// `Document` live in this crate, so that violates Rust's orphan rule and
+/// will not compile in a consumer crate.
+///
 /// ```ignore
 /// use serde::{Deserialize, Serialize};
 /// use clients::couchbase::{Document, Entity};
 ///
 /// #[derive(Debug, Clone, Serialize, Deserialize)]
-/// pub struct TaskData {
+/// pub struct Task {
 ///     pub title: String,
 ///     pub done: bool,
 /// }
 ///
-/// pub type Task = Document<TaskData>;
-///
 /// impl Entity for Task {
-///     type Data = TaskData;
+///     type Data = Self;
 ///     fn collection_name() -> &'static str { "tasks" }
-///     fn service_instance() -> &'static str { "couchbase" }
-///     fn env_prefix() -> &'static str { "COUCHBASE" }
+///     // link_name() defaults to "couchbase" — the connection is read from
+///     // the link mount at /etc/bluetext/links/couchbase/. Override only if
+///     // you linked couchbase under a different alias (`b service link -l`).
 /// }
+///
+/// // CRUD then yields `Document<Task>`:
+/// //   let created: Document<Task>      = Task::create(task).await?;
+/// //   let all:     Vec<Document<Task>> = Task::list(None).await?;
 /// ```
 pub trait Entity: Sized {
     type Data: Serialize + DeserializeOwned + Clone;
@@ -315,19 +337,18 @@ pub trait Entity: Sized {
     /// The Couchbase collection name for this entity.
     fn collection_name() -> &'static str;
 
-    /// The service instance name used to look up the client in the registry.
-    fn service_instance() -> &'static str {
+    /// The link this entity reads its connection from — the alias on the
+    /// consumer's `links:`, mounted at `/etc/bluetext/links/<link>/`.
+    /// Defaults to "couchbase" (the link name `b service link` uses when
+    /// no `-l <name>` is given). Override only if you linked couchbase
+    /// under a different alias.
+    fn link_name() -> &'static str {
         "couchbase"
-    }
-
-    /// The env var prefix used to configure this client instance.
-    fn env_prefix() -> &'static str {
-        "COUCHBASE"
     }
 
     /// Get the Keyspace for this entity.
     async fn get_keyspace() -> Result<Keyspace, String> {
-        let client = get_client(Self::service_instance(), Self::env_prefix()).await?;
+        let client = get_client(Self::link_name()).await?;
         Ok(client
             .get_keyspace(Self::collection_name(), None, None)
             .await)

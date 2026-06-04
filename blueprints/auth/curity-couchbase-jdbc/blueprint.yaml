@@ -1,5 +1,5 @@
 name: Curity Couchbase Data Store (JDBC)
-description: Configure Curity with Couchbase via a JDBC wrapper that translates SQL to N1QL — fits Curity licenses that allow JDBC data sources
+description: Configure Curity with Couchbase via a JDBC wrapper that translates SQL to N1QL — fits Curity licenses that allow JDBC data sources; credentials BCrypt-hashed (cost 10)
 tags: [auth, curity, couchbase, database, jdbc]
 prerequisites:
   - description: Curity service exists

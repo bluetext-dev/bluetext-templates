@@ -1,5 +1,5 @@
 name: Curity HSQLDB Data Store
-description: Configure Curity with file-based HSQLDB for accounts, tokens, sessions, and credentials — persisted in .bluetext/curity-db/
+description: Configure Curity with file-based HSQLDB for accounts, tokens, sessions, and credentials (BCrypt-hashed, cost 10) — persisted in .bluetext/curity-db/
 tags: [auth, curity, hsqldb, database]
 prerequisites:
   - description: Curity service exists

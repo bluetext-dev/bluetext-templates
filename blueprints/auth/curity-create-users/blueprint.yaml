@@ -1,5 +1,5 @@
 name: Curity Create Users
-description: Create user accounts with passwords via SCIM API
+description: Create or update user accounts with passwords via SCIM API — idempotent upsert; re-running re-sets each password so the data source's BCrypt hashing heals any plaintext left by an earlier run
 tags: [auth, curity]
 prerequisites:
   - description: Curity service exists

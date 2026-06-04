@@ -37,6 +37,16 @@
         <data-source-backed>
           <data-source-id>default-datasource</data-source-id>
         </data-source-backed>
+        <!-- Curity hashes credentials with BCrypt (cost 10) on write and
+             bcrypt-verifies on read, producing the `$2a$` prefix. The
+             Couchbase plugin's CredentialDataAccessProvider.store() receives
+             the already-hashed value and persists it verbatim — it does not
+             hash itself, so this element is what makes hashing happen.
+             Omitting it leaves the bucket storing plaintext (Curity 11.x
+             dropped the implicit-bcrypt default). -->
+        <BCrypt>
+          <cost>10</cost>
+        </BCrypt>
       </credential-manager>
     </credential-managers>
   </processing>

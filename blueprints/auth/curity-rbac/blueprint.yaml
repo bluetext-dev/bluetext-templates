@@ -1,5 +1,5 @@
 name: Curity RBAC Stack
-description: Full-stack RBAC — Curity (IdP) + Kong (gateway enforcement) + API (service-level role guards)
+description: Full-stack RBAC — Curity (IdP) + Kong (gateway enforcement) + API (service-level role guards); credentials BCrypt-hashed (cost 10)
 tags: [auth, oidc, security, gateway, phantom-token, rbac]
 prerequisites:
   - description: Curity service exists

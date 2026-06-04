@@ -1,5 +1,5 @@
 name: Curity Couchbase Data Store
-description: Configure Curity with Couchbase as a native data source — accounts, tokens, sessions, and credentials backed by Couchbase via the Curity DAP plugin
+description: Configure Curity with Couchbase as a native data source — accounts, tokens, sessions, and credentials (BCrypt-hashed, cost 10) backed by Couchbase via the Curity DAP plugin
 tags: [auth, curity, couchbase, database, plugin]
 prerequisites:
   - description: Curity service exists

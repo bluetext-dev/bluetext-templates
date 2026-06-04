@@ -33,7 +33,7 @@ steps:
     description: Add the {{app_id}} service
   - run: b run-spec-abstract set rbac -s curity,kong,api,{{app_id}}
     description: Compose the four services into a single run-spec-abstract
-  - run: b run-spec-abstract deployment add rbac development-local -v development -c k3d-local
+  - run: b run-spec-abstract deploy add rbac development-local -v development -c k3d-local
     description: Add the development-local deployment pairing run-spec-variant `development` with the k3d-local cluster
   - run: b bp run auth/curity-hsqldb --no-restart --var deploy_target=rbac/development-local
     description: Configure HSQLDB as the data store

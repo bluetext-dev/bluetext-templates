@@ -20,7 +20,7 @@ steps:
     description: Normalize $CURITY_LICENSE_KEY (accepts the portal envelope JSON, the raw JWT, or fails loud on payload-only input) into the wrapped `{"License":"<jwt>"}` form Curity reads at startup, then write it to the secret store (free trial at developer.curity.io)
   - run: b run-spec-abstract set auth -s couchbase,curity
     description: Compose the two services into a single run-spec-abstract
-  - run: b run-spec-abstract deployment add auth development-local -v development -c k3d-local
+  - run: b run-spec-abstract deploy add auth development-local -v development -c k3d-local
     description: Add the development-local deployment pairing run-spec-variant `development` with the k3d-local cluster
   - run: b bp run auth/curity-couchbase --no-restart --var deploy_target=auth/development-local
     description: Switch Curity's data source from HSQLDB to Couchbase (plugin self-provisions bucket + collections + indexes on first connect)

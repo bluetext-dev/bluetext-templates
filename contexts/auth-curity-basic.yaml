@@ -17,7 +17,7 @@ steps:
     description: Normalize $CURITY_LICENSE_KEY (accepts the portal envelope JSON, the raw JWT, or fails loud on payload-only input) into the wrapped `{"License":"<jwt>"}` form Curity reads at startup, then write it to the secret store
   - run: b run-spec-abstract set auth -s curity
     description: Compose Curity into a single-service run-spec-abstract
-  - run: b run-spec-abstract deployment add auth development-local -v development -c k3d-local
+  - run: b run-spec-abstract deploy add auth development-local -v development -c k3d-local
     description: Add the development-local deployment pairing run-spec-variant `development` with the k3d-local cluster
   - run: b bp run auth/curity-hsqldb --no-restart --var deploy_target=auth/development-local
     description: Configure HSQLDB as the data store (accounts, tokens, sessions)

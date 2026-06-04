@@ -38,7 +38,7 @@ steps:
     description: Add the {{app_id}} service
   - run: b run-spec-abstract set rbac -s couchbase,curity,kong,api,{{app_id}}
     description: Compose the five services into a single run-spec-abstract
-  - run: b run-spec-abstract deployment add rbac development-local -v development -c k3d-local
+  - run: b run-spec-abstract deploy add rbac development-local -v development -c k3d-local
     description: Add the development-local deployment pairing run-spec-variant `development` with the k3d-local cluster
   - run: b bp run auth/curity-couchbase --no-restart --var deploy_target=rbac/development-local
     description: Switch Curity to Couchbase (plugin self-provisions bucket + 10 curity-* collections + indexes; deploys custom Curity image with the plugin)

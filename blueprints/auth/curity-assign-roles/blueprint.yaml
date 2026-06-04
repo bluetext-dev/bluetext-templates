@@ -23,7 +23,7 @@ variables:
     description: "Comma-separated username:role pairs (e.g. alice:admin,bob:moderator)"
     type: string
   - name: namespace
-    description: Service group within the run-spec
+    description: Service group within the run-spec-abstract
     type: namespace
     depends_on: deploy_target
     default: main

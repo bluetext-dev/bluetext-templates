@@ -19,7 +19,7 @@ variables:
     default: kong
   - name: namespace
     alias: n
-    description: Service group within the run-spec
+    description: Service group within the run-spec-abstract
     type: namespace
     depends_on: deploy_target
     default: main

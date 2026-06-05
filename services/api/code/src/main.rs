@@ -27,6 +27,10 @@ async fn main() {
         .and_then(|p| p.parse().ok())
         .unwrap_or(3030);
 
+    // axum 0.8: path captures are `/{id}` (e.g. `.route("/items/{id}", …)`).
+    // The 0.7-style `/items/:id` panics at startup: "Path segments must not
+    // start with `:`" — and in mirrord dev mode that panic only shows in the
+    // host-side dev-process.log while the pod keeps reading Running.
     let app = Router::new()
         .route("/", get(|| async { "bluetext api" }))
         .route("/health", get(health))

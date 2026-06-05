@@ -151,8 +151,13 @@ steps:
         resources:
           - ../base
 
-  - name: Build + redeploy the api image so the new model + in-cluster mode take effect
+  # Full-target deploy, NOT `only: api` — on a fresh system nothing else is
+  # running yet, and an api-only deploy leaves the pod waiting on a Couchbase
+  # that never comes (0/1 ready for the whole 600s rollout timeout). The full
+  # deploy brings the datastore + web-app up too, and its secrets preflight
+  # fails fast with the exact `b secret set` commands when credentials are
+  # missing, instead of hanging.
+  - name: Deploy the full target (api + web-app + couchbase) so the new model takes effect
     tool: deploy
     params:
       deploy_target: "{{deploy_target}}"
-      only: "{{api_service}}"

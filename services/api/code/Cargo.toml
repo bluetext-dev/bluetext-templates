@@ -3,6 +3,16 @@ name = "api"
 version = "0.1.0"
 edition = "2021"
 
+# Empty [workspace] table makes this generated service its own workspace root.
+# Once copied into a system at `code/services/api/`, the crate can sit under an
+# ancestor that carries a Cargo workspace (the bluetext dev checkout in dev
+# mode, or a system-level workspace) which would otherwise try to claim it as a
+# member and fail the build. Opting out here means `cargo check` / `cargo watch`
+# in the service directory works the moment the service is scaffolded — no
+# hand-added shim. (The couchbase/curity api-config crates carry the same table
+# for the same reason.)
+[workspace]
+
 [dependencies]
 axum = "0.8"
 tokio = { version = "1", features = ["full"] }

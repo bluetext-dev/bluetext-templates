@@ -3,6 +3,7 @@ use couchbase::cluster::Cluster;
 use couchbase::collection::Collection;
 use couchbase::error::ErrorKind;
 use couchbase::options::cluster_options::ClusterOptions;
+use couchbase::options::query_options::{QueryOptions, ScanConsistency};
 use futures_util::TryStreamExt;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::collections::HashMap;
@@ -223,11 +224,21 @@ impl Keyspace {
     }
 
     /// Execute a N1QL query with `${keyspace}` substitution.
+    ///
+    /// Runs with `request_plus` scan consistency: the query engine waits for
+    /// the index to catch up to every mutation issued before this call, so a
+    /// document written just beforehand is visible. The N1QL default
+    /// (`not_bounded`) is eventually consistent — a read-after-write such as
+    /// "insert a highscore, then list highscores" can miss the row it just
+    /// wrote, which reads as data loss. Correct-by-default is the right trade
+    /// for an application data path; the extra index-wait latency is the cost
+    /// of seeing your own writes.
     pub async fn query(&self, query: &str) -> Result<Vec<serde_json::Value>, String> {
         let query = query.replace("${keyspace}", &self.to_string());
         let cluster = self.client.cluster();
+        let options = QueryOptions::new().scan_consistency(ScanConsistency::RequestPlus);
         let mut result = cluster
-            .query(&query, None)
+            .query(&query, options)
             .await
             .map_err(|e| format!("Query failed: {e}"))?;
         let rows: Vec<serde_json::Value> = result

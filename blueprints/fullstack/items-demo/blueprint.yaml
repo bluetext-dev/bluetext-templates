@@ -55,9 +55,9 @@ variables:
     default: couchbase
   - name: bucket
     alias: b
-    description: Couchbase bucket to store items in. Must already exist.
+    description: Couchbase bucket to store items in. Provisioned by the api-config bundle at deploy time.
     type: string
-    default: default
+    default: main
 
 restarts: [api, web-app]
 
@@ -150,6 +150,16 @@ steps:
         kind: Kustomization
         resources:
           - ../base
+
+  # Provision the `items` collection the model writes into. Each entity gets its
+  # own named collection (model uses `#[store(collection = "items")]`); the
+  # api-config job converges this state.yaml at deploy time and creates it. When
+  # adapting to a second entity, add its collection here too.
+  - name: Provision the Couchbase `items` collection (api-config state.yaml)
+    tool: file_write
+    params:
+      file: config/api/{{upstream_couchbase}}/base/state.yaml
+      content_file: files/api-config/couchbase-state.yaml
 
   # Full-target deploy, NOT `only: api` — on a fresh system nothing else is
   # running yet, and an api-only deploy leaves the pod waiting on a Couchbase

@@ -18,15 +18,20 @@ pub use items::Item;
 // `/etc/bluetext/links/database/`, never from env vars. No manual
 // `connect()` to write here.
 //
-// `#[store(couchbase, link = "database")]` names the link this model
-// reads, matching the `links: database: couchbase/data-writer` entry the
-// blueprint adds to the api service. `#[store(collection = "_default")]`
-// routes documents into the bucket's always-existing `_default._default`
-// keyspace, so the blueprint doesn't have to provision a collection.
+// `#[store(couchbase, link = "database")]` names the link this model reads,
+// matching the `links: database: couchbase/data-writer` entry the blueprint adds
+// to the api service. Each entity gets its OWN named collection (here `items`),
+// provisioned by the api-config `state.yaml` this blueprint writes.
+//
+// IMPORTANT when you adapt this: use a DISTINCT collection per type. `values::<T>()`
+// reads EVERY document in a collection, so two types sharing one collection make
+// the read fail to deserialize. To add a second entity (e.g. `Order`), give it its
+// own `#[store(collection = "orders")]` AND add an `orders` collection to
+// `config/api/couchbase/base/state.yaml`.
 #[state_machine("items-demo")]
 #[store(couchbase, link = "database")]
 pub struct AppState {
-    #[store(collection = "_default")]
+    #[store(collection = "items")]
     items: CouchbaseCollection<Item>,
 }
 

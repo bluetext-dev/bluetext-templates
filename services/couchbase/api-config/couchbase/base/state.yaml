@@ -2,9 +2,11 @@
 #
 # Each `buckets:` entry describes one bucket the bundle's `ensure_state`
 # handler converges via Couchbase's admin REST API (port 8091, basic
-# auth from /etc/bluetext/peers/self/{username,password}). The default
-# ships a single empty `default` bucket so couchbase boots usable on
-# first deploy without committing the system to a particular schema.
+# auth from /etc/bluetext/peers/self/{username,password}). Ships a single
+# empty `main` bucket — `main` is the bucket a `#[state_machine]` model's
+# CouchbaseCollection fields connect to by default (see the macro's default
+# bucket + docs/MODELING.md), so couchbase boots usable on first deploy and
+# the default model finds its bucket without any further config.
 #
 # Customising:
 #
@@ -25,7 +27,7 @@
 #   durability-min-level — optional; defaults to "none"
 
 buckets:
-  - name: default
+  - name: main
 
 # Example: Curity datasource schema. Uncomment when running
 # `auth/curity-couchbase-jdbc`. Ships the 18-collection layout the

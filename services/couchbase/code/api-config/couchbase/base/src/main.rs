@@ -12,9 +12,11 @@
 //!
 //! This binary:
 //!
-//! 1. Loads its bundle directory (`config/api/couchbase/base/` on the
-//!    system, which the deploy pipeline mounts read-only into the Job
-//!    pod).
+//! 1. Loads its bundle directory (`config/api/couchbase/base/` from the
+//!    system, which the deploy pipeline bakes into this image at
+//!    `/config/api/couchbase/base/` when it builds the Job image —
+//!    state.yaml edits reach the Job through an image rebuild, not a
+//!    live mount).
 //! 2. Constructs the ctx from env + peer projection.
 //! 3. Runs every migration's steps in numeric order, dispatching by
 //!    `handler:` name into the inventory the `#[handler]` macros built.
@@ -33,8 +35,8 @@ async fn main() -> Result<()> {
         ctx.abstract_id, ctx.variant_id, ctx.run_spec_variant
     );
 
-    // The bundle source is mounted at /config/api/<sub>/<bundle>/ on
-    // the Job pod by the deploy pipeline.
+    // The bundle source is baked into this image at
+    // /config/api/<sub>/<bundle>/ by the deploy pipeline's image build.
     let bundle_dir = std::path::PathBuf::from("/config/api/couchbase/base");
     if !bundle_dir.exists() {
         eprintln!(

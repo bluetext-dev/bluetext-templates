@@ -183,6 +183,7 @@ async fn ensure_scope(
     }
     let body = resp.text().await.unwrap_or_default();
     if body.contains("already exists") {
+        eprintln!("[couchbase-api-config] scope '{bucket}.{scope}' already exists");
         return Ok(());
     }
     Err(format!("create scope '{bucket}.{scope}' failed (status {status}): {body}").into())
@@ -214,6 +215,9 @@ async fn ensure_collection(
     }
     let body = resp.text().await.unwrap_or_default();
     if body.contains("already exists") {
+        eprintln!(
+            "[couchbase-api-config] collection '{bucket}.{scope}.{collection}' already exists"
+        );
         return Ok(());
     }
     Err(format!(

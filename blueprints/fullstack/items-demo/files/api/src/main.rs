@@ -4,7 +4,7 @@
 #![recursion_limit = "512"]
 
 use axum::{Json, Router, extract::State, http::StatusCode, routing::get};
-use models::{AppState, Item};
+use models::{AppState, {{entity}}};
 use serde::{Deserialize, Serialize};
 use std::{net::SocketAddr, sync::Arc};
 use tower_http::cors::{Any, CorsLayer};
@@ -12,7 +12,7 @@ use uuid::Uuid;
 
 // Controllers — one endpoint = one command call. No business logic, no
 // direct database access. Validation, idempotency, and state invariants
-// live in the model layer (see `code/models/src/items.rs`).
+// live in the model layer (see `model/src/{{collection}}.rs`).
 
 #[derive(Serialize)]
 struct Health {
@@ -24,29 +24,30 @@ async fn health() -> Json<Health> {
 }
 
 #[derive(Deserialize)]
-struct NewItem {
+struct New{{entity}} {
     text: String,
 }
 
-async fn list_items(
+async fn list_{{collection}}(
     State(state): State<Arc<AppState>>,
-) -> Result<Json<Vec<Item>>, (StatusCode, String)> {
+) -> Result<Json<Vec<{{entity}}>>, (StatusCode, String)> {
     state
-        .all_items()
+        .all_{{collection}}()
         .await
         .map(Json)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
 }
 
-async fn create_item(
+async fn create_{{entity_snake}}(
     State(state): State<Arc<AppState>>,
-    Json(payload): Json<NewItem>,
-) -> Result<Json<Item>, (StatusCode, String)> {
+    Json(payload): Json<New{{entity}}>,
+) -> Result<Json<{{entity}}>, (StatusCode, String)> {
     // The controller generates the id so a retried HTTP call is idempotent
-    // at the mutation layer (`create_item` short-circuits on duplicate key).
+    // at the mutation layer (`create_{{entity_snake}}` short-circuits on
+    // duplicate key).
     let id = Uuid::new_v4().to_string();
     state
-        .submit_item(id, payload.text)
+        .submit_{{entity_snake}}(id, payload.text)
         .await
         .map(Json)
         .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))
@@ -60,9 +61,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap_or(3030);
 
     // Single bootstrap point — `AppState::__connect()` is auto-generated
-    // by `#[state_machine]`; it reads the COUCHBASE_* env vars injected by
-    // `b service wire` and binds each state-var. Every controller holds a
-    // shared reference.
+    // by `#[state_machine]`; it reads the `database` link mount and binds
+    // each state-var. Every controller holds a shared reference.
     let state = Arc::new(
         AppState::__connect()
             .await
@@ -78,7 +78,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app = Router::new()
         .route("/", get(|| async { "bluetext api" }))
         .route("/health", get(health))
-        .route("/items", get(list_items).post(create_item))
+        .route("/{{collection}}", get(list_{{collection}}).post(create_{{entity_snake}}))
         .with_state(state)
         .layer(cors);
 

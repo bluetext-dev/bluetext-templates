@@ -1,14 +1,18 @@
-name: Items CRUD round-trip (api + web-app + Couchbase)
+name: Entity CRUD round-trip (api + web-app + Couchbase)
 description: >-
-  Materializes an `Item` entity in the project's modeling layer — state
+  Materializes a CRUD entity in the project's modeling layer — state
   machine, mutation, getter, command, and state invariant — then wires a
   thin axum controller in the api service and a matching form + list in
-  the web-app home page. Respects the system's dev modes: with the
+  the web-app home page. The entity is a variable: pass your domain type
+  directly (`-v entity=HighScore -v entity_snake=highscore -v
+  collection=highscores`) and the generated model, routes, collection,
+  and frontend carry it from the start — no rename pass afterwards; only
+  the entity's fields and logic remain to adapt. Defaults produce the
+  classic `Item` demo. Respects the system's dev modes: with the
   scaffold's default mirrord entry the api compiles incrementally on the
-  host, and the deploy prints the `b wait service` command that blocks
-  until it serves. Demonstrates a full frontend → API → datastore
-  round-trip that follows the platform's modeling architecture
-  (docs/MODELING.md).
+  host, and the deploy blocks until it serves. Demonstrates a full
+  frontend → API → datastore round-trip that follows the platform's
+  modeling architecture (docs/MODELING.md).
 tags: [fullstack, api, couchbase, crud, demo]
 
 prerequisites:
@@ -26,9 +30,9 @@ prerequisites:
       id: "{{upstream_couchbase}}"
 
 caveats:
-  - Overwrites the project's `model/` crate (lib.rs, items.rs, Cargo.toml) to define the Item state machine. Existing model content is replaced.
-  - With the api in a host-side dev mode (the scaffold default is mirrord), the deploy spawns the host process and prints a `b wait service {{api_service}} -d <target>` command — run it to block until the api serves. With the api in-cluster (no dev-modes entry), the deploy rebuilds the api base image instead; the first build can take a few minutes.
-  - The api ingress returns 502 until the api serves (readiness probe in-cluster, host process under a dev mode). Polling the ingress is fine.
+  - Overwrites the project's `model/` crate (lib.rs, {{collection}}.rs, Cargo.toml) to define the {{entity}} state machine. Existing model content is replaced.
+  - With the api in a host-side dev mode (the scaffold default is mirrord), the deploy spawns the host process and blocks until it serves (the wait extends through a cold compile while the process is alive). With the api in-cluster (no dev-modes entry), the deploy rebuilds the api base image instead; the first build can take a few minutes.
+  - The `entity` / `entity_snake` / `collection` variables must be coherent, valid Rust identifiers (CamelCase type, snake_case singular, snake_case plural) — they name the struct, the functions, the module file, the Couchbase collection, and the HTTP route.
   - Couchbase must already be initialized with the {{bucket}} bucket before running this blueprint. The couchbase api-config bundle (`config/api/couchbase/<bundle>/` + `code/api-config/couchbase/<bundle>/`) handles bucket setup at deploy time.
 
 variables:
@@ -57,9 +61,24 @@ variables:
     default: couchbase
   - name: bucket
     alias: b
-    description: Couchbase bucket to store items in. Provisioned by the api-config bundle at deploy time.
+    description: Couchbase bucket to store the entity in. Provisioned by the api-config bundle at deploy time.
     type: string
     default: main
+  - name: entity
+    alias: e
+    description: 'Domain type name (CamelCase Rust identifier) the scaffold materializes — pass your real entity (e.g. HighScore) so no rename pass is needed afterwards. Keep entity_snake and collection coherent with it.'
+    type: string
+    default: Item
+  - name: entity_snake
+    alias: s
+    description: 'snake_case singular of `entity` (e.g. highscore) — names the create/get/submit functions.'
+    type: string
+    default: item
+  - name: collection
+    alias: c
+    description: 'snake_case plural of `entity` (e.g. highscores) — names the model module file, the Couchbase collection, the list commands, and the HTTP route (/<collection>).'
+    type: string
+    default: items
 
 restarts: [api, web-app]
 
@@ -95,11 +114,11 @@ steps:
       file: model/src/lib.rs
       content_file: files/model/src/lib.rs
 
-  - name: Write Item entity — mutation, getter, command, state invariant
+  - name: Write {{entity}} entity — mutation, getter, command, state invariant
     tool: file_write
     params:
-      file: model/src/items.rs
-      content_file: files/model/src/items.rs
+      file: model/src/{{collection}}.rs
+      content_file: files/model/src/entity.rs
 
   - name: Write model simulation entry point
     tool: file_write
@@ -124,7 +143,7 @@ steps:
 
   # ─── Frontend ───────────────────────────────────────────────────────
 
-  - name: Replace web-app home.tsx with items form + list
+  - name: Replace web-app home.tsx with {{entity}} form + list
     tool: file_write
     params:
       file: code/services/{{web_service}}/app/routes/home.tsx
@@ -135,14 +154,14 @@ steps:
   # builds) or the in-cluster image — is the developer's choice in
   # config/system/dev-modes.yaml, and a demo blueprint configures the
   # demo, not the development workflow. The deploy step handles both:
-  # host-side modes get spawned + a printed `b wait service` command,
+  # host-side modes get spawned + blocked on until they serve,
   # in-cluster gets the image build.
 
-  # Provision the `items` collection the model writes into. Each entity gets its
-  # own named collection (model uses `#[store(collection = "items")]`); the
-  # api-config job converges this state.yaml at deploy time and creates it. When
-  # adapting to a second entity, add its collection here too.
-  - name: Provision the Couchbase `items` collection (api-config state.yaml)
+  # Provision the collection the model writes into. Each entity gets its
+  # own named collection (model uses `#[store(collection = "{{collection}}")]`);
+  # the api-config job converges this state.yaml at deploy time and creates it.
+  # When adapting to a second entity, add its collection here too.
+  - name: Provision the Couchbase `{{collection}}` collection (api-config state.yaml)
     tool: file_write
     params:
       file: config/api/{{upstream_couchbase}}/base/state.yaml

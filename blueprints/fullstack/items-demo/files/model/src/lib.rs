@@ -1,16 +1,16 @@
 use bluetext_model::prelude::*;
 use bluetext_model::stores::couchbase::CouchbaseCollection;
 
-pub mod items;
+pub mod {{collection}};
 
-pub use items::Item;
+pub use {{collection}}::{{entity}};
 
 // State machine — the whole data model for the fullstack demo.
 //
-// `items` is a typed handle to a Couchbase collection, not an in-memory
-// map. Mutations/getters run against the live bucket, so the same
-// `#[mutation] create_item` the simulation exercises is the one the api
-// controller calls in production (docs/MODELING.md).
+// `{{collection}}` is a typed handle to a Couchbase collection, not an
+// in-memory map. Mutations/getters run against the live bucket, so the same
+// `#[mutation] create_{{entity_snake}}` the simulation exercises is the one
+// the api controller calls in production (docs/MODELING.md).
 //
 // The `#[state_machine]` attribute injects a hidden `__stores` field
 // and synthesizes `__connect()`, which reads the connection — host plus
@@ -20,19 +20,20 @@ pub use items::Item;
 //
 // `#[store(couchbase, link = "database")]` names the link this model reads,
 // matching the `links: database: couchbase/data-writer` entry the blueprint adds
-// to the api service. Each entity gets its OWN named collection (here `items`),
-// provisioned by the api-config `state.yaml` this blueprint writes.
+// to the api service. Each entity gets its OWN named collection (here
+// `{{collection}}`), provisioned by the api-config `state.yaml` this blueprint
+// writes.
 //
 // IMPORTANT when you adapt this: use a DISTINCT collection per type. `values::<T>()`
 // reads EVERY document in a collection, so two types sharing one collection make
 // the read fail to deserialize. To add a second entity (e.g. `Order`), give it its
 // own `#[store(collection = "orders")]` AND add an `orders` collection to
 // `config/api/couchbase/base/state.yaml`.
-#[state_machine("items-demo")]
+#[state_machine("{{collection}}-demo")]
 #[store(couchbase, link = "database")]
 pub struct AppState {
-    #[store(collection = "items")]
-    items: CouchbaseCollection<Item>,
+    #[store(collection = "{{collection}}")]
+    {{collection}}: CouchbaseCollection<{{entity}}>,
 }
 
 // Mutations, getters, state invariants, simulation hooks — the state
@@ -48,55 +49,55 @@ impl AppState {
     // an internal invariant, not a precondition the caller can fix. Axum's
     // panic handler converts to a 5xx, which the controller surfaces.
     #[mutation]
-    pub async fn create_item(
+    pub async fn create_{{entity_snake}}(
         &self,
-        #[new_key(items)] id: String,
+        #[new_key({{collection}})] id: String,
         text: String,
     ) -> Result<bool, MutationError> {
-        if self.items.exists(&id).await.expect("items.exists failed") {
+        if self.{{collection}}.exists(&id).await.expect("{{collection}}.exists failed") {
             return Ok(false);
         }
-        self.items
-            .upsert(&id, &Item { id: id.clone(), text })
+        self.{{collection}}
+            .upsert(&id, &{{entity}} { id: id.clone(), text })
             .await
-            .expect("items.upsert failed");
+            .expect("{{collection}}.upsert failed");
         Ok(true)
     }
 
     #[getter]
-    pub async fn get_item(&self, #[key(items)] id: String) -> Option<Item> {
-        self.items.get(&id).await.expect("items.get failed")
+    pub async fn get_{{entity_snake}}(&self, #[key({{collection}})] id: String) -> Option<{{entity}}> {
+        self.{{collection}}.get(&id).await.expect("{{collection}}.get failed")
     }
 
     #[getter]
-    pub async fn list_items(&self) -> Vec<Item> {
-        self.items.values().await.expect("items.values failed")
+    pub async fn list_{{collection}}(&self) -> Vec<{{entity}}> {
+        self.{{collection}}.values().await.expect("{{collection}}.values failed")
     }
 
     // Enforced after every mutation in both production and simulation.
     #[state_invariant]
-    pub async fn items_have_text(&self) -> bool {
-        self.items
+    pub async fn {{collection}}_have_text(&self) -> bool {
+        self.{{collection}}
             .values()
             .await
-            .expect("items.values failed")
+            .expect("{{collection}}.values failed")
             .iter()
-            .all(|it| !it.text.is_empty())
+            .all(|entry| !entry.text.is_empty())
     }
 
     #[simulation_init]
     pub async fn init(&self) {}
 
     // Randomized simulation step — the invariant checker replays this to
-    // look for traces that violate `items_have_text`.
+    // look for traces that violate `{{collection}}_have_text`.
     #[simulation_step]
     pub async fn step(&self) -> bool {
         let id = format!(
             "sim-{}",
-            self.items.keys().await.expect("items.keys failed").len()
+            self.{{collection}}.keys().await.expect("{{collection}}.keys failed").len()
         );
-        let text = format!("simulated item {id}");
-        self.submit_item(id, text).await.is_ok()
+        let text = format!("simulated {{entity_snake}} {id}");
+        self.submit_{{entity_snake}}(id, text).await.is_ok()
     }
 }
 
@@ -108,21 +109,21 @@ impl AppState {
     // Validate input and persist. Caller passes the id so retries are
     // idempotent at the mutation layer.
     #[command]
-    pub async fn submit_item(&self, id: String, text: String) -> Result<Item, CommandError> {
+    pub async fn submit_{{entity_snake}}(&self, id: String, text: String) -> Result<{{entity}}, CommandError> {
         let text = text.trim().to_string();
         label!("Empty text");
         if text.is_empty() {
             return Err(CommandError::from("text must not be empty"));
         }
-        self.create_item(id.clone(), text.clone())
+        self.create_{{entity_snake}}(id.clone(), text.clone())
             .await
-            .map_err(|e| CommandError::from(format!("create_item failed: {e:?}")))?;
-        Ok(Item { id, text })
+            .map_err(|e| CommandError::from(format!("create_{{entity_snake}} failed: {e:?}")))?;
+        Ok({{entity}} { id, text })
     }
 
     #[command]
-    pub async fn all_items(&self) -> Result<Vec<Item>, CommandError> {
-        Ok(self.list_items().await)
+    pub async fn all_{{collection}}(&self) -> Result<Vec<{{entity}}>, CommandError> {
+        Ok(self.list_{{collection}}().await)
     }
 }
 
@@ -130,6 +131,6 @@ bluetext_model::model! {
     state_machine: AppState,
     source_dir: "model/src",
     modules: [],
-    types: [items::Item],
+    types: [{{collection}}::{{entity}}],
     commands: [__commands_block_meta],
 }

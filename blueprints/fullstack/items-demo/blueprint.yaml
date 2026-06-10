@@ -3,10 +3,12 @@ description: >-
   Materializes an `Item` entity in the project's modeling layer — state
   machine, mutation, getter, command, and state invariant — then wires a
   thin axum controller in the api service and a matching form + list in
-  the web-app home page. Flips the api out of mirrord dev mode so the
-  container actually serves traffic in-cluster. Demonstrates a full
-  frontend → API → datastore round-trip that follows the platform's
-  modeling architecture (docs/MODELING.md).
+  the web-app home page. Respects the system's dev modes: with the
+  scaffold's default mirrord entry the api compiles incrementally on the
+  host, and the deploy prints the `b wait service` command that blocks
+  until it serves. Demonstrates a full frontend → API → datastore
+  round-trip that follows the platform's modeling architecture
+  (docs/MODELING.md).
 tags: [fullstack, api, couchbase, crud, demo]
 
 prerequisites:
@@ -25,8 +27,8 @@ prerequisites:
 
 caveats:
   - Overwrites the project's `model/` crate (lib.rs, items.rs, Cargo.toml) to define the Item state machine. Existing model content is replaced.
-  - The api base image (api-api:latest) is rebuilt during the follow-up deploy. First build can take a few minutes.
-  - The api ingress returns 502 until the pod's readiness probe passes. Polling the ingress is fine.
+  - With the api in a host-side dev mode (the scaffold default is mirrord), the deploy spawns the host process and prints a `b wait service {{api_service}} -d <target>` command — run it to block until the api serves. With the api in-cluster (no dev-modes entry), the deploy rebuilds the api base image instead; the first build can take a few minutes.
+  - The api ingress returns 502 until the api serves (readiness probe in-cluster, host process under a dev mode). Polling the ingress is fine.
   - Couchbase must already be initialized with the {{bucket}} bucket before running this blueprint. The couchbase api-config bundle (`config/api/couchbase/<bundle>/` + `code/api-config/couchbase/<bundle>/`) handles bucket setup at deploy time.
 
 variables:
@@ -128,28 +130,13 @@ steps:
       file: code/services/{{web_service}}/app/routes/home.tsx
       content_file: files/web/home.tsx
 
-  # ─── Make the api actually serve traffic in-cluster ────────────────
-
-  - name: Flip api out of mirrord dev mode (clear config/system/dev-modes.yaml)
-    tool: file_write
-    params:
-      file: config/system/dev-modes.yaml
-      # Empty mapping clears the api template's auto-seeded mirrord
-      # entry. With no entry, the deploy pipeline runs the api
-      # in-cluster (the default; PROPOSAL §D13: dev-modes are opt-in
-      # per (run-spec-variant, abstract)).
-      content: |
-        {}
-
-  - name: Simplify api development overlay (drop mirrord hostPath patches; base image handles it)
-    tool: file_write
-    params:
-      file: config/k8s/{{api_service}}/{{api_service}}/_default/kustomization.yaml
-      content: |
-        apiVersion: kustomize.config.k8s.io/v1beta1
-        kind: Kustomization
-        resources:
-          - ../base
+  # Dev modes stay untouched: which substrate compiles the api —
+  # host process under mirrord (the scaffold default, incremental
+  # builds) or the in-cluster image — is the developer's choice in
+  # config/system/dev-modes.yaml, and a demo blueprint configures the
+  # demo, not the development workflow. The deploy step handles both:
+  # host-side modes get spawned + a printed `b wait service` command,
+  # in-cluster gets the image build.
 
   # Provision the `items` collection the model writes into. Each entity gets its
   # own named collection (model uses `#[store(collection = "items")]`); the

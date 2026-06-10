@@ -54,7 +54,7 @@ blueprints:
           file: config/curity/user-management.xml
   - id: auth/curity-couchbase
     name: Curity Couchbase Data Store
-    description: Configure Curity with Couchbase as a native data source — accounts, tokens, sessions, and credentials backed by Couchbase via the Curity DAP plugin
+    description: Configure Curity with Couchbase as a native data source — accounts, tokens, sessions, and credentials (BCrypt-hashed, cost 10) backed by Couchbase via the Curity DAP plugin
     tags: [auth, curity, couchbase, database, plugin]
     prerequisites:
       - description: Curity service exists
@@ -67,7 +67,7 @@ blueprints:
           id: couchbase
   - id: auth/curity-couchbase-jdbc
     name: Curity Couchbase Data Store (JDBC)
-    description: Configure Curity with Couchbase via a JDBC wrapper that translates SQL to N1QL — fits Curity licenses that allow JDBC data sources
+    description: Configure Curity with Couchbase via a JDBC wrapper that translates SQL to N1QL — fits Curity licenses that allow JDBC data sources; credentials BCrypt-hashed (cost 10)
     tags: [auth, curity, couchbase, database, jdbc]
     prerequisites:
       - description: Curity service exists
@@ -80,7 +80,7 @@ blueprints:
           id: couchbase
   - id: auth/curity-create-users
     name: Curity Create Users
-    description: Create user accounts with passwords via SCIM API
+    description: "Create or update user accounts with passwords via SCIM API — idempotent upsert; re-running re-sets each password so the data source's BCrypt hashing heals any plaintext left by an earlier run"
     tags: [auth, curity]
     prerequisites:
       - description: Curity service exists
@@ -93,7 +93,7 @@ blueprints:
           file: config/curity/user-management.xml
   - id: auth/curity-hsqldb
     name: Curity HSQLDB Data Store
-    description: Configure Curity with file-based HSQLDB for accounts, tokens, sessions, and credentials — persisted in .bluetext/curity-db/
+    description: Configure Curity with file-based HSQLDB for accounts, tokens, sessions, and credentials (BCrypt-hashed, cost 10) — persisted in .bluetext/curity-db/
     tags: [auth, curity, hsqldb, database]
     prerequisites:
       - description: Curity service exists
@@ -124,7 +124,7 @@ blueprints:
           id: kong
   - id: auth/curity-rbac
     name: Curity RBAC Stack
-    description: Full-stack RBAC — Curity (IdP) + Kong (gateway enforcement) + API (service-level role guards)
+    description: Full-stack RBAC — Curity (IdP) + Kong (gateway enforcement) + API (service-level role guards); credentials BCrypt-hashed (cost 10)
     tags: [auth, oidc, security, gateway, phantom-token, rbac]
     prerequisites:
       - description: Curity service exists
@@ -196,8 +196,8 @@ blueprints:
         params:
           id: kong
   - id: fullstack/items-demo
-    name: Items CRUD round-trip (api + web-app + Couchbase)
-    description: "Materializes an `Item` entity in the project's modeling layer — state machine, mutation, getter, command, and state invariant — then wires a thin axum controller in the api service and a matching form + list in the web-app home page. Flips the api out of mirrord dev mode so the container actually serves traffic in-cluster. Demonstrates a full frontend → API → datastore round-trip that follows the platform's modeling architecture (docs/MODELING.md)."
+    name: Entity CRUD round-trip (api + web-app + Couchbase)
+    description: "Materializes a CRUD entity in the project's modeling layer — state machine, mutation, getter, command, and state invariant — then wires a thin axum controller in the api service and a matching form + list in the web-app home page. The entity is a variable: pass your domain type directly (`-v entity=HighScore -v entity_snake=highscore -v collection=highscores`) and the generated model, routes, collection, and frontend carry it from the start — no rename pass afterwards; only the entity's fields and logic remain to adapt. Defaults produce the classic `Item` demo. Respects the system's dev modes: with the scaffold's default mirrord entry the api compiles incrementally on the host, and the deploy blocks until it serves. Demonstrates a full frontend → API → datastore round-trip that follows the platform's modeling architecture (docs/MODELING.md)."
     tags: [fullstack, api, couchbase, crud, demo]
     prerequisites:
       - description: api service exists

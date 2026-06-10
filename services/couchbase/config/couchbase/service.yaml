@@ -17,8 +17,16 @@ connection-profiles:
   data-writer:
     interface: client
     secret: variant::auth
+    # Projected into every consumer's link mount as the `bucket` file
+    # (/etc/bluetext/links/<link>/bucket) — the single declaration of
+    # which bucket this grant addresses. `main` matches what the
+    # api-config bundle's state.yaml provisions by default. A second
+    # bucket on the same cluster gets its own profile (and consumers
+    # link it separately — one link per bucket-grant).
+    metadata:
+      bucket: main
   ops:
-    interface: admin
+    interface: admin       # cluster-level management — no bucket
     secret: variant::auth
 api-config-bundles:
   - couchbase/base                # config/api/couchbase/base/ — bucket/scope/collection provisioning

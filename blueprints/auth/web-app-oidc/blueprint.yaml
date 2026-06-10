@@ -108,15 +108,11 @@ steps:
       match_kind: Deployment
       path: spec.template.spec.containers.0.env
       content_file: files/web-app-proxy-env.yaml
-  - name: Switch the API to in-cluster mode (the RBAC stack runs the API as a real container, not via mirrord)
-    tool: file_write
-    params:
-      file: config/system/dev-modes.yaml
-      # Empty mapping clears the api template's mirrord dev-mode entry.
-      # With no entry, the deploy pipeline runs the API in-cluster (the
-      # default; PROPOSAL §D13: dev-modes are opt-in per (run-spec-variant, abstract)).
-      content: |
-        {}
+  # Dev modes stay untouched (same doctrine as fullstack/items-demo):
+  # RBAC enforcement lives at the gateway and in the api's middleware;
+  # which substrate compiles the api — host process under mirrord or
+  # the in-cluster image — is the developer's choice in
+  # config/system/dev-modes.yaml. The deploy handles both.
   - name: Restart curity in {{namespace}}
     tool: service_restart
     params:

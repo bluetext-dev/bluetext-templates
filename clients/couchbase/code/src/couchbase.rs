@@ -35,9 +35,12 @@ impl CouchbaseConf {
     /// `password`) there; this reads them. `host` / `username` /
     /// `password` are required — a missing file fails loud (no silent
     /// fallback), because it means this service isn't linked to couchbase.
-    /// `bucket` defaults to "default" (the bucket
-    /// `api-config/couchbase/base/state.yaml` provisions on first deploy),
-    /// overridable with an optional `bucket` file in the mount.
+    /// `bucket` defaults to "main" — the platform-wide default: the bucket a
+    /// `#[state_machine]` model's CouchbaseCollection fields connect to and
+    /// the one the scaffolded `api-config/couchbase/base/state.yaml`
+    /// provisions on first deploy. Overridable with an optional `bucket`
+    /// file in the mount, so every consumer of one link agrees on the
+    /// bucket from one place.
     pub fn from_link(link_name: &str) -> Result<Self, String> {
         let dir = std::path::Path::new("/etc/bluetext/links").join(link_name);
         let read = |file: &str| -> Result<String, String> {
@@ -56,7 +59,7 @@ impl CouchbaseConf {
         let protocol = read("protocol").unwrap_or_else(|_| "couchbase".to_string());
         let username = read("username")?;
         let password = read("password")?;
-        let bucket = read("bucket").unwrap_or_else(|_| "default".to_string());
+        let bucket = read("bucket").unwrap_or_else(|_| "main".to_string());
 
         Ok(Self {
             url: format!("{protocol}://{host}"),
@@ -125,28 +128,44 @@ impl CouchbaseClient {
         Ok(Self { conf, cluster })
     }
 
-    /// Ensure a collection exists, creating it if necessary.
+    /// Ensure a collection exists, creating it if necessary. Bounded: a
+    /// management call against a bucket that never becomes ready (typically:
+    /// the bucket isn't provisioned on this cluster) retries inside the SDK
+    /// forever and would hang every request that touches the keyspace. 15s
+    /// covers a cold couchbase pod answering slowly; past that the caller
+    /// gets an actionable error instead of a stuck future.
     pub async fn ensure_collection_exists(
         &self,
         collection_name: &str,
         scope_name: Option<&str>,
         bucket_name: Option<&str>,
-    ) {
+    ) -> Result<(), String> {
         let bucket_name = bucket_name.unwrap_or(&self.conf.bucket);
         let scope_name = scope_name.unwrap_or("_default");
         let bucket = self.cluster.bucket(bucket_name);
         let mgr = bucket.collections();
-        match mgr
-            .create_collection(scope_name, collection_name, None, None)
-            .await
-        {
-            Ok(_) => println!(
-                "Created collection {collection_name} in scope {scope_name} of bucket {bucket_name}"
-            ),
-            Err(e) if matches!(e.kind(), ErrorKind::CollectionExists) => {}
-            Err(e) => eprintln!(
-                "Warning: Could not create collection '{collection_name}': {e}"
-            ),
+        let attempt = tokio::time::timeout(
+            std::time::Duration::from_secs(15),
+            mgr.create_collection(scope_name, collection_name, None, None),
+        )
+        .await;
+        match attempt {
+            Err(_) => Err(format!(
+                "Timed out ensuring collection '{bucket_name}.{scope_name}.{collection_name}' — \
+                 bucket '{bucket_name}' is most likely not provisioned on this cluster. Declare it \
+                 in config/api/couchbase/<bundle>/state.yaml and redeploy, or point this entity at \
+                 an existing bucket (optional `bucket` file in the link mount)."
+            )),
+            Ok(Ok(_)) => {
+                println!(
+                    "Created collection {collection_name} in scope {scope_name} of bucket {bucket_name}"
+                );
+                Ok(())
+            }
+            Ok(Err(e)) if matches!(e.kind(), ErrorKind::CollectionExists) => Ok(()),
+            Ok(Err(e)) => Err(format!(
+                "Could not ensure collection '{bucket_name}.{scope_name}.{collection_name}': {e}"
+            )),
         }
     }
 
@@ -156,17 +175,17 @@ impl CouchbaseClient {
         collection_name: &str,
         scope_name: Option<&str>,
         bucket_name: Option<&str>,
-    ) -> Keyspace {
+    ) -> Result<Keyspace, String> {
         let bucket_name = bucket_name.unwrap_or(&self.conf.bucket);
         let scope_name = scope_name.unwrap_or("_default");
         self.ensure_collection_exists(collection_name, Some(scope_name), Some(bucket_name))
-            .await;
-        Keyspace {
+            .await?;
+        Ok(Keyspace {
             bucket_name: bucket_name.to_string(),
             scope_name: scope_name.to_string(),
             collection_name: collection_name.to_string(),
             client: self.clone(),
-        }
+        })
     }
 
     /// Health check — ping the cluster.
@@ -360,9 +379,9 @@ pub trait Entity: Sized {
     /// Get the Keyspace for this entity.
     async fn get_keyspace() -> Result<Keyspace, String> {
         let client = get_client(Self::link_name()).await?;
-        Ok(client
+        client
             .get_keyspace(Self::collection_name(), None, None)
-            .await)
+            .await
     }
 
     /// Create a new document with an auto-generated UUID.

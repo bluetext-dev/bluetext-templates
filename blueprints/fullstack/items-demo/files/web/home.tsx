@@ -20,7 +20,7 @@ function apiBase(): string {
   const { protocol, host } = window.location;
   // host looks like {{web_service}}.ss--development--default--main.bluetext.localhost
   const withoutPrefix = host.replace(/^{{web_service}}\./, "");
-  return `${protocol}//api.${withoutPrefix}`;
+  return `${protocol}//{{api_service}}.${withoutPrefix}`;
 }
 
 export default function Home() {

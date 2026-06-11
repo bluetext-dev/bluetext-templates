@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
+import { useLoaderData } from "react-router";
 
 interface {{entity}} {
   id: string;
@@ -11,19 +12,35 @@ export function meta() {
 }
 
 /**
- * Reach the api by swapping the `{{web_service}}.` subdomain prefix of our own
- * host for `api.`. That keeps the demo namespace-agnostic — whatever the deploy
- * target, the api ingress lives next to ours.
+ * The api's public URL comes from the platform: this service declares
+ * `links: { api: {{api_service}}/http }`, and the deploy mounts the link at
+ * /etc/bluetext/links/api/ — `ingress-url` is the browser-facing URL the
+ * platform resolved (local and lab forms alike). Reading it in the SERVER
+ * loader hands it to the client, so no hostname convention is hardcoded here.
  */
-function apiBase(): string {
+export async function loader() {
+  try {
+    const { readFile } = await import("node:fs/promises");
+    const url = (await readFile("/etc/bluetext/links/api/ingress-url", "utf8")).trim();
+    if (url) return { apiBase: url };
+  } catch {
+    // Outside the cluster (bare `bun run dev`) the link mount doesn't
+    // exist — the client falls back to the subdomain convention below.
+  }
+  return { apiBase: null as string | null };
+}
+
+/** Out-of-cluster fallback: swap our own subdomain for the api's. */
+function subdomainFallback(): string {
   if (typeof window === "undefined") return "";
   const { protocol, host } = window.location;
-  // host looks like {{web_service}}.ss--development--default--main.bluetext.localhost
   const withoutPrefix = host.replace(/^{{web_service}}\./, "");
   return `${protocol}//{{api_service}}.${withoutPrefix}`;
 }
 
 export default function Home() {
+  const { apiBase: linkedApiBase } = useLoaderData<typeof loader>();
+  const apiBase = () => linkedApiBase ?? subdomainFallback();
   const [entries, setEntries] = useState<{{entity}}[]>([]);
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);

@@ -125,6 +125,11 @@ impl AppState {
     pub async fn all_{{collection}}(&self) -> Result<Vec<{{entity}}>, CommandError> {
         Ok(self.list_{{collection}}().await)
     }
+
+    #[command]
+    pub async fn one_{{entity_snake}}(&self, id: String) -> Result<Option<{{entity}}>, CommandError> {
+        Ok(self.get_{{entity_snake}}(id).await)
+    }
 }
 
 bluetext_model::model! {

@@ -3,7 +3,12 @@
 // rustc's default trait-solver query depth.
 #![recursion_limit = "512"]
 
-use axum::{Json, Router, extract::State, http::StatusCode, routing::get};
+use axum::{
+    Json, Router,
+    extract::{Path, State},
+    http::StatusCode,
+    routing::get,
+};
 use models::{AppState, {{entity}}};
 use serde::{Deserialize, Serialize};
 use std::{net::SocketAddr, sync::Arc};
@@ -36,6 +41,19 @@ async fn list_{{collection}}(
         .await
         .map(Json)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+}
+
+// Path captures use axum 0.8 syntax: `{id}` in the route, `Path(id)` in the
+// handler. (`:id` is the pre-0.8 syntax — it panics at startup on 0.8.)
+async fn get_{{entity_snake}}(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+) -> Result<Json<{{entity}}>, (StatusCode, String)> {
+    match state.one_{{entity_snake}}(id).await {
+        Ok(Some(item)) => Ok(Json(item)),
+        Ok(None) => Err((StatusCode::NOT_FOUND, "not found".to_string())),
+        Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
+    }
 }
 
 async fn create_{{entity_snake}}(
@@ -79,6 +97,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/", get(|| async { "bluetext api" }))
         .route("/health", get(health))
         .route("/{{collection}}", get(list_{{collection}}).post(create_{{entity_snake}}))
+        .route("/{{collection}}/{id}", get(get_{{entity_snake}}))
         .with_state(state)
         .layer(cors);
 

@@ -88,23 +88,18 @@ export default function Home() {
     }
   };
 
+  // Styling uses the web-app template's semantic tokens (bg-background, bg-card,
+  // text-muted-foreground, …) defined in app/app.css — so the page follows the
+  // active theme (the `dark` class on <html>) instead of hardcoding a palette.
   return (
-    <main
-      style={{
-        maxWidth: 640,
-        margin: "48px auto",
-        padding: "0 20px",
-        fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
-        color: "#f3f4f6",
-      }}
-    >
-      <h1 style={{ fontSize: 28, marginBottom: 4, textTransform: "capitalize" }}>{{collection}}</h1>
-      <p style={{ color: "#9ca3af", marginBottom: 24, fontSize: 14 }}>
+    <main className="mx-auto max-w-[640px] px-5 py-12 font-sans">
+      <h1 className="mb-1 text-2xl font-semibold capitalize">{{collection}}</h1>
+      <p className="mb-6 text-sm text-muted-foreground">
         Round-trip demo: this form POSTs to the Rust api, which writes each {{entity_snake}}
-        into the <code style={{ background: "#1f2937", padding: "1px 6px", borderRadius: 4 }}>{{bucket}}._default.{{collection}}</code> Couchbase collection.
+        into the <code className="rounded bg-muted px-1.5 py-0.5 text-foreground">{{bucket}}._default.{{collection}}</code> Couchbase collection.
       </p>
 
-      <form onSubmit={submit} style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+      <form onSubmit={submit} className="mb-4 flex gap-2">
         <input
           data-testid="{{entity_snake}}-text"
           type="text"
@@ -112,31 +107,13 @@ export default function Home() {
           onChange={(e) => setText(e.target.value)}
           placeholder="What's on your mind?"
           disabled={submitting}
-          style={{
-            flex: 1,
-            padding: "10px 12px",
-            fontSize: 14,
-            background: "#111827",
-            color: "#f3f4f6",
-            border: "1px solid #374151",
-            borderRadius: 6,
-            outline: "none",
-          }}
+          className="flex-1 rounded-md border border-input bg-transparent px-3 py-2.5 text-sm outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-ring"
         />
         <button
           data-testid="{{entity_snake}}-submit"
           type="submit"
           disabled={submitting || !text.trim()}
-          style={{
-            padding: "10px 18px",
-            fontSize: 14,
-            background: "#2563eb",
-            color: "#fff",
-            border: "none",
-            borderRadius: 6,
-            cursor: submitting || !text.trim() ? "default" : "pointer",
-            opacity: submitting || !text.trim() ? 0.6 : 1,
-          }}
+          className="cursor-pointer rounded-md bg-primary px-4 py-2.5 text-sm text-primary-foreground disabled:cursor-default disabled:opacity-60"
         >
           {submitting ? "Saving…" : "Save"}
         </button>
@@ -145,35 +122,21 @@ export default function Home() {
       {error && (
         <div
           data-testid="{{entity_snake}}-error"
-          style={{
-            padding: "8px 12px",
-            marginBottom: 16,
-            background: "#7f1d1d",
-            border: "1px solid #991b1b",
-            borderRadius: 6,
-            fontSize: 13,
-          }}
+          className="mb-4 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive"
         >
           {error}
         </div>
       )}
 
-      <ul data-testid="{{entity_snake}}-list" style={{ margin: 0, padding: 0, listStyle: "none" }}>
+      <ul data-testid="{{entity_snake}}-list" className="m-0 list-none p-0">
         {entries.length === 0 && !error && (
-          <li style={{ color: "#6b7280", fontSize: 13, padding: "8px 0" }}>No {{collection}} yet. Add one above.</li>
+          <li className="py-2 text-sm text-muted-foreground">No {{collection}} yet. Add one above.</li>
         )}
         {entries.map((entry) => (
           <li
             key={entry.id}
             data-testid="{{entity_snake}}-row"
-            style={{
-              padding: "10px 12px",
-              background: "#111827",
-              border: "1px solid #1f2937",
-              borderRadius: 6,
-              marginBottom: 6,
-              fontSize: 14,
-            }}
+            className="mb-1.5 rounded-md border bg-card px-3 py-2.5 text-sm"
           >
             {entry.text}
           </li>

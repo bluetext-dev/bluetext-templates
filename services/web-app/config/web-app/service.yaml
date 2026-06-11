@@ -7,3 +7,9 @@ interfaces:
 connection-profiles:
   http:
     interface: http
+# Fast host-side validation, run from the service's code directory by
+# `b service check web-app` — and automatically by the in-app agent
+# harness after the agent edits this service's files. bun install is a
+# fast no-op when node_modules is current, so the check owns its own
+# prerequisite.
+check: bun install && bun run typecheck

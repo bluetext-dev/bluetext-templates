@@ -43,7 +43,7 @@ variables:
     required: true
   - name: api_service
     alias: a
-    description: Rust axum api service to extend with POST /items.
+    description: Rust axum api service carrying the entity's controllers (list, create, get-one).
     type: service
     accepts: [api]
     default: api

@@ -8,9 +8,10 @@ description: >-
   collection=highscores`) and the generated model, routes, collection,
   and frontend carry it from the start — no rename pass afterwards; only
   the entity's fields and logic remain to adapt. Defaults produce the
-  classic `Item` demo. Respects the system's dev modes: with the
-  scaffold's default mirrord entry the api compiles incrementally on the
-  host, and the deploy blocks until it serves. Demonstrates a full
+  classic `Item` demo. This blueprint scaffolds config + code only and
+  makes no cluster changes; after it completes, run `b deploy
+  <run-spec-abstract>/<deploy-name>` to build the images and bring the new
+  model live. Demonstrates a full
   frontend → API → datastore round-trip that follows the platform's
   modeling architecture (docs/MODELING.md).
 tags: [fullstack, api, couchbase, crud, demo]
@@ -31,16 +32,11 @@ prerequisites:
 
 caveats:
   - Overwrites the project's `model/` crate (lib.rs, {{collection}}.rs, Cargo.toml) to define the {{entity}} state machine. Existing model content is replaced.
-  - With the api in a host-side dev mode (the scaffold default is mirrord), the deploy spawns the host process and blocks until it serves (the wait extends through a cold compile while the process is alive). With the api in-cluster (no dev-modes entry), the deploy rebuilds the api base image instead; the first build can take a few minutes.
+  - This blueprint does not deploy — run `b deploy <run-spec-abstract>/<deploy-name>` afterward. With the api in a host-side dev mode (the scaffold default is mirrord), that deploy spawns the host process and blocks until it serves (the wait extends through a cold compile while the process is alive); with the api in-cluster (no dev-modes entry), it rebuilds the api base image instead, and the first build can take a few minutes.
   - The `entity` / `entity_snake` / `collection` variables must be coherent, valid Rust identifiers (CamelCase type, snake_case singular, snake_case plural) — they name the struct, the functions, the module file, the Couchbase collection, and the HTTP route.
   - Couchbase must already be initialized with the {{bucket}} bucket before running this blueprint. The couchbase api-config bundle (`config/api/couchbase/<bundle>/` + `code/api-config/couchbase/<bundle>/`) handles bucket setup at deploy time.
 
 variables:
-  - name: deploy_target
-    alias: d
-    description: '<run-spec-abstract>/<deployment-name> — owns the api deployment for the follow-up build + apply (e.g. app/development-local)'
-    type: deploy-target
-    required: true
   - name: api_service
     alias: a
     description: Rust axum api service carrying the entity's controllers (list, create, get-one).
@@ -184,13 +180,12 @@ steps:
       file: config/api/{{upstream_couchbase}}/base/state.yaml
       content_file: files/api-config/couchbase-state.yaml
 
-  # Full-target deploy, NOT `only: api` — on a fresh system nothing else is
-  # running yet, and an api-only deploy leaves the pod waiting on a Couchbase
-  # that never comes (0/1 ready for the whole 600s rollout timeout). The full
-  # deploy brings the datastore + web-app up too, and its secrets preflight
-  # fails fast with the exact `b secret set` commands when credentials are
-  # missing, instead of hanging.
-  - name: Deploy the full target (api + web-app + couchbase) so the new model takes effect
-    tool: deploy
-    params:
-      deploy_target: "{{deploy_target}}"
+  # No deploy step: this blueprint scaffolds config + code only and leaves the
+  # system on a clean `main`. Deploying is a separate concern (`b deploy`) — it
+  # is slow, cluster-dependent, and non-transactional, so folding it into the
+  # blueprint's branch-and-rollback transaction meant a deploy/cluster failure
+  # would roll back perfectly-good scaffolding (and read like a blueprint bug).
+  # Run `b deploy <run-spec-abstract>/<deploy-name>` after this completes to
+  # build the images and bring the new model live; its secret preflight will
+  # name any missing `b secret set` credentials, and the api-config Job
+  # provisions the `{{collection}}` collection from the state.yaml above.

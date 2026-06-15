@@ -40,7 +40,10 @@ secrets:
   # admin creds via the api-config peer projection.
   admin-credentials:
     keys:
-      username: secrets::curity-admin-username
+      # The admin username is not a secret — it sources from the values
+      # catalog (see the abstract's `values:`). Only the password is a
+      # Vault-backed secret.
+      username: value::curity-admin-username
       password: secrets::curity-admin-password
 mounts:
   # Materialise `curity--license` Secret in the curity namespace so the

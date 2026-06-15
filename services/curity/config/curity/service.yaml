@@ -8,13 +8,15 @@ secret-specs:
   curity-license-wrapped:
     generatable: false
     requirements: '\{"License":".+"\}'
-  # Admin username is supplied, opaque (presence-only).
-  curity-admin-username:
-    generatable: false
   # Admin password may be minted: 32 alphanumeric characters.
   curity-admin-password:
     generatable: true
     requirements: '[A-Za-z0-9]{32}'
+# The admin username is not a secret (semantic integrity, cli-design-1):
+# it's a value-catalog entry the admin-credentials mount sources via
+# `value::curity-admin-username`. Override per deployment in values.yaml.
+values:
+  curity-admin-username: admin
 use:
   _default: curity
 interfaces:

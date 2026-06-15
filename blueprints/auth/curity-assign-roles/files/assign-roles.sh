@@ -5,7 +5,12 @@
 
 NAMESPACE="$1"
 USERS="$2"
-BASE_URL="http://curity.${NAMESPACE}.bluetext.localhost"
+# Use the `.bluetext.lvh.me` namespace host, NOT `.bluetext.localhost` — the
+# deploy tokenizes `.{namespace}.bluetext.localhost` ingress hosts to a short
+# route-token (route_host.rs), so the `.localhost` namespace host 404s. The
+# IngressRoute keeps `.{namespace}.bluetext.lvh.me` as the stable untokenized
+# address for namespace-only tooling; lvh.me resolves to 127.0.0.1 → Traefik.
+BASE_URL="http://curity.${NAMESPACE}.bluetext.lvh.me"
 
 TOKEN=$(curl -sf -X POST "${BASE_URL}/oauth/v2/oauth-token" \
   -d "grant_type=client_credentials&client_id=um-admin-client&client_secret=um-admin-secret" | \

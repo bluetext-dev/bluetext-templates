@@ -13,7 +13,14 @@
 
 NAMESPACE="$1"
 USERS="$2"
-BASE_URL="http://curity.${NAMESPACE}.bluetext.localhost"
+# Use the `.bluetext.lvh.me` namespace host, NOT `.bluetext.localhost`.
+# The deploy pipeline tokenizes every `.{namespace}.bluetext.localhost`
+# ingress host to a short route-token (route_host.rs), so
+# `curity.<namespace>.bluetext.localhost` no longer resolves (404). The
+# IngressRoute deliberately keeps an untokenized `.{namespace}.bluetext.lvh.me`
+# host as the stable address for tooling that knows only the namespace (not
+# the route-token); lvh.me resolves to 127.0.0.1 → Traefik.
+BASE_URL="http://curity.${NAMESPACE}.bluetext.lvh.me"
 
 # Retry getting management token — Curity may still be loading profiles after restart
 for i in $(seq 1 30); do

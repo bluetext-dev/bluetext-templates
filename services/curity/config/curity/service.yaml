@@ -1,16 +1,19 @@
 name: Curity Identity Server
 description: OAuth 2.0 and OpenID Connect Identity Server
 secret-specs:
-  # The license is supplied (a vendor key — never minted) and must be
-  # the JSON envelope `{"License":"<jwt>"}`. The form offers no Generate
-  # button for it, and value-validator rejects a bare/unwrapped key at
-  # set-time. A publishable Curity trial license ships as `demo-license.json`
-  # so the form's "use demo value" button (and zero-click deploy seeding)
-  # can populate it without the operator hunting down a key. Trial /
-  # Non-Production tier — replace with your own license before production.
+  # The license is supplied (a vendor key — never minted) and must be the
+  # JSON envelope `{"License":"<jwt>"}`. The pattern tolerates JSON
+  # whitespace (`\s*` around the structural tokens) so Curity's own
+  # distributed format — `{"License": "<jwt>"}`, space after the colon, or
+  # pretty-printed — validates as-is; no need to re-serialize it compactly.
+  # The form offers no Generate button for it, and value-validator rejects
+  # a bare/unwrapped key at set-time. A publishable Curity trial license
+  # ships as `demo-license.json` so the form's "use demo value" button (and
+  # zero-click deploy seeding) can populate it without the operator hunting
+  # down a key. Trial / Non-Production tier — replace before production.
   curity-license-wrapped:
     generatable: false
-    requirements: '\{"License":".+"\}'
+    requirements: '\{\s*"License"\s*:\s*".+"\s*\}'
     demo-value-file: demo-license.json
   # Admin password may be minted: 32 alphanumeric characters.
   curity-admin-password:

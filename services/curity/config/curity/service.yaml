@@ -4,10 +4,14 @@ secret-specs:
   # The license is supplied (a vendor key — never minted) and must be
   # the JSON envelope `{"License":"<jwt>"}`. The form offers no Generate
   # button for it, and value-validator rejects a bare/unwrapped key at
-  # set-time.
+  # set-time. A publishable Curity trial license ships as `demo-license.json`
+  # so the form's "use demo value" button (and zero-click deploy seeding)
+  # can populate it without the operator hunting down a key. Trial /
+  # Non-Production tier — replace with your own license before production.
   curity-license-wrapped:
     generatable: false
     requirements: '\{"License":".+"\}'
+    demo-value-file: demo-license.json
   # Admin password may be minted: 32 alphanumeric characters.
   curity-admin-password:
     generatable: true

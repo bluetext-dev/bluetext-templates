@@ -7,6 +7,7 @@ variables:
     type: string
     default: flutter
 caveats:
+  - "On a local-dev deploy (a run-spec-variant with `default-secrets-allowed: true`) Curity's secrets auto-populate at deploy time — the license seeds from the bundled trial demo (Non-Production tier; replace with your own from developer.curity.io before production), the admin password is auto-generated (Reveal it in the secrets UI), and the admin username is the `admin` values-catalog entry. No manual secret step or $CURITY_LICENSE_KEY export needed."
   - Kong adds introspection latency per request (mitigated by 300s token caching)
   - The API trusts the JWT from Kong without signature verification (Kong already validated it)
   - First Flutter image pull is ~1.9GB — cached globally after first pull via registry mirror
@@ -22,9 +23,6 @@ pitfalls:
 steps:
   - run: b service add curity
     description: Add the Curity Identity Server abstract
-  - run: |
-      CURITY_LICENSE_WRAPPED=$(printf '%s' "$CURITY_LICENSE_KEY" | "$BLUETEXT_TEMPLATES_DIR/services/curity/scripts/wrap-license.sh") b secret set curity-license-wrapped --from-env CURITY_LICENSE_WRAPPED
-    description: Normalize $CURITY_LICENSE_KEY (accepts the portal envelope JSON, the raw JWT, or fails loud on payload-only input) into the wrapped `{"License":"<jwt>"}` form Curity reads at startup, then write it to the secret store (free trial at developer.curity.io)
   - run: b service add kong
     description: Add the Kong API Gateway
   - run: b service add api

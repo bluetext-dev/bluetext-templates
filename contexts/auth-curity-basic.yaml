@@ -1,20 +1,14 @@
 name: Basic Auth with Curity
 description: Minimal authentication stack — Curity IdP with OAuth2, OIDC, and user registration
 caveats:
-  - Uses default admin password "admin" — change for non-dev environments
-  - Reads the license from `$CURITY_LICENSE_KEY` in the calling shell (free trial at developer.curity.io)
+  - "On a local-dev deploy (a run-spec-variant with `default-secrets-allowed: true`) Curity's secrets auto-populate at deploy time — the license seeds from the bundled trial demo (Non-Production tier; replace with your own from developer.curity.io before production), the admin password is auto-generated (Reveal it in the secrets UI), and the admin username is the `admin` values-catalog entry. No manual secret step or $CURITY_LICENSE_KEY export needed."
 tips:
   - "Open the Curity login form at curity.rs--development--auth--main.bluetext.localhost/authn"
   - "Admin UI: curity-admin.rs--development--auth--main.bluetext.localhost"
   - Pre-configured client — flutter-app (public, PKCE)
-pitfalls:
-  - The license secret must be written to the secret store before starting Curity
 steps:
   - run: b service add curity
     description: Add the Curity Identity Server abstract
-  - run: |
-      CURITY_LICENSE_WRAPPED=$(printf '%s' "$CURITY_LICENSE_KEY" | "$BLUETEXT_TEMPLATES_DIR/services/curity/scripts/wrap-license.sh") b secret set curity-license-wrapped --from-env CURITY_LICENSE_WRAPPED
-    description: Normalize $CURITY_LICENSE_KEY (accepts the portal envelope JSON, the raw JWT, or fails loud on payload-only input) into the wrapped `{"License":"<jwt>"}` form Curity reads at startup, then write it to the secret store
   - run: b run-spec-abstract set auth -s curity
     description: Compose Curity into a single-service run-spec-abstract
   - run: b run-spec-abstract deploy add auth development-local -v development -c k3d-local

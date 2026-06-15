@@ -1,5 +1,20 @@
 name: Curity Identity Server
 description: OAuth 2.0 and OpenID Connect Identity Server
+secret-specs:
+  # The license is supplied (a vendor key — never minted) and must be
+  # the JSON envelope `{"License":"<jwt>"}`. The form offers no Generate
+  # button for it, and value-validator rejects a bare/unwrapped key at
+  # set-time.
+  curity-license-wrapped:
+    generatable: false
+    requirements: '\{"License":".+"\}'
+  # Admin username is supplied, opaque (presence-only).
+  curity-admin-username:
+    generatable: false
+  # Admin password may be minted: 32 alphanumeric characters.
+  curity-admin-password:
+    generatable: true
+    requirements: '[A-Za-z0-9]{32}'
 use:
   _default: curity
 interfaces:

@@ -15,6 +15,10 @@ export default function Home() {
   const [apiConnected, setApiConnected] = useState<boolean | null>(null);
 
   useEffect(() => {
+    // Reach the api same-origin via the `/api/*` proxy (vite.config.ts) — this
+    // maps to the api's `GET /hello`. Never fetch the api's own
+    // `…dm-k8s.bluetext.dev` subdomain from the browser: that's cross-origin
+    // and gets blocked by the lab auth gateway + CORS. See AGENTS.md.
     fetch("/api/hello")
       .then((res) => res.json())
       .then((data) => {

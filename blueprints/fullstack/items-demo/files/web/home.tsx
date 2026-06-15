@@ -48,7 +48,9 @@ export default function Home() {
 
   const fetchEntries = async () => {
     try {
-      const res = await fetch(`${apiBase()}/{{collection}}`);
+      // `credentials: "include"` so the lab gateway's auth cookie rides along
+      // on this cross-origin (api. subdomain) request.
+      const res = await fetch(`${apiBase()}/{{collection}}`, { credentials: "include" });
       if (!res.ok) throw new Error(`GET /{{collection}} returned ${res.status}`);
       const body = (await res.json()) as {{entity}}[];
       setEntries(body);
@@ -70,6 +72,7 @@ export default function Home() {
     try {
       const res = await fetch(`${apiBase()}/{{collection}}`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: trimmed }),
       });

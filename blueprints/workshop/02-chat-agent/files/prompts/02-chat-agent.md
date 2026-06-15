@@ -46,13 +46,21 @@ to the router.
 
 ### CORS
 
+Use a credential-safe CORS layer — mirror the request dynamically instead of
+`Any`. The CORS spec forbids combining a wildcard `*` (for origin, methods, or
+headers) with credentials, so the moment any browser client sends
+`credentials: "include"` (e.g. to hit the api cross-origin behind the lab
+gateway with its auth cookie), an `Any`-based layer is rejected. Mirroring is
+just as permissive in dev but stays spec-compliant:
+
 ```rust
-use tower_http::cors::{Any, CorsLayer};
+use tower_http::cors::{AllowHeaders, AllowMethods, AllowOrigin, CorsLayer};
 
 let cors = CorsLayer::new()
-    .allow_origin(Any)
-    .allow_methods(Any)
-    .allow_headers(Any);
+    .allow_origin(AllowOrigin::mirror_request())
+    .allow_methods(AllowMethods::mirror_request())
+    .allow_headers(AllowHeaders::mirror_request())
+    .allow_credentials(true);
 ```
 
 Attach with `.layer(cors)` on the router.

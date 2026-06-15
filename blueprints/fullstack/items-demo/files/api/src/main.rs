@@ -12,7 +12,7 @@ use axum::{
 use models::{AppState, {{entity}}};
 use serde::{Deserialize, Serialize};
 use std::{net::SocketAddr, sync::Arc};
-use tower_http::cors::{AllowHeaders, AllowMethods, AllowOrigin, CorsLayer};
+use tower_http::cors::{Any, CorsLayer};
 use uuid::Uuid;
 
 // Controllers — one endpoint = one command call. No business logic, no
@@ -87,17 +87,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .map_err(|e| format!("connect failed: {e}"))?,
     );
 
-    // Permissive but credential-safe CORS — the web-app serves on a different
-    // subdomain ingress, and behind the lab gateway the browser must send its
-    // auth cookie cross-origin (`credentials: "include"`). The CORS spec
-    // forbids combining credentials with wildcard `*` for origin, methods, or
-    // headers, so we mirror the request dynamically instead of using `Any`.
-    // This stays just as permissive in dev while remaining spec-compliant.
+    // Permissive wildcard CORS. NB: a wildcard cannot be combined with
+    // credentials — the CORS spec forbids it and tower-http panics
+    // (`Cannot combine Access-Control-Allow-Credentials: true with *`). So this
+    // serves unauthenticated cross-origin access only; authenticated browser
+    // traffic goes same-origin through the web-app's `/api/*` proxy.
     let cors = CorsLayer::new()
-        .allow_origin(AllowOrigin::mirror_request())
-        .allow_methods(AllowMethods::mirror_request())
-        .allow_headers(AllowHeaders::mirror_request())
-        .allow_credentials(true);
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
 
     let app = Router::new()
         .route("/", get(|| async { "bluetext api" }))

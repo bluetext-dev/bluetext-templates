@@ -61,23 +61,22 @@ same-origin, so the gateway and CORS never enter the picture.
 ### CORS (defensive default)
 
 Because the browser talks to the api same-origin via the proxy, CORS doesn't
-come into play in the lab. Still, ship a credential-safe CORS layer so the api
-stays correct if it's ever reached cross-origin directly. Mirror the request
-dynamically instead of `Any`: the CORS spec rejects combining a wildcard `*`
-(origin, methods, or headers) with credentials, so an `Any`-based layer breaks
-the moment a client sends `credentials: "include"`.
+come into play in the lab. Still, ship a permissive wildcard CORS layer so the
+api stays usable if it's ever reached cross-origin directly:
 
 ```rust
-use tower_http::cors::{AllowHeaders, AllowMethods, AllowOrigin, CorsLayer};
+use tower_http::cors::{Any, CorsLayer};
 
 let cors = CorsLayer::new()
-    .allow_origin(AllowOrigin::mirror_request())
-    .allow_methods(AllowMethods::mirror_request())
-    .allow_headers(AllowHeaders::mirror_request())
-    .allow_credentials(true);
+    .allow_origin(Any)
+    .allow_methods(Any)
+    .allow_headers(Any);
 ```
 
-Attach with `.layer(cors)` on the router.
+Attach with `.layer(cors)` on the router. **Don't** add `.allow_credentials(true)`
+to a wildcard layer — the CORS spec forbids it and tower-http panics at startup.
+Wildcard CORS covers unauthenticated cross-origin access; authenticated traffic
+stays same-origin through the `/api/*` proxy.
 
 ## OpenRouter wire reference
 

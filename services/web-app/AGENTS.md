@@ -52,6 +52,7 @@ The proxy above is the **Vite dev server** (what the lab runs via `bun run dev`)
 If you serve a production build, give it the same same-origin `/api/*` proxy, or
 follow the cross-origin pattern in `fullstack/items-demo`: the web-app reads the
 api's browser-facing URL from its declared link mount
-(`/etc/bluetext/links/api/ingress-url`) and the api ships a credential-safe CORS
-layer (`AllowOrigin/AllowMethods/AllowHeaders::mirror_request()` +
-`allow_credentials(true)` — `Any` + credentials is rejected by the CORS spec).
+(`/etc/bluetext/links/api/ingress-url`) and the api ships a permissive wildcard
+CORS layer (`allow_origin/methods/headers(Any)`). Note a wildcard cannot carry
+credentials (the spec forbids it; tower-http panics), so cross-origin access is
+unauthenticated — authenticated traffic must use the same-origin `/api/*` proxy.

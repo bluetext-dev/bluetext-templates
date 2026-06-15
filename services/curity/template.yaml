@@ -18,11 +18,11 @@ start_prerequisites:
   - description: Curity license (JSON-wrapped form) written to the secret store
     check: secret_exists
     params:
-      id: fixed/curity-license-wrapped
+      id: curity-license-wrapped
     hint: |
       Curity needs the license file to start. Free trial at developer.curity.io.
       The Vault entry stores the JSON-wrapped form (`{"License":"<jwt>"}`),
       which the deploy pipeline copies verbatim into the K8s Secret that
       Curity's init container reads. Write it like this:
         CURITY_LICENSE_WRAPPED='{"License":"'"$CURITY_LICENSE_KEY"'"}' \
-          b secret set fixed/curity-license-wrapped --from-env CURITY_LICENSE_WRAPPED
+          b secret set curity-license-wrapped --from-env CURITY_LICENSE_WRAPPED

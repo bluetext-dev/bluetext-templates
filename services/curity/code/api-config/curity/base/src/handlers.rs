@@ -97,7 +97,7 @@ pub async fn verify_license(ctx: &ApiConfigCtx) -> Result<()> {
     if operator_user.is_empty() {
         return Err(
             "/etc/bluetext/peers/self/username is empty. Set it with: \
-             b secret set fixed/curity-admin-username --from-env CURITY_ADMIN_USERNAME \
+             b secret set curity-admin-username --from-env CURITY_ADMIN_USERNAME \
              (typical value: `admin`)."
                 .into(),
         );
@@ -105,7 +105,7 @@ pub async fn verify_license(ctx: &ApiConfigCtx) -> Result<()> {
     if operator_pass.is_empty() {
         return Err(
             "/etc/bluetext/peers/self/password is empty. Set it with: \
-             b secret set fixed/curity-admin-password --from-env CURITY_ADMIN_PASSWORD"
+             b secret set curity-admin-password --from-env CURITY_ADMIN_PASSWORD"
                 .into(),
         );
     }
@@ -146,7 +146,7 @@ pub async fn verify_license(ctx: &ApiConfigCtx) -> Result<()> {
         let bs_status = res.status();
         if bs_status.is_success() {
             eprintln!(
-                "[curity-api-config] verify_license: RESTCONF reachable ({bs_status}) with bootstrap creds — license in place. NOTE: Curity is using bootstrap admin/admin (ConfD ephemeral on this pod). Operator-set credentials in fixed/curity-admin-password are unused unless ConfD persistence lands. ensure_* will use bootstrap creds for the rest of this Job run."
+                "[curity-api-config] verify_license: RESTCONF reachable ({bs_status}) with bootstrap creds — license in place. NOTE: Curity is using bootstrap admin/admin (ConfD ephemeral on this pod). Operator-set credentials in curity-admin-password are unused unless ConfD persistence lands. ensure_* will use bootstrap creds for the rest of this Job run."
             );
             return Ok(());
         }
@@ -173,7 +173,7 @@ fn license_missing_error() -> String {
      the deploy pipeline populates it via the curity--license Secret \
      mounted by the curity deployment's config-templater init container. \
      Likely causes: \
-     (1) the wrapped license wasn't written to Vault before deploy. Compose and set it with: `CURITY_LICENSE_WRAPPED='{\"License\":\"'\"$CURITY_LICENSE_KEY\"'\"}' b secret set fixed/curity-license-wrapped --from-env CURITY_LICENSE_WRAPPED`; \
+     (1) the wrapped license wasn't written to Vault before deploy. Compose and set it with: `CURITY_LICENSE_WRAPPED='{\"License\":\"'\"$CURITY_LICENSE_KEY\"'\"}' b secret set curity-license-wrapped --from-env CURITY_LICENSE_WRAPPED`; \
      (2) CURITY_LICENSE_KEY contains only the JWT's payload section, not the complete signed JWT (check `echo -n \"$CURITY_LICENSE_KEY\" | tr -cd '.' | wc -c` — must print 2). The portal hands you a JSON envelope `{\"License\":\"<base64>.<base64>.<base64>\"}` — the env var must contain the value of the License field verbatim, including the two `.` separators. Curity rejects payload-only content with `LicenseKeyValidationCallback - License was the wrong issuer or had not subject` because structural JWT validation fails before claim validation runs; \
      (3) the curity pod hasn't restarted since the Secret was populated (its init container reads the Secret at boot)."
         .to_string()

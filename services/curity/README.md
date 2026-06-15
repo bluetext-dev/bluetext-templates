@@ -74,11 +74,11 @@ export CURITY_LICENSE_KEY=$(jq -r .License /path/to/cillers.com_Trial_*.json)
 # Pipe through the normalizer and write to Vault:
 CURITY_LICENSE_WRAPPED=$(printf '%s' "$CURITY_LICENSE_KEY" \
     | "$BLUETEXT_TEMPLATES_DIR/services/curity/scripts/wrap-license.sh") \
-    b secret set fixed/curity-license-wrapped --from-env CURITY_LICENSE_WRAPPED
+    b secret set curity-license-wrapped --from-env CURITY_LICENSE_WRAPPED
 
 # Admin credentials for the RESTCONF surface:
-b secret set fixed/curity-admin-username --from-env CURITY_ADMIN_USERNAME  # default: "admin"
-b secret set fixed/curity-admin-password --from-env CURITY_ADMIN_PASSWORD  # operator-set
+b secret set curity-admin-username --from-env CURITY_ADMIN_USERNAME  # default: "admin"
+b secret set curity-admin-password --from-env CURITY_ADMIN_PASSWORD  # operator-set
 ```
 
 Every `auth/*-curity-*` context bundles these steps already; the form

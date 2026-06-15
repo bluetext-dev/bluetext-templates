@@ -79,6 +79,10 @@ steps:
           file: config/kong/kong.yaml
           operation: append_list
           path: services
+          # Service-scoped phantom-token plugin — guards ONLY this
+          # protected target. NOT a global/top-level plugin: that would
+          # also 401 the public SPA (`/`) and Curity token endpoint
+          # (`/curity`), breaking the login flow before it can mint a token.
           content: |
             - name: "{{item}}"
               url: "http://{{item}}--{{item}}.{{namespace}}.svc.cluster.local"
@@ -87,6 +91,13 @@ steps:
                   paths:
                     - "/{{item}}"
                   strip_path: true
+              plugins:
+                - name: phantom-token
+                  config:
+                    introspection_endpoint: http://curity--curity.{{namespace}}.svc.cluster.local/oauth/v2/oauth-introspect
+                    client_id: phantom-token-client
+                    client_secret: phantom-token-secret
+                    token_cache_seconds: 300
       - name: "Register gateway relationship for {{item}}"
         tool: file_patch
         params:

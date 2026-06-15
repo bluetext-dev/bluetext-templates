@@ -11,22 +11,22 @@
                 <id>web-app</id>
                 <client-name>Web App</client-name>
                 <no-authentication>true</no-authentication>
-                <!-- The browser reaches the SPA (and lands the OIDC callback)
-                     on KONG's host now, not the web-app's — phantom token
-                     requires same-origin, so Kong is the single front door
-                     and the web-app has no Ingress of its own. The deploy
-                     pipeline tokenizes every `.bluetext.localhost` ingress
-                     host `.{full-namespace}.` → `.{route-token}.` (see
-                     route_host.rs), so the browser's actual host is
-                     `kong.{route-token}.bluetext.localhost`. The
-                     `__ROUTE_TOKEN__` placeholder below is substituted to that
-                     same route-token by the curity config-templater init
-                     container (it computes route_token($POD_NAMESPACE) the
-                     same way the Rust pipeline does) — `__NAMESPACE__` would
-                     resolve to the FULL namespace and Curity would reject the
-                     callback with 400 invalid_request. The `.lvh.me` line is
-                     left on the full namespace, matching how route_host.rs
-                     leaves `.lvh.me` ingress hosts un-tokenized. -->
+                <!-- Same-origin: the browser reaches the SPA and lands the
+                     OIDC callback on Kong's host (phantom token needs
+                     same-origin; Kong is the single front door, the web-app
+                     has no Ingress). The deploy tokenizes every
+                     .bluetext.localhost ingress host to a short route-token
+                     (route_host.rs), so the browser host is
+                     kong.<route-token>.bluetext.localhost. The ROUTE_TOKEN
+                     placeholder below is substituted to that same token by
+                     the curity config init (from the deploy route-token
+                     value); the full namespace would mismatch and Curity
+                     would 400 the callback. The lvh.me line stays on the full
+                     namespace, matching route_host.rs.
+                     CAUTION: never write the namespace placeholder token in an
+                     XML comment — the init expands it to the full namespace,
+                     whose double-hyphen is illegal inside XML comments and
+                     crashes Curity's config parser. -->
                 <redirect-uris>http://kong.__ROUTE_TOKEN__.bluetext.localhost/auth/callback</redirect-uris>
                 <redirect-uris>http://kong.__NAMESPACE__.bluetext.lvh.me/auth/callback</redirect-uris>
                 <scope>openid</scope>

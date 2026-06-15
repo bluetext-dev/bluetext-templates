@@ -44,14 +44,28 @@ Pipeline:
 Keep the existing `GET /health` and `GET /` endpoints; just add `/chat`
 to the router.
 
-### CORS
+### Reaching the api from the browser
 
-Use a credential-safe CORS layer — mirror the request dynamically instead of
-`Any`. The CORS spec forbids combining a wildcard `*` (for origin, methods, or
-headers) with credentials, so the moment any browser client sends
-`credentials: "include"` (e.g. to hit the api cross-origin behind the lab
-gateway with its auth cookie), an `Any`-based layer is rejected. Mirroring is
-just as permissive in dev but stays spec-compliant:
+Always call the api at a **same-origin** `/api/...` path. The web-app's dev
+server proxies `/api/*` to the api in-cluster (`server.proxy` in
+`vite.config.ts`), so the chat stream opens at `/api/chat`, and any endpoint
+you add later is `/api/<whatever>`.
+
+**Do not** fetch the api's own `api--…` subdomain from the browser. That's a
+cross-origin request — it leaves the web-app origin, hits the lab auth gateway
+(which 302-redirects unauthenticated cross-site calls) and trips CORS. That's
+the source of the "No 'Access-Control-Allow-Origin' header is present" /
+`net::ERR_FAILED` errors. Going through the `/api/*` proxy keeps every request
+same-origin, so the gateway and CORS never enter the picture.
+
+### CORS (defensive default)
+
+Because the browser talks to the api same-origin via the proxy, CORS doesn't
+come into play in the lab. Still, ship a credential-safe CORS layer so the api
+stays correct if it's ever reached cross-origin directly. Mirror the request
+dynamically instead of `Any`: the CORS spec rejects combining a wildcard `*`
+(origin, methods, or headers) with credentials, so an `Any`-based layer breaks
+the moment a client sends `credentials: "include"`.
 
 ```rust
 use tower_http::cors::{AllowHeaders, AllowMethods, AllowOrigin, CorsLayer};

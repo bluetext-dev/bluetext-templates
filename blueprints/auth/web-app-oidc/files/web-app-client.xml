@@ -11,8 +11,24 @@
                 <id>web-app</id>
                 <client-name>Web App</client-name>
                 <no-authentication>true</no-authentication>
-                <redirect-uris>http://web-app.__NAMESPACE__.bluetext.localhost/auth/callback</redirect-uris>
-                <redirect-uris>http://web-app.__NAMESPACE__.bluetext.lvh.me/auth/callback</redirect-uris>
+                <!-- The browser reaches the SPA (and lands the OIDC callback)
+                     on KONG's host now, not the web-app's — phantom token
+                     requires same-origin, so Kong is the single front door
+                     and the web-app has no Ingress of its own. The deploy
+                     pipeline tokenizes every `.bluetext.localhost` ingress
+                     host `.{full-namespace}.` → `.{route-token}.` (see
+                     route_host.rs), so the browser's actual host is
+                     `kong.{route-token}.bluetext.localhost`. The
+                     `__ROUTE_TOKEN__` placeholder below is substituted to that
+                     same route-token by the curity config-templater init
+                     container (it computes route_token($POD_NAMESPACE) the
+                     same way the Rust pipeline does) — `__NAMESPACE__` would
+                     resolve to the FULL namespace and Curity would reject the
+                     callback with 400 invalid_request. The `.lvh.me` line is
+                     left on the full namespace, matching how route_host.rs
+                     leaves `.lvh.me` ingress hosts un-tokenized. -->
+                <redirect-uris>http://kong.__ROUTE_TOKEN__.bluetext.localhost/auth/callback</redirect-uris>
+                <redirect-uris>http://kong.__NAMESPACE__.bluetext.lvh.me/auth/callback</redirect-uris>
                 <scope>openid</scope>
                 <scope>profile</scope>
                 <scope>email</scope>

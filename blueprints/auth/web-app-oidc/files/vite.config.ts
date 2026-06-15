@@ -5,31 +5,21 @@ import tsconfigPaths from "vite-tsconfig-paths";
 import path from "path";
 
 /**
- * Dev-server proxies for the RBAC stack:
- *   /api/*    → Kong (which strips /api and forwards to the API; the same Kong
- *               also runs the phantom-token + role-check plugins). Ignores
- *               $API_URL on purpose — for RBAC, traffic MUST go through Kong
- *               so the phantom-token plugin can introspect every request.
- *   /curity/* → Curity (so the browser does same-origin POSTs for the OIDC
- *               token exchange — no CORS preflight needed). The authorize
- *               *redirect* still goes to the public Curity hostname so the
- *               user sees the real login form there.
+ * No dev-server proxies for the RBAC stack anymore.
+ *
+ * Phantom token requires same-origin, so KONG is the single front door:
+ * the browser reaches the SPA at `/`, `/api/*` is routed by Kong to the API
+ * (with the phantom-token plugin), and `/curity/*` is routed by Kong to the
+ * Curity token endpoint for the same-origin OIDC token POST. Vite only serves
+ * the SPA — it never sees `/api` or `/curity` traffic, because the browser
+ * talks to Kong's host, and Kong's `/` catch-all forwards SPA requests here.
+ * (Earlier this config proxied `/api` → Kong and `/curity` → Curity from the
+ * Vite dev server when the web-app had its own Ingress; that origin is gone.)
  */
 export default defineConfig({
   clearScreen: false,
   server: {
     allowedHosts: [".bluetext.localhost", ".bluetext.lvh.me"],
-    proxy: {
-      "/api": {
-        target: process.env.KONG_URL || "http://kong",
-        changeOrigin: true,
-      },
-      "/curity": {
-        target: process.env.CURITY_URL || "http://curity",
-        changeOrigin: true,
-        rewrite: (p) => p.replace(/^\/curity/, ""),
-      },
-    },
   },
   resolve: {
     alias: {

@@ -1,5 +1,5 @@
 name: Web-App OIDC Authentication
-description: Add OpenID Connect authentication and role-aware UI to the web-app, registering it as a Curity client and routing API calls through Kong.
+description: Add OpenID Connect authentication and role-aware UI to the web-app, registering it as a Curity client. Same-origin by design — the SPA, the API, and the OIDC token POST all live behind Kong's single host (run auth/kong-phantom-token first), which phantom token requires.
 tags: [auth, oidc, web, curity, web-app]
 prerequisites:
   - description: Web-app service exists
@@ -14,9 +14,15 @@ prerequisites:
     check: file_exists
     params:
       file: config/curity/oauth-config.xml
+  - description: Kong phantom-token config exists (run auth/kong-phantom-token --var targets=api first; same-origin routing through Kong is required for phantom token)
+    check: file_exists
+    params:
+      file: config/kong/kong.yaml
 caveats:
   - Replaces app/root.tsx, app/routes.ts, and app/routes/home.tsx — back up those files if you have custom content.
-  - Replaces vite.config.ts to point /api at Kong and /curity at the IdP. Custom proxies in the existing config will be lost.
+  - Replaces vite.config.ts. Kong (not Vite) now routes /api and /curity, so the dev-server proxies are removed — Vite just serves the SPA. Custom proxies in the existing config will be lost.
+  - Phantom token requires same-origin, so this blueprint expects auth/kong-phantom-token to have been run with --var targets=api — Kong is the single host serving the SPA (/), the API (/api), and the OIDC token POST (/curity). The web-app has no Ingress of its own.
+  - Registers the Curity redirect-uri on Kong's tokenized host via the __ROUTE_TOKEN__ placeholder (computed by the curity init container). If you change how the deploy pipeline tokenizes ingress hosts, this must follow.
   - Tokens are kept in localStorage. Fine for a local demo; revisit before going to production.
 variables:
   - name: deploy_target
@@ -88,26 +94,15 @@ steps:
     params:
       file: code/services/web-app/app/root.tsx
       content_file: files/root.tsx
-  - name: Point /api at Kong, expose /curity proxy for token exchange
+  - name: Replace vite.config.ts (Kong routes /api and /curity now — Vite just serves the SPA, no proxies)
     tool: file_write
     params:
       file: code/services/web-app/vite.config.ts
       content_file: files/vite.config.ts
-  - name: Inject KONG_URL/CURITY_URL into the web-app dev overlay (Vite proxy targets — FQDN)
-    # Append to the env list of the existing `development` overlay (which
-    # the web-app template ships carrying API_URL). Writing a separate
-    # `_default/patches.yaml` does NOT work: the deploy pipeline picks the
-    # most-specific overlay for the active run-spec-variant, so a `development`
-    # deploy uses `development/patches.yaml` and silently ignores `_default/`.
-    # append_list (not file_write) preserves the template's API_URL + volume
-    # mounts and just adds the two proxy targets the OIDC flow needs.
-    tool: file_patch
-    params:
-      file: config/k8s/web-app/web-app/development/patches.yaml
-      operation: append_list
-      match_kind: Deployment
-      path: spec.template.spec.containers.0.env
-      content_file: files/web-app-proxy-env.yaml
+  # No KONG_URL/CURITY_URL env injection anymore: those were the Vite
+  # dev-server proxy targets. Kong is the single front door now (it routes
+  # /api, /curity, and / to the right upstreams), so the web-app pod needs
+  # no proxy targets — the browser talks to Kong's host directly.
   # Dev modes stay untouched (same doctrine as fullstack/items-demo):
   # RBAC enforcement lives at the gateway and in the api's middleware;
   # which substrate compiles the api — host process under mirrord or

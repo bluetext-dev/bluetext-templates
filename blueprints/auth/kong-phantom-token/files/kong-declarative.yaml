@@ -6,4 +6,45 @@ plugins:
       client_id: phantom-token-client
       client_secret: phantom-token-secret
       token_cache_seconds: 300
-services: []
+services:
+  # Phantom-token is the same-origin front door. The browser holds an
+  # opaque access token in the web-app's session; for that to ride along
+  # on `/api` requests so the plugin can introspect it (opaque → JWT) and
+  # forward to the API, the web-app and the API MUST share one origin.
+  # Kong is therefore the single ingress host: `/api` (protected) and
+  # `/curity` (the browser's OIDC token POST) and `/` (the SPA) all live
+  # under Kong's one tokenized host. `targets`-protected `/api/*` routes
+  # are appended below by the blueprint's for_each loop (with the
+  # phantom-token plugin via the global `plugins:` block above).
+  #
+  # Curity token-exchange passthrough. The web-app's PKCE token POST is a
+  # browser `fetch` — it must be same-origin, so it goes to Kong at
+  # `/curity/*` and Kong strips the prefix and forwards to Curity's OIDC
+  # runtime. The curity Service maps port 80 → container 8443, and the
+  # runtime service-role is configured `<protocol>http</protocol>` (see
+  # the curity base-config.xml), so the in-cluster hop is plain HTTP on
+  # port 80 — the same form the phantom-token introspection_endpoint above
+  # uses. NO phantom-token plugin here: this is the unauthenticated token
+  # endpoint that MINTS the token. The OIDC *authorize* request is a
+  # full-page redirect straight to Curity's own host (a separate origin by
+  # OIDC design), so it does not pass through Kong. jwks/userinfo are never
+  # fetched by the browser (the SPA decodes the JWT client-side), so only
+  # the token endpoint is routed here.
+  - name: curity-oidc
+    url: "http://curity--curity.{{namespace}}.svc.cluster.local"
+    routes:
+      - name: curity-oidc-route
+        paths:
+          - "/curity"
+        strip_path: true
+  # SPA catch-all (lowest priority — `/api` and `/curity` are longer
+  # prefixes and win first). Serves the Vite-hosted web-app. NO auth
+  # plugin: static SPA assets are public; the access token is enforced
+  # only on `/api`.
+  - name: web-app
+    url: "http://web-app--web-app.{{namespace}}.svc.cluster.local"
+    routes:
+      - name: web-app-route
+        paths:
+          - "/"
+        strip_path: false

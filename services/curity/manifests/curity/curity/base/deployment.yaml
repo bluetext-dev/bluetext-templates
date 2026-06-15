@@ -46,8 +46,21 @@ spec:
             - -c
             - |
               set -e
+              # __NAMESPACE__   → the full k8s namespace (in-cluster DNS, base-url).
+              # __ROUTE_TOKEN__ → the short route-token the deploy pipeline stamps
+              #   onto every `.bluetext.localhost` ingress host (route_host.rs
+              #   rewrites `.{namespace}.` → `.{route-token}.`). A redirect-uri
+              #   registered on a tokenized host (Kong's, for the same-origin
+              #   web-app OIDC callback) MUST carry the route-token or the
+              #   browser's host won't match what Curity has on file (400
+              #   invalid_request). `$bt{{ deploy::route-token }}` resolves at
+              #   render time from the SAME source of truth as the ingress
+              #   rewrite (util::route_token), so it never drifts.
+              ROUTE_TOKEN="$bt{{ deploy::route-token }}"
               for f in /config-template/*.xml; do
-                sed "s/__NAMESPACE__/$POD_NAMESPACE/g" "$f" > "/config/$(basename $f)"
+                sed -e "s/__NAMESPACE__/$POD_NAMESPACE/g" \
+                    -e "s/__ROUTE_TOKEN__/$ROUTE_TOKEN/g" \
+                    "$f" > "/config/$(basename $f)"
               done
               mkdir -p /config/license
               if [ -f /license-source/license-key ]; then

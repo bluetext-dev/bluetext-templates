@@ -8,10 +8,10 @@ caveats:
 tips:
   - "Create users: b bp run auth/curity-create-users --var users=alice:Pass1,bob:Pass2"
   - "Assign roles: b bp run auth/curity-assign-roles --var users=alice:admin,bob:moderator"
-  - "Open the UI: http://web-app.rs--development--rbac--main.bluetext.localhost"
+  - "Open the UI at KONG's host (printed under `Reachable at:` by the deploy) — Kong is the single front door serving the SPA at `/`, the API at `/api`, and the OIDC token POST at `/curity`. The web-app has no host of its own; phantom token requires same-origin."
 pitfalls:
   - Don't skip auth/curity-oauth — phantom-token needs the introspect endpoint configured.
-  - The API routes through Kong — direct API ingress is removed.
+  - The API AND the web-app route through Kong's single host — direct ingress for both is removed (phantom token requires same-origin). The web-app is reachable only via Kong's `/` catch-all.
   - Curity issues a session cookie. To switch users in a browser, sign out (or clear cookies for curity.<ns>.bluetext.localhost).
 steps:
   - run: b service add curity
@@ -35,7 +35,7 @@ steps:
   - run: b bp run auth/api-rbac --no-restart --var deploy_target=rbac/development-local
     description: Add role-guarded routes, SCIM user management profile, and claims mapper
   - run: b bp run auth/web-app-oidc --no-restart --var deploy_target=rbac/development-local
-    description: Register the web-app Curity client, add the React auth provider, and rewire /api through Kong
+    description: Register the web-app Curity client (redirect-uri on Kong's tokenized host) and add the React auth provider. The SPA, /api, and the /curity token POST are all same-origin behind Kong — no Vite proxies.
   - run: b deploy rbac/development-local
     description: Render manifests, build images, and apply the run-spec-abstract to the local cluster
   - run: b service restart web-app -d rbac/development-local

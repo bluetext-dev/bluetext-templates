@@ -63,22 +63,23 @@ spec:
                     "$f" > "/config/$(basename $f)"
               done
               mkdir -p /config/license
-              if [ -f /license-source/license-key ]; then
-                cp /license-source/license-key /config/license/default
+              if [ -f /etc/bluetext/mounts/license/license-key ]; then
+                cp /etc/bluetext/mounts/license/license-key /config/license/default
               fi
           env:
             - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
+          # The license Secret (curity--license) is auto-mounted at
+          # /etc/bluetext/mounts/license/ by the deploy pipeline from the
+          # `mounts: [variant::license]` declaration; the copy block above
+          # reads it from there. No hand-authored license volume needed.
           volumeMounts:
             - name: config-template
               mountPath: /config-template
             - name: init-config
               mountPath: /config
-            - name: license
-              mountPath: /license-source
-              readOnly: true
         - name: init-db
           # HSQLDB schema-init. Idempotent: skips when the schema file
           # already exists, so re-deploys are no-ops. The image ships
@@ -143,11 +144,9 @@ spec:
           hostPath:
             path: /var/mnt/systems/$bt{{ deploy::system-rel }}/.bluetext/curity-db
             type: DirectoryOrCreate
-        - name: license
-          secret:
-            secretName: curity--license
-            # No items: mapping. Curity scans every file in
-            # /opt/idsvr/etc/init/license/ at startup and parses each
-            # one as a JSON license wrapper. The deploy pipeline wraps
-            # the raw JWT as {"License":"…"} via the curity.yaml
-            # secrets.license.keys.license-key template.
+        # The license Secret (curity--license) is auto-mounted at
+        # /etc/bluetext/mounts/license/ by the deploy pipeline from the
+        # `mounts: [variant::license]` declaration — no hand-authored
+        # volume needed. The init container copies license-key from there
+        # into /opt/idsvr/etc/init/license/default, which Curity's startup
+        # scanner parses as the JSON license wrapper {"License":"<jwt>"}.

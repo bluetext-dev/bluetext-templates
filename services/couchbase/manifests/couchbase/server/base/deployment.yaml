@@ -25,7 +25,9 @@ spec:
           # Cluster-init runs once on first boot via a postStart lifecycle
           # hook. Reads the Administrator credentials from the Secret the
           # deploy pipeline materialises out of `secrets.auth` (named
-          # `couchbase--auth`, mounted at /run/admin/), then POSTs to the
+          # `couchbase--auth`, auto-mounted by the deploy pipeline at
+          # /etc/bluetext/mounts/auth/ from the `mounts: [variant::auth]`
+          # declaration), then POSTs to the
           # local 8091 admin API to set memory quotas, enable services,
           # and provision the admin user. Idempotent: every step swallows
           # "already initialised" / "already exists" responses, so pod
@@ -38,8 +40,8 @@ spec:
                   - -c
                   - |
                     set -u
-                    USER="$(cat /run/admin/username)"
-                    PW="$(cat /run/admin/password)"
+                    USER="$(cat /etc/bluetext/mounts/auth/username)"
+                    PW="$(cat /etc/bluetext/mounts/auth/password)"
                     until curl -sf http://127.0.0.1:8091/pools >/dev/null 2>&1; do sleep 2; done
                     curl -sS -u "$USER:$PW" -X POST http://127.0.0.1:8091/pools/default \
                       -d memoryQuota=256 -d indexMemoryQuota=256 >/dev/null || true
@@ -70,20 +72,18 @@ spec:
               command:
                 - /bin/bash
                 - -c
-                - 'curl -sf -u "$(cat /run/admin/username):$(cat /run/admin/password)" http://127.0.0.1:8091/pools/default >/dev/null'
+                - 'curl -sf -u "$(cat /etc/bluetext/mounts/auth/username):$(cat /etc/bluetext/mounts/auth/password)" http://127.0.0.1:8091/pools/default >/dev/null'
             initialDelaySeconds: 10
             periodSeconds: 5
             failureThreshold: 24
           volumeMounts:
             - name: couchbase-data
               mountPath: /opt/couchbase/var
-            - name: admin-creds
-              mountPath: /run/admin
-              readOnly: true
+            # admin-creds (couchbase--auth) is auto-mounted at
+            # /etc/bluetext/mounts/auth/ by the deploy pipeline from the
+            # `mounts: [variant::auth]` declaration — no hand-authored
+            # volume needed.
       volumes:
         - name: couchbase-data
           persistentVolumeClaim:
             claimName: couchbase--server-data
-        - name: admin-creds
-          secret:
-            secretName: couchbase--auth

@@ -14,14 +14,14 @@ pitfalls:
   - The API AND the web-app route through Kong's single host — direct ingress for both is removed (phantom token requires same-origin). The web-app is reachable only via Kong's `/` catch-all.
   - Curity issues a session cookie. To switch users in a browser, sign out (or clear cookies for curity.<ns>.bluetext.localhost).
 steps:
-  - run: b service add curity
-    description: Add the Curity Identity Server abstract
-  - run: b service add kong
-    description: Add the Kong API Gateway
-  - run: b service add api
-    description: Add the API service
-  - run: b service add web-app
-    description: Add the web-app service
+  - run: b service add curity --if-missing
+    description: Add the Curity Identity Server abstract (skipped if already present)
+  - run: b service add kong --if-missing
+    description: Add the Kong API Gateway (skipped if already present)
+  - run: b service add api --if-missing
+    description: Add the API service (skipped if already present — this context layers auth onto an existing app too)
+  - run: b service add web-app --if-missing
+    description: Add the web-app service (skipped if already present)
   - run: b run-spec-abstract set rbac -s curity,kong,api,web-app
     description: Compose the four services into a single run-spec-abstract
   - run: b run-spec-abstract deploy add rbac development-local -v development -c k3d-local

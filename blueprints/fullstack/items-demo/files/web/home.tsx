@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { useLoaderData } from "react-router";
+import { apiUrl } from "~/lib/api";
 
 interface {{entity}} {
   id: string;
@@ -11,36 +11,13 @@ export function meta() {
   return [{ title: "{{entity}} demo · Bluetext" }];
 }
 
-/**
- * The api's public URL comes from the platform: this service declares
- * `links: { api: {{api_service}}/http }`, and the deploy mounts the link at
- * /etc/bluetext/links/api/ — `ingress-url` is the browser-facing URL the
- * platform resolved (local and lab forms alike). Reading it in the SERVER
- * loader hands it to the client, so no hostname convention is hardcoded here.
- */
-export async function loader() {
-  try {
-    const { readFile } = await import("node:fs/promises");
-    const url = (await readFile("/etc/bluetext/links/api/ingress-url", "utf8")).trim();
-    if (url) return { apiBase: url };
-  } catch {
-    // Outside the cluster (bare `bun run dev`) the link mount doesn't
-    // exist — the client falls back to the subdomain convention below.
-  }
-  return { apiBase: null as string | null };
-}
-
-/** Out-of-cluster fallback: swap our own subdomain for the api's. */
-function subdomainFallback(): string {
-  if (typeof window === "undefined") return "";
-  const { protocol, host } = window.location;
-  const withoutPrefix = host.replace(/^{{web_service}}\./, "");
-  return `${protocol}//{{api_service}}.${withoutPrefix}`;
-}
-
+// Reach the api through `apiUrl` (app/lib/api.ts): in the browser it resolves to
+// the same-origin `/api/{{collection}}`, which the web-app's Vite proxy forwards
+// to the api in-cluster — so the call never crosses an origin boundary and never
+// trips CORS. NEVER build the api's own URL (its `service--token--user.domain`
+// subdomain) or read its `ingress-url` in browser code: that's cross-origin.
+// `b service check` enforces this. See the web-app's AGENTS.md.
 export default function Home() {
-  const { apiBase: linkedApiBase } = useLoaderData<typeof loader>();
-  const apiBase = () => linkedApiBase ?? subdomainFallback();
   const [entries, setEntries] = useState<{{entity}}[]>([]);
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +25,7 @@ export default function Home() {
 
   const fetchEntries = async () => {
     try {
-      const res = await fetch(`${apiBase()}/{{collection}}`);
+      const res = await fetch(apiUrl("/{{collection}}"));
       if (!res.ok) throw new Error(`GET /{{collection}} returned ${res.status}`);
       const body = (await res.json()) as {{entity}}[];
       setEntries(body);
@@ -68,7 +45,7 @@ export default function Home() {
     if (!trimmed) return;
     setSubmitting(true);
     try {
-      const res = await fetch(`${apiBase()}/{{collection}}`, {
+      const res = await fetch(apiUrl("/{{collection}}"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: trimmed }),

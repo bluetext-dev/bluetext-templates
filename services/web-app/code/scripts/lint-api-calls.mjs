@@ -24,10 +24,11 @@ const EXCLUDE = (p) =>
 
 const IGNORE = "bluetext-lint-ignore api-call";
 
-// A browser-facing HTTP client call (fetch / axios.* / ky.* / $fetch) whose URL
-// argument is a string or template literal. \bfetch avoids matching `prefetch`,
-// `fetcher.load` (react-router same-origin route loads — legitimate).
-const CALL = /(?:\bfetch|\baxios(?:\.\w+)?|\bky(?:\.\w+)?|\$fetch)\s*\(\s*(["'`])([^"'`]*)\1/g;
+// A browser-facing HTTP client call (fetch / axios.* / ky.* / $fetch). Matches
+// the call prefix up to its `(`; the URL argument that follows is classified
+// below. \bfetch avoids matching `prefetch`, `fetcher.load` (react-router
+// same-origin route loads — legitimate).
+const CALL = /(?:\bfetch|\baxios(?:\.\w+)?|\bky(?:\.\w+)?|\$fetch)\s*\(\s*/g;
 // Cross-origin footgun: a service's own URL or a mounted link's ingress-url in
 // browser code.
 const ABSOLUTE = /(bluetext\.dev|bluetext\.localhost|ingress-url)/i;
@@ -77,6 +78,24 @@ function stripComments(source) {
   return out;
 }
 
+// Whether a call's first argument (the text right after `(`) is built by a
+// top-level string concatenation (`base + "/path"`) — the hand-rolled-api-base
+// footgun. Ignores `+` inside nested calls/strings; stops at the first top-level
+// comma or the closing paren.
+function firstArgIsConcat(rest) {
+  let depth = 1, str = null;
+  for (let i = 0; i < rest.length; i++) {
+    const c = rest[i];
+    if (str) { if (c === "\\") i++; else if (c === str) str = null; continue; }
+    if (c === '"' || c === "'" || c === "`") { str = c; continue; }
+    if (c === "(" || c === "[" || c === "{") { depth++; continue; }
+    if (c === ")" || c === "]" || c === "}") { depth--; if (depth === 0) return false; continue; }
+    if (depth === 1 && c === ",") return false;
+    if (depth === 1 && c === "+") return true;
+  }
+  return false;
+}
+
 function lintFile(path, violations) {
   const raw = readFileSync(path, "utf8");
   const codeLines = stripComments(raw);
@@ -98,18 +117,48 @@ function lintFile(path, violations) {
       continue;
     }
 
-    // Rule B — every relative HTTP call must be under /api/. A relative fetch is
-    // always a backend call here (assets use import / <img src>, not fetch).
+    // Rule B/C — classify each browser HTTP call's URL argument. The ONLY
+    // sanctioned browser→backend calls are `apiUrl("/path")` or a literal
+    // `/api/...`. A bare relative path, a dynamic/templated base, a string
+    // concatenation, or any other computed URL bypasses the same-origin proxy
+    // (this is how the recurring CORS bug ships — an agent builds its own api
+    // base and the literal-only check can't see it).
     CALL.lastIndex = 0;
     let m;
     while ((m = CALL.exec(line)) !== null) {
-      const url = m[2];
-      if (!url.startsWith("/") || url.startsWith("//")) continue; // absolute / protocol-relative → not Rule B
-      if (url === "/api" || url.startsWith("/api/")) continue;     // correct
-      violations.push(
-        `${where}  browser→backend call "${url}" is not under /api/ — it bypasses the same-origin ` +
-        `proxy (404, then CORS if "fixed" with the api's URL). Use apiUrl("${url}").\n    ${snippet}`
-      );
+      const rest = line.slice(m.index + m[0].length);
+      if (rest === "") continue;                  // args wrap to the next line — can't classify
+      if (/^apiUrl\s*\(/.test(rest)) continue;    // ✅ the sanctioned seam
+      const q = rest[0];
+      if (q === '"' || q === "'" || q === "`") {
+        const end = rest.indexOf(q, 1);
+        const content = end === -1 ? rest.slice(1) : rest.slice(1, end);
+        if (q === "`" && content.startsWith("${")) {
+          violations.push(
+            `${where}  browser→backend fetch uses a dynamic/templated base — that reconstructs a ` +
+            `cross-origin api URL. Build the call with apiUrl("/path") instead.\n    ${snippet}`
+          );
+          continue;
+        }
+        if (/^https?:\/\//i.test(content)) continue;                 // absolute literal: Rule A flags bluetext hosts; third-party allowed
+        if (content === "/api" || content.startsWith("/api/")) continue; // ✅ correct
+        const fix = content.startsWith("/") ? content : `/${content}`;
+        violations.push(
+          `${where}  browser→backend call "${content}" is not under /api/ — it bypasses the same-origin ` +
+          `proxy (404, then CORS if "fixed" with the api's URL). Use apiUrl("${fix}").\n    ${snippet}`
+        );
+        continue;
+      }
+      // Non-literal first argument. Flag a STRING CONCATENATION (`base + "/x"`)
+      // — the hand-rolled-api-base footgun. A bare identifier / call (e.g. a URL
+      // already built via apiUrl and stored in a const) is intentionally left
+      // alone to avoid false positives.
+      if (firstArgIsConcat(rest)) {
+        violations.push(
+          `${where}  browser→backend fetch builds its URL by concatenation — that reconstructs a ` +
+          `cross-origin api base. Build the call with apiUrl("/path") instead.\n    ${snippet}`
+        );
+      }
     }
   }
 }

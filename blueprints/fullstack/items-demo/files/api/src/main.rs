@@ -12,7 +12,6 @@ use axum::{
 use models::{AppState, {{entity}}};
 use serde::{Deserialize, Serialize};
 use std::{net::SocketAddr, sync::Arc};
-use tower_http::cors::{Any, CorsLayer};
 use uuid::Uuid;
 
 // Controllers — one endpoint = one command call. No business logic, no
@@ -87,23 +86,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .map_err(|e| format!("connect failed: {e}"))?,
     );
 
-    // Permissive wildcard CORS. NB: a wildcard cannot be combined with
-    // credentials — the CORS spec forbids it and tower-http panics
-    // (`Cannot combine Access-Control-Allow-Credentials: true with *`). So this
-    // serves unauthenticated cross-origin access only; authenticated browser
-    // traffic goes same-origin through the web-app's `/api/*` proxy.
-    let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any);
-
+    // No CORS layer: the browser reaches this api SAME-ORIGIN through the
+    // web-app's `/api/*` proxy (apiUrl in app/lib/api.ts), so requests carry no
+    // cross-origin preflight and need no Access-Control headers. A CORS layer
+    // here would only paper over a browser that wrongly calls the api's own
+    // (cross-origin) URL — which `b service check` already forbids.
     let app = Router::new()
         .route("/", get(|| async { "bluetext api" }))
         .route("/health", get(health))
         .route("/{{collection}}", get(list_{{collection}}).post(create_{{entity_snake}}))
         .route("/{{collection}}/{id}", get(get_{{entity_snake}}))
-        .with_state(state)
-        .layer(cors);
+        .with_state(state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     println!("api listening on {addr}");

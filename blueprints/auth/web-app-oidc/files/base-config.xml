@@ -1,17 +1,24 @@
 <config xmlns="http://tail-f.com/ns/config/1.0">
   <environments xmlns="https://curity.se/ns/conf/base">
     <environment>
-      <!-- base-url MUST use the route-token host, NOT __NAMESPACE__. Curity
-           builds self-referential redirects (e.g. the authorize → /authn login
-           page) from base-url, and the deploy tokenizes every
-           .{namespace}.bluetext.localhost ingress host to a short route-token
+      <!-- base-url MUST use the route-token host, NOT the in-cluster namespace
+           host. Curity builds self-referential redirects (e.g. the authorize to
+           the /authn login page) from base-url, and the deploy tokenizes every
+           ".namespace.bluetext.localhost" ingress host to a short route-token
            (route_host.rs). The browser reaches Curity at
-           curity.<route-token>.bluetext.localhost (the web-app's auth-config.ts
-           derives that authority by rewriting kong.→curity. on its own host),
-           so an authn redirect built from the untokenized __NAMESPACE__ host
-           would 404 — and crossing hosts mid-flow would also drop Curity's
-           session cookie. The curity config init seds __ROUTE_TOKEN__ to the
-           same token the ingress carries (deploy::route-token). -->
+           "curity.route-token.bluetext.localhost" (the web-app's auth-config.ts
+           derives that authority by rewriting the kong host to curity), so an
+           authn redirect built from the untokenized namespace host would 404,
+           and crossing hosts mid-flow would also drop Curity's session cookie.
+           The config-templater init container substitutes the route-token into
+           the base-url below, matching the token the ingress carries.
+
+           Do NOT write the config-templater's sed placeholders inside this
+           comment: the namespace placeholder expands to "rs-<system>-<rsv>-..."
+           with double-hyphen separators, and a double hyphen is illegal inside
+           an XML comment (Curity then fails config init with
+           "The string '- -' is not permitted within comments"). Placeholders
+           belong only in element text/attributes (e.g. the base-url below). -->
       <base-url>http://curity.__ROUTE_TOKEN__.bluetext.localhost</base-url>
       <services>
         <service-role>

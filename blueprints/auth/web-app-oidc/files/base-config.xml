@@ -10,8 +10,8 @@
            remote lab uses the external form (curity, the route-token and the lab
            user joined by double-hyphens, under the lab domain). The
            config-templater init container substitutes the base-url placeholder
-           below with whichever form applies (from
-           "$bt{{ deploy::service-url.curity }}" — same source of truth as the
+           below with whichever form applies (from the deploy::service-url.curity
+           interpolation placeholder — same source of truth as the
            ingress rewrite + the lab proxy). The web-app's auth-config.ts derives
            the same authority from the browser's own host, so the two agree.
 

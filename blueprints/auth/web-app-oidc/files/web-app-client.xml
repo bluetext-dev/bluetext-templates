@@ -20,9 +20,10 @@
                      k3d deploy uses "kong.<route-token>.bluetext.localhost"; a
                      remote lab uses the external form (kong, the route-token and
                      the lab user joined by double-hyphens, under the lab domain).
-                     The redirect-uri placeholder below (from
-                     "$bt{{ deploy::service-url.kong }}") is substituted by the
-                     curity config init to whichever form applies, so the
+                     The redirect-uri placeholder below (from the
+                     deploy::service-url.kong interpolation placeholder) is
+                     substituted by the curity config init to whichever form
+                     applies, so the
                      callback matches in both topologies (a mismatch makes Curity
                      400 the callback). The lvh.me line stays on the full
                      namespace, matching route_host.rs.

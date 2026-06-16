@@ -58,10 +58,15 @@ spec:
               #   lab. Curity's base-url (issuer) and the OIDC redirect-uri MUST
               #   equal the host the user's BROWSER uses, or the login page is
               #   unreachable / the callback is rejected (400 invalid_request).
-              #   `$bt{{ deploy::service-url.<svc> }}` resolves both topologies
-              #   from the same source of truth as the ingress rewrite + the lab
-              #   proxy (util::service_url), so it never drifts. (route-token
-              #   alone only mints the LOCAL host and breaks remote labs.)
+              #   The deploy::service-url.<svc> placeholder (used in the
+              #   assignments below, with the literal service ids) resolves both
+              #   topologies from the same source of truth as the ingress
+              #   rewrite + the lab proxy (util::service_url), so it never
+              #   drifts. (route-token alone only mints the LOCAL host and
+              #   breaks remote labs.) NOTE: never put an interpolation
+              #   placeholder (the $bt-prefixed double-brace form) in a comment
+              #   here — the deploy interpolation pass scans the raw manifest
+              #   text (it is not YAML-comment-aware) and tries to resolve it.
               ROUTE_TOKEN="$bt{{ deploy::route-token }}"
               CURITY_BASE_URL="$bt{{ deploy::service-url.curity }}"
               KONG_BASE_URL="$bt{{ deploy::service-url.kong }}"

@@ -1,5 +1,12 @@
 name: Kong Gateway Enterprise
 description: Kong Gateway Enterprise 3.12 — commercial distribution with bundled EE plugins
+# The enterprise license is a supplied (vendor-issued) secret — never
+# minted. Delivered via the `license` credential-bundle on the variant;
+# set it with `b secret set kong-enterprise-license`. (Required to deploy
+# kong-enterprise — a license-free gateway is the plain `kong` service.)
+secret-specs:
+  kong-enterprise-license:
+    generatable: false
 use:
   _default: kong-enterprise
 interfaces:

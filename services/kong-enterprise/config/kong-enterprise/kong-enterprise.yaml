@@ -5,3 +5,11 @@ interfaces:
   admin:
     port: 8001
     protocol: http
+credential-bundles:
+  license:
+    secret-keys:
+      license-data: secrets::kong-enterprise-license
+mounts:
+  # Materialise `kong-enterprise--license` (ESO) and auto-mount it at
+  # /etc/bluetext/mounts/license/ — KONG_LICENSE_PATH reads the file.
+  - variant::license

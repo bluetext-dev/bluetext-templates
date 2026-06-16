@@ -4,12 +4,8 @@ description: Kong Gateway Enterprise 3.12 — commercial distribution with bundl
 ports:
   - 8000
   - 8001
-variables:
-  - name: license_key
-    description: |
-      Kong Enterprise license JSON string (single-line, unescaped).
-      Paste the full JSON blob from your Kong license file. Without it the
-      gateway still starts but EE-only plugins are disabled.
-    secret:
-      name: kong-enterprise-license
-      key: license-data
+# The enterprise license is a credential-bundle secret (declared in
+# config/kong-enterprise/service.yaml + .../kong-enterprise.yaml), stored
+# in Vault and materialised via ESO — not a hand-created K8s Secret. Set
+# it before deploying kong-enterprise:
+#   b secret set kong-enterprise-license --from-env KONG_LICENSE

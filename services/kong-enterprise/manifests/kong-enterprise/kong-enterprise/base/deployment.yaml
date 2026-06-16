@@ -40,12 +40,13 @@ spec:
               value: "0.0.0.0:8000"
             - name: KONG_ADMIN_LISTEN
               value: "0.0.0.0:8001"
-            - name: KONG_LICENSE_DATA
-              valueFrom:
-                secretKeyRef:
-                  name: kong-enterprise-license
-                  key: license-data
-                  optional: true
+            # The enterprise license rides the `license` credential-bundle:
+            # the deploy pipeline auto-mounts `kong-enterprise--license`
+            # (ESO-materialized from Vault) at /etc/bluetext/mounts/license/.
+            # Kong reads the license file from that path — no hand-authored
+            # Secret, no cleartext in the manifest.
+            - name: KONG_LICENSE_PATH
+              value: /etc/bluetext/mounts/license/license-data
           readinessProbe:
             httpGet:
               path: /status

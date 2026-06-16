@@ -14,20 +14,24 @@
                 <!-- Same-origin: the browser reaches the SPA and lands the
                      OIDC callback on Kong's host (phantom token needs
                      same-origin; Kong is the single front door, the web-app
-                     has no Ingress). The deploy tokenizes every
-                     .bluetext.localhost ingress host to a short route-token
-                     (route_host.rs), so the browser host is
-                     kong.<route-token>.bluetext.localhost. The ROUTE_TOKEN
-                     placeholder below is substituted to that same token by
-                     the curity config init (from the deploy route-token
-                     value); the full namespace would mismatch and Curity
-                     would 400 the callback. The lvh.me line stays on the full
+                     has no Ingress). The registered redirect-uri MUST equal the
+                     callback URL the browser sends (auth-config.ts builds it
+                     from window.location), which is topology-dependent: a local
+                     k3d deploy uses "kong.<route-token>.bluetext.localhost"; a
+                     remote lab uses the external form (kong, the route-token and
+                     the lab user joined by double-hyphens, under the lab domain).
+                     The redirect-uri placeholder below (from the
+                     deploy::service-url.kong interpolation placeholder) is
+                     substituted by the curity config init to whichever form
+                     applies, so the
+                     callback matches in both topologies (a mismatch makes Curity
+                     400 the callback). The lvh.me line stays on the full
                      namespace, matching route_host.rs.
-                     CAUTION: never write the namespace placeholder token in an
-                     XML comment — the init expands it to the full namespace,
-                     whose double-hyphen is illegal inside XML comments and
-                     crashes Curity's config parser. -->
-                <redirect-uris>http://kong.__ROUTE_TOKEN__.bluetext.localhost/auth/callback</redirect-uris>
+                     CAUTION: never write a sed placeholder, or a literal
+                     double-hyphen, in an XML comment — the namespace + external
+                     host forms contain double-hyphens, which are illegal inside
+                     XML comments and crash Curity's config parser. -->
+                <redirect-uris>__KONG_BASE_URL__/auth/callback</redirect-uris>
                 <redirect-uris>http://kong.__NAMESPACE__.bluetext.lvh.me/auth/callback</redirect-uris>
                 <scope>openid</scope>
                 <scope>profile</scope>

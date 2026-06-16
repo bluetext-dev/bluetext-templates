@@ -29,24 +29,27 @@ services:
           - "/"
         strip_path: false
         preserve_host: true
-  # Protected API. The phantom-token plugin is SERVICE-scoped (introspects the
-  # opaque access token → JWT) so it guards only `/api`, never `/` or `/curity`.
-  # The route adds RBAC role enforcement (admin / moderator) on top.
+  # Protected API. The phantom-token plugin is ROUTE-scoped (on api-route, not
+  # the service) so it guards `/api` — never `/` or `/curity` — AND so the
+  # api-rbac `public_paths` variable can add sibling public services (same api
+  # upstream, no plugin) for unauthenticated `/api/<path>` endpoints without
+  # inheriting it. The route also layers RBAC role enforcement (admin /
+  # moderator) on top. Kong matches the longest path prefix first, so a public
+  # `/api/<path>` route wins over this `/api` catch-all.
   - name: api
     url: "http://api--api.{{namespace}}.svc.cluster.local"
-    plugins:
-      - name: phantom-token
-        config:
-          introspection_endpoint: http://curity--curity.{{namespace}}.svc.cluster.local/oauth/v2/oauth-introspect
-          client_id: phantom-token-client
-          client_secret: phantom-token-secret
-          token_cache_seconds: 300
     routes:
       - name: api-route
         paths:
           - /api
         strip_path: true
         plugins:
+          - name: phantom-token
+            config:
+              introspection_endpoint: http://curity--curity.{{namespace}}.svc.cluster.local/oauth/v2/oauth-introspect
+              client_id: phantom-token-client
+              client_secret: phantom-token-secret
+              token_cache_seconds: 300
           - name: pre-function
             config:
               access:

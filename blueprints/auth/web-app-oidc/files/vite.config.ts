@@ -19,7 +19,10 @@ import path from "path";
 export default defineConfig({
   clearScreen: false,
   server: {
-    allowedHosts: [".bluetext.localhost", ".bluetext.lvh.me"],
+    // Local hosts plus, on a remote server behind a reverse proxy, the lab
+    // domain (`web-app--<token>--<user>.<domain>`) via VITE_ALLOWED_HOST — so
+    // the dev server accepts the forwarded Host without the proxy rewriting it.
+    allowedHosts: [".bluetext.localhost", ".bluetext.lvh.me", ...(process.env.VITE_ALLOWED_HOST ? [process.env.VITE_ALLOWED_HOST] : [])],
   },
   resolve: {
     alias: {

@@ -49,17 +49,32 @@ spec:
               # __NAMESPACE__   → the full k8s namespace (in-cluster DNS, base-url).
               # __ROUTE_TOKEN__ → the short route-token the deploy pipeline stamps
               #   onto every `.bluetext.localhost` ingress host (route_host.rs
-              #   rewrites `.{namespace}.` → `.{route-token}.`). A redirect-uri
-              #   registered on a tokenized host (Kong's, for the same-origin
-              #   web-app OIDC callback) MUST carry the route-token or the
-              #   browser's host won't match what Curity has on file (400
-              #   invalid_request). `$bt{{ deploy::route-token }}` resolves at
-              #   render time from the SAME source of truth as the ingress
-              #   rewrite (util::route_token), so it never drifts.
+              #   rewrites `.{namespace}.` → `.{route-token}.`).
+              # __CURITY_BASE_URL__ / __KONG_BASE_URL__ → the BROWSER-FACING URL
+              #   of curity / kong: the local tokenized host
+              #   (http://<svc>.<route-token>.bluetext.localhost) for a k3d
+              #   deploy, OR the external lab host
+              #   (https://<svc>--<route-token>--<user>.<domain>) in a remote
+              #   lab. Curity's base-url (issuer) and the OIDC redirect-uri MUST
+              #   equal the host the user's BROWSER uses, or the login page is
+              #   unreachable / the callback is rejected (400 invalid_request).
+              #   The deploy::service-url.<svc> placeholder (used in the
+              #   assignments below, with the literal service ids) resolves both
+              #   topologies from the same source of truth as the ingress
+              #   rewrite + the lab proxy (util::service_url), so it never
+              #   drifts. (route-token alone only mints the LOCAL host and
+              #   breaks remote labs.) NOTE: never put an interpolation
+              #   placeholder (the $bt-prefixed double-brace form) in a comment
+              #   here — the deploy interpolation pass scans the raw manifest
+              #   text (it is not YAML-comment-aware) and tries to resolve it.
               ROUTE_TOKEN="$bt{{ deploy::route-token }}"
+              CURITY_BASE_URL="$bt{{ deploy::service-url.curity }}"
+              KONG_BASE_URL="$bt{{ deploy::service-url.kong }}"
               for f in /config-template/*.xml; do
                 sed -e "s/__NAMESPACE__/$POD_NAMESPACE/g" \
                     -e "s/__ROUTE_TOKEN__/$ROUTE_TOKEN/g" \
+                    -e "s|__CURITY_BASE_URL__|$CURITY_BASE_URL|g" \
+                    -e "s|__KONG_BASE_URL__|$KONG_BASE_URL|g" \
                     "$f" > "/config/$(basename $f)"
               done
               mkdir -p /config/license
@@ -80,6 +95,23 @@ spec:
               mountPath: /config-template
             - name: init-config
               mountPath: /config
+        - name: init-db-perms
+          # The hsqldb-data hostPath is created by kubelet as root:root 0755,
+          # but the idsvr image (init-db below AND the runtime container) runs
+          # as a non-root user that must create /hsqldb/curity.lck + the schema
+          # files. hostPath volumes ignore pod `fsGroup`, so the only fix is to
+          # open the directory's permissions from a root container before
+          # init-db runs — otherwise init-db crash-loops on
+          # `curity.lck (Permission denied)`. The schema files then land owned
+          # by the idsvr uid, which the runtime container (same image, same
+          # uid) reads and writes.
+          image: busybox:stable
+          command: ["sh", "-c", "mkdir -p /hsqldb && chmod 0777 /hsqldb"]
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: hsqldb-data
+              mountPath: /hsqldb
         - name: init-db
           # HSQLDB schema-init. Idempotent: skips when the schema file
           # already exists, so re-deploys are no-ops. The image ships

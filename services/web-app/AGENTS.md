@@ -2,7 +2,7 @@
 
 How browser code in the web-app talks to a backend api. This card is injected
 into the agent's context whenever a system has the web-app, so the convention is
-known before any `fetch` is written. Worked cross-origin example:
+known before any `fetch` is written. Worked same-origin example:
 `fullstack/items-demo`.
 
 ## Always call the api same-origin via `/api/*`
@@ -21,16 +21,32 @@ proxy: {
 ```
 
 So a browser `fetch("/api/hello")` reaches the api's `GET /hello` route. To add
-an endpoint: add the route on the api (e.g. `GET /scores`) and call it from the
-browser as `/api/scores`. The request never leaves the web-app's own origin.
+an endpoint: add the route on the api (e.g. `GET /scores`, **without** an `/api`
+prefix) and call it from the browser as `/api/scores`. The request never leaves
+the web-app's own origin.
+
+**Use the `apiUrl()` seam (`app/lib/api.ts`) for every call** — it returns the
+same-origin `/api/...` path in the browser and the in-cluster `API_URL` on the
+server, so the same call site is correct in both contexts:
 
 ```tsx
-// ✅ same-origin — proxied to the api, no CORS, no gateway
-const res = await fetch("/api/scores");
+import { apiUrl } from "~/lib/api";
+
+// ✅ same-origin — apiUrl() routes through the /api proxy, no CORS, no gateway
+const res = await fetch(apiUrl("/scores"));
+
+// ❌ bare relative path — skips the /api proxy → 404, then CORS once "fixed" with the api URL
+const res = await fetch("/scores");
 
 // ❌ cross-origin — leaves the web-app origin for the api's own subdomain
 const res = await fetch("https://api--<token>--<user>.dm-k8s.bluetext.dev/scores");
 ```
+
+**This is enforced.** `b service check web-app` runs `lint:api`
+(`scripts/lint-api-calls.mjs`), which fails on any browser→backend call not under
+`/api/` or pointed at a service's own URL / `ingress-url`. The agent harness runs
+the check after every edit, so a wrong call is caught immediately — use `apiUrl()`
+and it passes. (Genuinely-not-an-api relative fetch? `// bluetext-lint-ignore api-call`.)
 
 ## Never fetch the api's `…dm-k8s.bluetext.dev` subdomain from browser code
 
@@ -48,11 +64,16 @@ and the gateway and CORS never enter the picture.
 
 ## Production builds
 
-The proxy above is the **Vite dev server** (what the lab runs via `bun run dev`).
-If you serve a production build, give it the same same-origin `/api/*` proxy, or
-follow the cross-origin pattern in `fullstack/items-demo`: the web-app reads the
-api's browser-facing URL from its declared link mount
-(`/etc/bluetext/links/api/ingress-url`) and the api ships a permissive wildcard
-CORS layer (`allow_origin/methods/headers(Any)`). Note a wildcard cannot carry
-credentials (the spec forbids it; tower-http panics), so cross-origin access is
-unauthenticated — authenticated traffic must use the same-origin `/api/*` proxy.
+The `/api` proxy lives in the **Vite dev server**, which the lab runs in **every**
+deploy mode (`bun run dev --host` — the production overlay does not override it),
+so same-origin `/api/...` works everywhere. **Always use `apiUrl()`** — never
+switch the browser to the api's own URL.
+
+If you ever serve a built artifact instead of the dev server (`react-router
+build` + `react-router-serve`), the Vite proxy disappears — so move the **same**
+`/api/* → api` routing to the serving layer (the app server, or a Traefik
+ingress route on the web-app host). Do **not** point the browser at the api's
+cross-origin URL / `ingress-url` + a CORS layer: that breaks local↔remote parity
+(the `*.bluetext.localhost` form is unreachable from a remote browser) and
+reintroduces exactly the CORS failure this convention exists to prevent. The
+browser stays same-origin; only the layer that *implements* `/api` moves.

@@ -39,6 +39,11 @@ variables:
     type: enum
     options: [hsqldb, couchbase]
     default: hsqldb
+  - name: public_paths
+    description: 'Comma-separated paths under /api to expose WITHOUT authentication (e.g. "hello" or "hello,health"). Each becomes a Kong route on the api upstream with no phantom-token plugin, so a logged-out request succeeds. Empty (default) → all of /api requires a valid token. The api must serve the corresponding route (the gateway strips /api).'
+    type: string
+    multiple: true
+    default: ""
 restarts: [curity, kong, api]
 see_also: [auth/kong-phantom-token, auth/curity-oauth, auth/service-jwt]
 steps:
@@ -71,6 +76,23 @@ steps:
     params:
       file: config/kong/kong.yaml
       content_file: files/kong-rbac.yaml
+  - name: Expose public (unauthenticated) /api paths
+    for_each: public_paths
+    steps:
+      - name: "Add public Kong route for /api/{{item}} (no phantom-token)"
+        tool: file_patch
+        params:
+          file: config/kong/kong.yaml
+          operation: append_list
+          path: services
+          content: |
+            - name: "api-public-{{item}}"
+              url: "http://api--api.{{namespace}}.svc.cluster.local"
+              routes:
+                - name: "api-public-{{item}}-route"
+                  paths:
+                    - "/api/{{item}}"
+                  strip_path: true
   - name: Write API with JWT extraction and role-guarded routes
     tool: file_write
     params:

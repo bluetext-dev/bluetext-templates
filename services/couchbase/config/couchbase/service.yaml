@@ -1,5 +1,13 @@
 name: Couchbase Server
 description: Couchbase Server (in-cluster) with a Capella alternate variant
+# The admin password is mintable (32 alphanumerics); the username is not a
+# secret — it's a value-catalog entry the auth bundle's `literal-keys` sources.
+secret-specs:
+  couchbase-server-password:
+    generatable: true
+    requirements: '[A-Za-z0-9]{32}'
+values:
+  couchbase-server-username: Administrator
 # `b service add couchbase` ships both variants. Default binding:
 #   • production → capella (managed cloud — what real prod targets)
 #   • everything else → server (local in-cluster image for dev/test/staging)

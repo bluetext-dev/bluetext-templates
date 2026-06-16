@@ -14,11 +14,15 @@ interfaces:
   admin:
     port: 8091
     protocol: https
-secrets:
+credential-bundles:
   auth:
-    keys:
-      username: secrets::couchbase-server-username
+    secret-keys:
       password: secrets::couchbase-server-password
+    literal-keys:
+      # The admin username is not a secret — it's a value-catalog entry
+      # (cli-design-1). The deploy pipeline projects it as the literals
+      # ConfigMap `couchbase--auth` beside the Vault-backed password.
+      username: value::couchbase-server-username
 # The deploy pipeline materialises `secrets.auth` as the K8s Secret
 # `couchbase--auth` in couchbase's namespace because of this `mounts:`
 # declaration. The deployment manifest mounts it into the pod for the

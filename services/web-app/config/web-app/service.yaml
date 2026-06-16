@@ -11,5 +11,7 @@ connection-profiles:
 # `b service check web-app` — and automatically by the in-app agent
 # harness after the agent edits this service's files. bun install is a
 # fast no-op when node_modules is current, so the check owns its own
-# prerequisite.
-check: bun install && bun run typecheck
+# prerequisite. `lint:api` fails the check when browser code reaches the
+# backend off the same-origin `/api/...` seam (the recurring CORS footgun) —
+# see scripts/lint-api-calls.mjs and app/lib/api.ts.
+check: bun install && bun run typecheck && bun run lint:api

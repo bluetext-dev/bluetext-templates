@@ -21,16 +21,32 @@ proxy: {
 ```
 
 So a browser `fetch("/api/hello")` reaches the api's `GET /hello` route. To add
-an endpoint: add the route on the api (e.g. `GET /scores`) and call it from the
-browser as `/api/scores`. The request never leaves the web-app's own origin.
+an endpoint: add the route on the api (e.g. `GET /scores`, **without** an `/api`
+prefix) and call it from the browser as `/api/scores`. The request never leaves
+the web-app's own origin.
+
+**Use the `apiUrl()` seam (`app/lib/api.ts`) for every call** — it returns the
+same-origin `/api/...` path in the browser and the in-cluster `API_URL` on the
+server, so the same call site is correct in both contexts:
 
 ```tsx
-// ✅ same-origin — proxied to the api, no CORS, no gateway
-const res = await fetch("/api/scores");
+import { apiUrl } from "~/lib/api";
+
+// ✅ same-origin — apiUrl() routes through the /api proxy, no CORS, no gateway
+const res = await fetch(apiUrl("/scores"));
+
+// ❌ bare relative path — skips the /api proxy → 404, then CORS once "fixed" with the api URL
+const res = await fetch("/scores");
 
 // ❌ cross-origin — leaves the web-app origin for the api's own subdomain
 const res = await fetch("https://api--<token>--<user>.dm-k8s.bluetext.dev/scores");
 ```
+
+**This is enforced.** `b service check web-app` runs `lint:api`
+(`scripts/lint-api-calls.mjs`), which fails on any browser→backend call not under
+`/api/` or pointed at a service's own URL / `ingress-url`. The agent harness runs
+the check after every edit, so a wrong call is caught immediately — use `apiUrl()`
+and it passes. (Genuinely-not-an-api relative fetch? `// bluetext-lint-ignore api-call`.)
 
 ## Never fetch the api's `…dm-k8s.bluetext.dev` subdomain from browser code
 

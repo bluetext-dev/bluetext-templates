@@ -25,9 +25,16 @@
 function deriveCurityBase(): string {
   if (typeof window === "undefined") return "";
   const { protocol, host } = window.location;
-  // host is "kong.<route-token>.bluetext.localhost" (Kong is the front door);
-  // Curity keeps its own host on the same route-token segment.
-  const curityHost = host.replace(/^kong\./, "curity.");
+  // Kong is the front door; Curity sits on the same token segment, one label
+  // over. The browser host takes two shapes and we must rewrite the leading
+  // "kong" in BOTH:
+  //   local k3d : kong.<route-token>.bluetext.localhost      → curity.<...>
+  //   remote lab: kong--<route-token>--<user>.<domain>       → curity--<...>
+  // Matching only "kong." (the local dotted form) leaves the remote "kong--"
+  // host unchanged, so the authorize redirect would hit Kong (which has no
+  // /oauth route) and the login page renders blank. The `(\.|--)` capture
+  // preserves whichever separator the host uses.
+  const curityHost = host.replace(/^kong(\.|--)/, "curity$1");
   return `${protocol}//${curityHost}`;
 }
 

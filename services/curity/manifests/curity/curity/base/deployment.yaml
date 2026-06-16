@@ -49,17 +49,27 @@ spec:
               # __NAMESPACE__   → the full k8s namespace (in-cluster DNS, base-url).
               # __ROUTE_TOKEN__ → the short route-token the deploy pipeline stamps
               #   onto every `.bluetext.localhost` ingress host (route_host.rs
-              #   rewrites `.{namespace}.` → `.{route-token}.`). A redirect-uri
-              #   registered on a tokenized host (Kong's, for the same-origin
-              #   web-app OIDC callback) MUST carry the route-token or the
-              #   browser's host won't match what Curity has on file (400
-              #   invalid_request). `$bt{{ deploy::route-token }}` resolves at
-              #   render time from the SAME source of truth as the ingress
-              #   rewrite (util::route_token), so it never drifts.
+              #   rewrites `.{namespace}.` → `.{route-token}.`).
+              # __CURITY_BASE_URL__ / __KONG_BASE_URL__ → the BROWSER-FACING URL
+              #   of curity / kong: the local tokenized host
+              #   (http://<svc>.<route-token>.bluetext.localhost) for a k3d
+              #   deploy, OR the external lab host
+              #   (https://<svc>--<route-token>--<user>.<domain>) in a remote
+              #   lab. Curity's base-url (issuer) and the OIDC redirect-uri MUST
+              #   equal the host the user's BROWSER uses, or the login page is
+              #   unreachable / the callback is rejected (400 invalid_request).
+              #   `$bt{{ deploy::service-url.<svc> }}` resolves both topologies
+              #   from the same source of truth as the ingress rewrite + the lab
+              #   proxy (util::service_url), so it never drifts. (route-token
+              #   alone only mints the LOCAL host and breaks remote labs.)
               ROUTE_TOKEN="$bt{{ deploy::route-token }}"
+              CURITY_BASE_URL="$bt{{ deploy::service-url.curity }}"
+              KONG_BASE_URL="$bt{{ deploy::service-url.kong }}"
               for f in /config-template/*.xml; do
                 sed -e "s/__NAMESPACE__/$POD_NAMESPACE/g" \
                     -e "s/__ROUTE_TOKEN__/$ROUTE_TOKEN/g" \
+                    -e "s|__CURITY_BASE_URL__|$CURITY_BASE_URL|g" \
+                    -e "s|__KONG_BASE_URL__|$KONG_BASE_URL|g" \
                     "$f" > "/config/$(basename $f)"
               done
               mkdir -p /config/license

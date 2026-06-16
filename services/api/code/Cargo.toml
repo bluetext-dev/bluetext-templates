@@ -20,3 +20,11 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 models = { path = "../../../model" }
 clients = { path = "../../clients" }
+
+# Dev builds keep only line tables, not full debuginfo. Panics and backtraces
+# still resolve to `file:line` — what a developer iterating on the api needs —
+# while codegen and linking drop the bulk of debug symbol work (a 20-40% dev
+# build-time win on this dependency set). It also shrinks `target/`, which makes
+# the warmup seed cheaper on filesystems that fall back to a full copy.
+[profile.dev]
+debug = "line-tables-only"

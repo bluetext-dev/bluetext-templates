@@ -6,6 +6,12 @@ secret-specs:
   couchbase-server-password:
     generatable: true
     requirements: '[A-Za-z0-9]{32}'
+  # Capella mutual-TLS client cert/key — supplied (vendor-issued), never
+  # minted; referenced by the capella variant's `auth` bundle.
+  api-couchbase-client-cert:
+    generatable: false
+  api-couchbase-client-key:
+    generatable: false
 values:
   couchbase-server-username: Administrator
 # `b service add couchbase` ships both variants. Default binding:

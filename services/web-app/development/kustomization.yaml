@@ -4,6 +4,14 @@ resources:
   - ../base
 patches:
   - path: patches.yaml
+  # Service targetPort must match dev container port (Vite default 5173)
+  - target:
+      kind: Service
+      name: web-app
+    patch: |
+      - op: replace
+        path: /spec/ports/0/targetPort
+        value: 5173
   - target:
       kind: Ingress
       name: web-app

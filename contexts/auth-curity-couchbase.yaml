@@ -1,13 +1,21 @@
 name: Curity with Couchbase
 description: Curity IdP backed by Couchbase — unified data store for accounts, tokens, sessions, and credentials
+variables:
+  - name: run_spec
+    description: "Run-spec-abstract to compose these services into. Pick `default` to add them to the system's existing default run-spec instead of a dedicated one."
+    type: string
+    default: auth
+    options:
+      - auth
+      - default
 caveats:
   - "On a local-dev deploy (a run-spec-variant with `default-secrets-allowed: true`) Curity's secrets auto-populate at deploy time — the license seeds from the bundled trial demo (Non-Production tier; replace with your own from developer.curity.io before production), the admin password is auto-generated (Reveal it in the secrets UI), and the admin username is the `admin` values-catalog entry. No manual secret step or $CURITY_LICENSE_KEY export needed."
   - First Curity build pulls the pre-built Couchbase plugin tarball (~16 MiB) from gs://bluetext-cli-releases/plugins/ and extracts it into the image — fast, no JDK/Gradle compile step
   - Couchbase admin credentials are Administrator/password — change for non-dev environments
   - Requires a Curity license that allows custom data-source types; for licenses restricted to JDBC, swap auth/curity-couchbase for auth/curity-couchbase-jdbc
 tips:
-  - "Couchbase UI: couchbase.rs--development--auth--main.bluetext.localhost"
-  - "Curity login: curity.rs--development--auth--main.bluetext.localhost/authn"
+  - "Couchbase UI: couchbase.rs--development--{{run_spec}}--main.bluetext.localhost"
+  - "Curity login: curity.rs--development--{{run_spec}}--main.bluetext.localhost/authn"
   - The plugin self-provisions the curity bucket (256 MiB, configurable via `<bucket-ram-quota-mb>`), the configured scope, ten curity-* collections, and primary indexes on first connect (auto-provision=true by default)
 pitfalls:
   - Couchbase initial cluster setup happens via the couchbase api-config bundle at deploy time; the Curity plugin then provisions its own bucket and collections on first connect
@@ -16,13 +24,13 @@ steps:
     description: Add the Couchbase database service
   - run: b service add curity
     description: Add the Curity Identity Server abstract
-  - run: b run-spec-abstract set auth -s couchbase,curity
+  - run: b run-spec-abstract set {{run_spec}} -s couchbase,curity
     description: Compose the two services into a single run-spec-abstract
-  - run: b run-spec-abstract deploy add auth development-local -v development -c k3d-local
+  - run: b run-spec-abstract deploy add {{run_spec}} development-local -v development -c k3d-local
     description: Add the development-local deployment pairing run-spec-variant `development` with the k3d-local cluster
-  - run: b bp run auth/curity-couchbase --no-restart --var deploy_target=auth/development-local
+  - run: b bp run auth/curity-couchbase --no-restart --var deploy_target={{run_spec}}/development-local
     description: Switch Curity's data source from HSQLDB to Couchbase (plugin self-provisions bucket + collections + indexes on first connect)
-  - run: b bp run auth/curity-oauth --no-restart --var deploy_target=auth/development-local
+  - run: b bp run auth/curity-oauth --no-restart --var deploy_target={{run_spec}}/development-local
     description: Configure OAuth2 profiles, clients (flutter-app), and scopes
-  - run: b deploy auth/development-local
+  - run: b deploy {{run_spec}}/development-local
     description: Render manifests, build images, and apply the run-spec-abstract to the local cluster

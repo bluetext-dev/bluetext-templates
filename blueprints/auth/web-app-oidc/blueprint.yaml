@@ -99,6 +99,10 @@ steps:
     params:
       file: code/services/web-app/vite.config.ts
       content_file: files/vite.config.ts
+  - name: Remove the web-app's direct Ingress (Kong is the single front door — phantom token requires same-origin; the SPA is served via Kong's `/` route)
+    tool: file_delete
+    params:
+      file: config/k8s/web-app/web-app/base/ingress.yaml
   # No KONG_URL/CURITY_URL env injection anymore: those were the Vite
   # dev-server proxy targets. Kong is the single front door now (it routes
   # /api, /curity, and / to the right upstreams), so the web-app pod needs

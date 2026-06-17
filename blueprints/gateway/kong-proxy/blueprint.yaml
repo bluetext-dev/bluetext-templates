@@ -58,6 +58,21 @@ steps:
           path: spec.template.metadata.annotations
           content: |
             bluetext.io/gateway: "{{gateway}}"
+      # Declare a link from the gateway to the target so the route's
+      # upstream address resolves through the link graph (config::links)
+      # instead of a bare DNS convention. The route below reads the
+      # link's host/port; the deploy pipeline resolves them at
+      # file-config render time. Targets expose an `http`
+      # connection-profile (the routable-service convention).
+      - name: "Declare a `{{item}}` link from {{gateway}} to {{item}}/http"
+        tool: file_patch
+        params:
+          file: "config/system/services/{{gateway}}/service.yaml"
+          operation: merge
+          path: ""
+          content: |
+            links:
+              {{item}}: {{item}}/http
       - name: "Add Kong route for {{item}}"
         tool: file_patch
         params:
@@ -66,7 +81,7 @@ steps:
           path: services
           content: |
             - name: "{{item}}"
-              url: "http://{{item}}"
+              url: "http://$bt{{ config::links.{{item}}.host }}:$bt{{ config::links.{{item}}.port }}"
               routes:
                 - name: "{{item}}-route"
                   paths:

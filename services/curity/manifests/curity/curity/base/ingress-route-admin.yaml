@@ -1,0 +1,15 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: curity--curity-admin
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`curity-admin.$bt{{ deploy::namespace }}.bluetext.localhost`)
+      kind: Rule
+      services:
+        - name: curity--curity-admin
+          port: 80
+          scheme: https
+          serversTransport: curity--curity-transport

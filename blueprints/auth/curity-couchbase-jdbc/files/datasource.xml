@@ -1,0 +1,48 @@
+<config xmlns="http://tail-f.com/ns/config/1.0">
+  <facilities xmlns="https://curity.se/ns/conf/base">
+    <data-sources>
+      <data-source>
+        <id>default-datasource</id>
+        <jdbc xmlns="https://curity.se/ns/ext-conf/jdbc">
+          <connection-string>jdbc:postgresql:couchbase://__COUCHBASE_HOST__?catalog=curity&amp;user=__COUCHBASE_USERNAME__&amp;password=__COUCHBASE_PASSWORD__&amp;ssl=__COUCHBASE_TLS__</connection-string>
+          <driver>dev.bluetext.jdbc.CouchbasePostgresDriver</driver>
+          <standard-credentials-mode/>
+        </jdbc>
+      </data-source>
+    </data-sources>
+    <caching-services>
+      <default-caching-service>
+        <data-source>default-datasource</data-source>
+      </default-caching-service>
+    </caching-services>
+  </facilities>
+
+  <processing xmlns="https://curity.se/ns/conf/base">
+    <account-managers>
+      <account-manager>
+        <id>default-account-manager</id>
+        <account-data-source>default-datasource</account-data-source>
+        <enable-registration>
+          <account-verification-method>no-verification</account-verification-method>
+        </enable-registration>
+      </account-manager>
+    </account-managers>
+    <credential-managers>
+      <credential-manager>
+        <id>default-credential-manager</id>
+        <data-source-backed>
+          <data-source-id>default-datasource</data-source-id>
+        </data-source-backed>
+        <!-- Curity hashes credentials with BCrypt (cost 10) on write and
+             bcrypt-verifies on read, producing the `$2a$` prefix. Reaches
+             Couchbase through the JDBC wrapper as an already-hashed value;
+             nothing downstream hashes, so this element is what makes hashing
+             happen. Omitting it leaves the bucket storing plaintext (Curity
+             11.x dropped the implicit-bcrypt default). -->
+        <BCrypt>
+          <cost>10</cost>
+        </BCrypt>
+      </credential-manager>
+    </credential-managers>
+  </processing>
+</config>

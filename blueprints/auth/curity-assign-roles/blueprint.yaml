@@ -14,12 +14,18 @@ caveats:
   - Users must already exist (registered via app or created with auth/curity-create-users)
   - Requires Curity to be running with the User Management profile
 variables:
+  - name: deploy_target
+    alias: d
+    description: '<run-spec-abstract>/<deployment-name> — resolves the namespace Curity is running in'
+    type: deploy-target
+    required: true
   - name: users
     description: "Comma-separated username:role pairs (e.g. alice:admin,bob:moderator)"
     type: string
   - name: namespace
-    description: Namespace where Curity is running
-    type: string
+    description: Service group within the run-spec-abstract
+    type: namespace
+    depends_on: deploy_target
     default: main
 see_also: [auth/curity-create-users, auth/api-rbac]
 steps:

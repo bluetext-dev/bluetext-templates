@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: couchbase--server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: couchbase--server
+  template:
+    metadata:
+      labels:
+        app: couchbase--server
+    spec:
+      hostname: couchbase
+      subdomain: couchbase--server-headless
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: couchbase--server
+          image: couchbase:enterprise-7.6.6
+          imagePullPolicy: IfNotPresent
+          # Cluster-init runs once on first boot via a postStart lifecycle
+          # hook. Reads the Administrator credentials from the Secret the
+          # deploy pipeline materialises out of `secrets.auth` (named
+          # `couchbase--auth`, auto-mounted by the deploy pipeline at
+          # /etc/bluetext/mounts/auth/ from the `mounts: [variant::auth]`
+          # declaration), then POSTs to the
+          # local 8091 admin API to set memory quotas, enable services,
+          # and provision the admin user. Idempotent: every step swallows
+          # "already initialised" / "already exists" responses, so pod
+          # restarts after the first boot are a no-op.
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - /bin/bash
+                  - -c
+                  - |
+                    set -u
+                    USER="$(cat /etc/bluetext/mounts/auth/username)"
+                    PW="$(cat /etc/bluetext/mounts/auth/password)"
+                    until curl -sf http://127.0.0.1:8091/pools >/dev/null 2>&1; do sleep 2; done
+                    curl -sS -u "$USER:$PW" -X POST http://127.0.0.1:8091/pools/default \
+                      -d memoryQuota=256 -d indexMemoryQuota=256 >/dev/null || true
+                    curl -sS -X POST http://127.0.0.1:8091/node/controller/setupServices \
+                      -d 'services=kv,index,n1ql' >/dev/null || true
+                    curl -sS -X POST http://127.0.0.1:8091/settings/web \
+                      -d "username=$USER" -d "password=$PW" -d port=SAME >/dev/null || true
+                    exit 0
+          ports:
+            - containerPort: 8091
+              name: web-ui
+            - containerPort: 8092
+              name: views
+            - containerPort: 8093
+              name: query
+            - containerPort: 8094
+              name: search
+            - containerPort: 8095
+              name: analytics
+            - containerPort: 11210
+              name: data
+          readinessProbe:
+            # Exec probe so the pod's mounted credentials drive
+            # `curl -u`. Readiness only flips green after cluster-init
+            # has provisioned the admin user — consumers never see a
+            # half-bootstrapped cluster.
+            exec:
+              command:
+                - /bin/bash
+                - -c
+                - 'curl -sf -u "$(cat /etc/bluetext/mounts/auth/username):$(cat /etc/bluetext/mounts/auth/password)" http://127.0.0.1:8091/pools/default >/dev/null'
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 24
+          volumeMounts:
+            - name: couchbase-data
+              mountPath: /opt/couchbase/var
+            # admin-creds (couchbase--auth) is auto-mounted at
+            # /etc/bluetext/mounts/auth/ by the deploy pipeline from the
+            # `mounts: [variant::auth]` declaration — no hand-authored
+            # volume needed.
+      volumes:
+        - name: couchbase-data
+          persistentVolumeClaim:
+            claimName: couchbase--server-data

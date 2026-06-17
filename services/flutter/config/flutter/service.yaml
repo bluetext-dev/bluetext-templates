@@ -1,0 +1,9 @@
+name: Flutter App
+description: Mobile app running on host emulator with host-forward dev mode
+use:
+  _default: flutter
+interfaces:
+  - http
+connection-profiles:
+  http:
+    interface: http

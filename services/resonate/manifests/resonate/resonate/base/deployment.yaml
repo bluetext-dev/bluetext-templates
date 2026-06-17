@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: resonate--resonate
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: resonate--resonate
+  template:
+    metadata:
+      labels:
+        app: resonate--resonate
+    spec:
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: resonate--resonate
+          image: resonate-resonate:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8001
+              name: api
+            - containerPort: 9090
+              name: metrics
+          readinessProbe:
+            tcpSocket:
+              port: 8001
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 12
+          env:
+            - name: RUST_LOG
+              value: "info"
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          hostPath:
+            path: /var/mnt/workspace/.bluetext/cache/resonate
+            type: DirectoryOrCreate

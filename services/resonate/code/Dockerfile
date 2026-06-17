@@ -1,7 +1,7 @@
 FROM rust:bookworm AS builder
 RUN apt-get update && apt-get install -y pkg-config libssl-dev git && rm -rf /var/lib/apt/lists/*
 WORKDIR /build
-RUN git clone --depth 1 https://github.com/resonatehq/resonate.git .
+RUN git clone --depth 1 --branch v0.9.4 https://github.com/resonatehq/resonate.git .
 RUN cargo build --release
 
 FROM debian:bookworm-slim

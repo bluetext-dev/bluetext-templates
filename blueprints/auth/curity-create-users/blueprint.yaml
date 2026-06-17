@@ -1,5 +1,5 @@
 name: Curity Create Users
-description: Create user accounts with passwords via SCIM API
+description: Create or update user accounts with passwords via SCIM API — idempotent upsert; re-running re-sets each password so the data source's BCrypt hashing heals any plaintext left by an earlier run
 tags: [auth, curity]
 prerequisites:
   - description: Curity service exists
@@ -14,12 +14,18 @@ caveats:
   - Uses a shared password for all users — for development only
   - Requires Curity to be running with the User Management profile
 variables:
+  - name: deploy_target
+    alias: d
+    description: '<run-spec-abstract>/<deployment-name> — resolves the namespace Curity is running in'
+    type: deploy-target
+    required: true
   - name: users
     description: "Comma-separated username:password pairs (e.g. alice:Pass1,bob:Pass2)"
     type: string
   - name: namespace
-    description: Namespace where Curity is running
-    type: string
+    description: Service group within the run-spec-abstract
+    type: namespace
+    depends_on: deploy_target
     default: main
 see_also: [auth/curity-assign-roles, auth/api-rbac]
 steps:

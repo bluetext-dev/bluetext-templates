@@ -1,0 +1,8 @@
+interfaces:
+  proxy:
+    port: 8000
+    protocol: http
+  admin:
+    port: 8001
+    protocol: http
+code-dir: code/services/kong

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Route } from "./+types/home";
+import { apiUrl } from "~/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
 
@@ -15,7 +16,13 @@ export default function Home() {
   const [apiConnected, setApiConnected] = useState<boolean | null>(null);
 
   useEffect(() => {
-    fetch("/api/hello")
+    // Reach the api through `apiUrl` (see app/lib/api.ts): in the browser it
+    // resolves to the same-origin `/api/hello`, which the Vite proxy forwards to
+    // the api's `GET /hello` — the call never crosses an origin boundary. Never
+    // fetch the api's own subdomain (e.g. `api--<token>--<user>.<domain>`) from
+    // the browser: that's cross-origin and gets blocked by the lab auth gateway
+    // + CORS. See AGENTS.md.
+    fetch(apiUrl("/hello"))
       .then((res) => res.json())
       .then((data) => {
         setApiMessage(data.message);

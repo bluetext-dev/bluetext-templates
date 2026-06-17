@@ -1,0 +1,13 @@
+name: Rust API
+description: Backend API with Axum, mirrord dev mode
+use:
+  _default: api
+interfaces:
+  - http
+connection-profiles:
+  http:
+    interface: http
+# Fast host-side validation, run from the service's code directory by
+# `b service check api` — and automatically by the in-app agent harness
+# after the agent edits this service's files.
+check: cargo check -q

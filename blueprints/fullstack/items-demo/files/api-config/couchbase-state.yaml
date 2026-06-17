@@ -1,0 +1,14 @@
+# Couchbase api-config — declared end-state for the fullstack demo.
+#
+# Provisions the bucket the model connects to (`{{bucket}}` — the default bucket
+# for a `#[state_machine]` model's CouchbaseCollection fields) plus one
+# collection per entity. The model routes each entity into its OWN collection
+# (`#[store(collection = "{{collection}}")]`), so the api-config job creates
+# that collection here. When you adapt this demo to add a second entity, add
+# its collection to the list below (e.g. `orders`) — one collection per type.
+buckets:
+  - name: {{bucket}}
+    scopes:
+      - name: _default
+        collections:
+          - {{collection}}

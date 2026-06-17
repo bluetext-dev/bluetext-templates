@@ -1,9 +1,60 @@
 _format_version: "3.0"
-plugins:
-  - name: phantom-token
-    config:
-      introspection_endpoint: http://curity.{{namespace}}.svc.cluster.local/oauth/v2/oauth-introspect
-      client_id: phantom-token-client
-      client_secret: phantom-token-secret
-      token_cache_seconds: 300
-services: []
+services:
+  # Phantom-token is the same-origin front door. The browser holds an
+  # opaque access token in the web-app's session; for that to ride along
+  # on `/api` requests so the plugin can introspect it (opaque → JWT) and
+  # forward to the API, the web-app and the API MUST share one origin.
+  # Kong is therefore the single ingress host: `/api` (protected) and
+  # `/curity` (the browser's OIDC token POST) and `/` (the SPA) all live
+  # under Kong's one tokenized host. `targets`-protected `/api/*` routes
+  # are appended below by the blueprint's for_each loop, each carrying a
+  # SERVICE-SCOPED phantom-token plugin.
+  #
+  # The plugin is deliberately NOT declared as a top-level (global)
+  # `plugins:` entry: a global plugin in Kong's declarative config binds
+  # to EVERY service/route, so it would also guard `/` and `/curity` —
+  # 401ing the SPA load and the OIDC token exchange that the login flow
+  # depends on. Scoping it to each protected target's `plugins:` block is
+  # what keeps the public front door (SPA + Curity token endpoint) open.
+  #
+  # Curity token-exchange passthrough. The web-app's PKCE token POST is a
+  # browser `fetch` — it must be same-origin, so it goes to Kong at
+  # `/curity/*` and Kong strips the prefix and forwards to Curity's OIDC
+  # runtime. The curity Service maps port 80 → container 8443, and the
+  # runtime service-role is configured `<protocol>http</protocol>` (see
+  # the curity base-config.xml), so the in-cluster hop is plain HTTP on
+  # port 80 — the same form the phantom-token introspection_endpoint above
+  # uses. NO phantom-token plugin here: this is the unauthenticated token
+  # endpoint that MINTS the token. The OIDC *authorize* request is a
+  # full-page redirect straight to Curity's own host (a separate origin by
+  # OIDC design), so it does not pass through Kong. jwks/userinfo are never
+  # fetched by the browser (the SPA decodes the JWT client-side), so only
+  # the token endpoint is routed here. No service-scoped plugin → public.
+  - name: curity-oidc
+    url: "http://curity--curity.{{namespace}}.svc.cluster.local"
+    routes:
+      - name: curity-oidc-route
+        paths:
+          - "/curity"
+        strip_path: true
+  # SPA catch-all (lowest priority — `/api` and `/curity` are longer
+  # prefixes and win first). Serves the Vite-hosted web-app. NO auth
+  # plugin: static SPA assets are public; the access token is enforced
+  # only on `/api`.
+  #
+  # preserve_host: true forwards the browser's Host
+  # (`kong.<route-token>.bluetext.localhost`) to the Vite dev server
+  # instead of rewriting it to the upstream's cluster-DNS name. Vite
+  # guards against DNS-rebinding with `allowedHosts` (the web-app sets
+  # `['.bluetext.localhost']`); the default Kong behaviour would send
+  # `web-app--web-app.<ns>.svc.cluster.local`, which Vite rejects with a
+  # 403 "host not allowed". Preserving the original host keeps the SPA
+  # served under the same tokenized origin the rest of the flow uses.
+  - name: web-app
+    url: "http://web-app--web-app.{{namespace}}.svc.cluster.local"
+    routes:
+      - name: web-app-route
+        paths:
+          - "/"
+        strip_path: false
+        preserve_host: true

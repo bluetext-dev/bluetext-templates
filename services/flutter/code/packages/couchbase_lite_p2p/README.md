@@ -1,10 +1,10 @@
 # couchbase_lite_p2p
 
-A new Flutter plugin project.
+A new Flutter plugin system.
 
 ## Getting Started
 
-This project is a starting point for a Flutter
+This system is a starting point for a Flutter
 [plug-in package](https://flutter.dev/to/develop-plugins),
 a specialized package that includes platform-specific implementation code for
 Android and/or iOS.

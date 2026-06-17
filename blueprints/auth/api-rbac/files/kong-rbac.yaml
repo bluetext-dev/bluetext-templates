@@ -1,20 +1,55 @@
 _format_version: "3.0"
-plugins:
-  - name: phantom-token
-    config:
-      introspection_endpoint: http://curity.{{namespace}}.svc.cluster.local/oauth/v2/oauth-introspect
-      client_id: phantom-token-client
-      client_secret: phantom-token-secret
-      token_cache_seconds: 300
+# This file fully owns config/kong/kong.yaml. auth/api-rbac runs AFTER
+# auth/kong-phantom-token in the auth-curity-rbac-web-app context and writes
+# this file wholesale, so it MUST carry the same same-origin multi-route
+# structure kong-phantom-token establishes — the SPA at `/`, Curity's OIDC
+# token POST at `/curity`, and the protected API at `/api` — and then ADD the
+# RBAC role enforcement on the API route. A bare `/api`-only config here would
+# silently revert the redesign (no public SPA, no token endpoint, and a global
+# phantom-token plugin that 401s `/` and `/curity`).
 services:
+  # Curity OIDC token-exchange passthrough — public (NO auth plugin: this is the
+  # unauthenticated endpoint that MINTS the token). Strips `/curity`.
+  - name: curity-oidc
+    url: "http://curity--curity.{{namespace}}.svc.cluster.local"
+    routes:
+      - name: curity-oidc-route
+        paths:
+          - "/curity"
+        strip_path: true
+  # SPA catch-all (lowest priority — `/api` and `/curity` are longer prefixes
+  # and win first). Public. preserve_host forwards the browser's tokenized host
+  # to the Vite dev server, whose allowedHosts (['.bluetext.localhost']) rejects
+  # the upstream cluster-DNS name with a 403 otherwise.
+  - name: web-app
+    url: "http://web-app--web-app.{{namespace}}.svc.cluster.local"
+    routes:
+      - name: web-app-route
+        paths:
+          - "/"
+        strip_path: false
+        preserve_host: true
+  # Protected API. The phantom-token plugin is ROUTE-scoped (on api-route, not
+  # the service) so it guards `/api` — never `/` or `/curity` — AND so the
+  # api-rbac `public_paths` variable can add sibling public services (same api
+  # upstream, no plugin) for unauthenticated `/api/<path>` endpoints without
+  # inheriting it. The route also layers RBAC role enforcement (admin /
+  # moderator) on top. Kong matches the longest path prefix first, so a public
+  # `/api/<path>` route wins over this `/api` catch-all.
   - name: api
-    url: http://api.{{namespace}}.svc.cluster.local
+    url: "http://api--api.{{namespace}}.svc.cluster.local"
     routes:
       - name: api-route
         paths:
           - /api
         strip_path: true
         plugins:
+          - name: phantom-token
+            config:
+              introspection_endpoint: http://curity--curity.{{namespace}}.svc.cluster.local/oauth/v2/oauth-introspect
+              client_id: phantom-token-client
+              client_secret: phantom-token-secret
+              token_cache_seconds: 300
           - name: pre-function
             config:
               access:

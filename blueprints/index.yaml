@@ -26,8 +26,8 @@ blueprints:
     description: Add OpenID Connect authentication to an existing Flutter app
     tags: [auth, oidc, mobile, curity, flutter]
     prerequisites:
-      - description: Flutter app exists
-        check: app_exists
+      - description: Flutter service exists
+        check: service_exists
         params:
           id: "{{app_id}}"
   - id: auth/curity
@@ -35,7 +35,10 @@ blueprints:
     description: Deploy a standalone Curity Identity Server for OAuth 2.0 and OpenID Connect
     tags: [auth, oidc, oauth]
     prerequisites:
-      - description: A running cluster (b start)
+      - description: Curity service exists
+        check: service_exists
+        params:
+          id: curity
   - id: auth/curity-assign-roles
     name: Curity Assign Roles
     description: Assign roles to existing user accounts via SCIM API
@@ -51,8 +54,8 @@ blueprints:
           file: config/curity/user-management.xml
   - id: auth/curity-couchbase
     name: Curity Couchbase Data Store
-    description: Configure Curity with Couchbase via JDBC — accounts, tokens, sessions, and credentials backed by Couchbase
-    tags: [auth, curity, couchbase, database]
+    description: Configure Curity with Couchbase as a native data source — accounts, tokens, sessions, and credentials (BCrypt-hashed, cost 10) backed by Couchbase via the Curity DAP plugin
+    tags: [auth, curity, couchbase, database, plugin]
     prerequisites:
       - description: Curity service exists
         check: service_exists
@@ -62,13 +65,22 @@ blueprints:
         check: service_exists
         params:
           id: couchbase
-      - description: Service Config Manager exists
+  - id: auth/curity-couchbase-jdbc
+    name: Curity Couchbase Data Store (JDBC)
+    description: Configure Curity with Couchbase via a JDBC wrapper that translates SQL to N1QL — fits Curity licenses that allow JDBC data sources; credentials BCrypt-hashed (cost 10)
+    tags: [auth, curity, couchbase, database, jdbc]
+    prerequisites:
+      - description: Curity service exists
         check: service_exists
         params:
-          id: service-config-manager
+          id: curity
+      - description: Couchbase service exists
+        check: service_exists
+        params:
+          id: couchbase
   - id: auth/curity-create-users
     name: Curity Create Users
-    description: Create user accounts with passwords via SCIM API
+    description: "Create or update user accounts with passwords via SCIM API — idempotent upsert; re-running re-sets each password so the data source's BCrypt hashing heals any plaintext left by an earlier run"
     tags: [auth, curity]
     prerequisites:
       - description: Curity service exists
@@ -81,7 +93,7 @@ blueprints:
           file: config/curity/user-management.xml
   - id: auth/curity-hsqldb
     name: Curity HSQLDB Data Store
-    description: Configure Curity with file-based HSQLDB for accounts, tokens, sessions, and credentials — persisted in .bluetext/curity-db/
+    description: Configure Curity with file-based HSQLDB for accounts, tokens, sessions, and credentials (BCrypt-hashed, cost 10) — persisted in .bluetext/curity-db/
     tags: [auth, curity, hsqldb, database]
     prerequisites:
       - description: Curity service exists
@@ -102,14 +114,31 @@ blueprints:
     description: Deploy Curity + Kong with phantom token introspection to protect target services
     tags: [auth, phantom-token, gateway, security]
     prerequisites:
-      - description: A running cluster (b start)
-      - description: At least one existing service to protect (already added via b service add)
+      - description: Curity service exists
+        check: service_exists
+        params:
+          id: curity
+      - description: Kong service exists
+        check: service_exists
+        params:
+          id: kong
   - id: auth/curity-rbac
     name: Curity RBAC Stack
-    description: Full-stack RBAC — Curity (IdP) + Kong (gateway enforcement) + API (service-level role guards)
+    description: Full-stack RBAC — Curity (IdP) + Kong (gateway enforcement) + API (service-level role guards); credentials BCrypt-hashed (cost 10)
     tags: [auth, oidc, security, gateway, phantom-token, rbac]
     prerequisites:
-      - description: A running cluster (b start)
+      - description: Curity service exists
+        check: service_exists
+        params:
+          id: curity
+      - description: Kong service exists
+        check: service_exists
+        params:
+          id: kong
+      - description: API service exists
+        check: service_exists
+        params:
+          id: api
   - id: auth/kong-phantom-token
     name: Kong Phantom Token
     description: Configure Kong with phantom token introspection and wire target services through the gateway
@@ -136,36 +165,53 @@ blueprints:
         check: service_exists
         params:
           id: "{{service}}"
-  - id: database/couchbase-wire
-    name: Wire Service to Couchbase
-    description: "Inject Couchbase connection env vars (HOST, USERNAME, PASSWORD, BUCKET, etc.) into a target service's deployment so it can read them at runtime via the couchbase client library"
-    tags: [database, couchbase]
+  - id: auth/web-app-oidc
+    name: Web-App OIDC Authentication
+    description: Add OpenID Connect authentication and role-aware UI to the web-app, registering it as a Curity client and routing API calls through Kong.
+    tags: [auth, oidc, web, curity, web-app]
     prerequisites:
-      - description: Target service exists
+      - description: Web-app service exists
         check: service_exists
         params:
-          id: "{{target}}"
-      - description: Upstream exists (internal couchbase service or external couchbase-capella)
-        check: upstream_exists
+          id: web-app
+      - description: Curity service exists
+        check: service_exists
         params:
-          id: "{{upstream}}"
-      - description: Couchbase client crate is scaffolded (run `b client add couchbase` first)
+          id: curity
+      - description: Curity OAuth config exists (run auth/curity-oauth first)
         check: file_exists
         params:
-          file: code/clients/src/couchbase.rs
-  - id: database/service-config-manager-register
-    name: Register Service with Config Manager
-    description: Wire service-config-manager to an upstream service — injects connection env vars, registers in managed services, and creates the relationship
-    tags: [database, service-config-manager]
+          file: config/curity/oauth-config.xml
+  - id: demo/ai-governance
+    name: AI Governance Model
+    description: Demo data model for an AI governance platform — users, models, policies, usage tracking
+    tags: [demo]
+  - id: dev/kong-reload
+    name: Kong Hot Reload
+    description: Re-run init_worker on the live Kong pod to pick up edits to the Lua plugin source under code/services/kong/lua/. Use after hand-editing handler.lua or schema.lua during plugin development.
+    tags: [gateway, kong, dev]
     prerequisites:
-      - description: Service-config-manager exists
+      - description: Kong service exists
         check: service_exists
         params:
-          id: service-config-manager
-      - description: Upstream service exists
+          id: kong
+  - id: fullstack/items-demo
+    name: Entity CRUD round-trip (api + web-app + Couchbase)
+    description: "Materializes a CRUD entity in the project's modeling layer — state machine, mutation, getter, command, and state invariant — then wires a thin axum controller in the api service and a matching form + list in the web-app home page. The entity is a variable: pass your domain type directly (`-v entity=HighScore -v entity_snake=highscore -v collection=highscores`) and the generated model, routes, collection, and frontend carry it from the start — no rename pass afterwards; only the entity's fields and logic remain to adapt. Defaults produce the classic `Item` demo. This blueprint scaffolds config + code only and makes no cluster changes; after it completes, run `b deploy <run-spec-abstract>/<deploy-name>` to build the images and bring the new model live. Demonstrates a full frontend → API → datastore round-trip that follows the platform's modeling architecture (docs/MODELING.md)."
+    tags: [fullstack, api, couchbase, crud, demo]
+    prerequisites:
+      - description: api service exists
+        check: service_exists
+        params:
+          id: "{{api_service}}"
+      - description: web-app service exists
+        check: service_exists
+        params:
+          id: "{{web_service}}"
+      - description: Upstream Couchbase exists
         check: upstream_exists
         params:
-          id: "{{service}}"
+          id: "{{upstream_couchbase}}"
   - id: gateway/kong-mcp-proxy
     name: Kong AI MCP Proxy
     description: "Expose an HTTP API's endpoints as MCP tools via the Kong ai-mcp-proxy plugin (Kong Enterprise 3.12+ required)"

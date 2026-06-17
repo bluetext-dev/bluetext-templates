@@ -1,0 +1,7 @@
+interfaces:
+  public:
+    port: 4984
+    protocol: http
+  admin:
+    port: 4985
+    protocol: http

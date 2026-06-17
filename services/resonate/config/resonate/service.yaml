@@ -1,0 +1,9 @@
+name: Resonate
+description: Durable execution server for commands
+use:
+  _default: resonate
+interfaces:
+  - http
+connection-profiles:
+  default:
+    interface: http

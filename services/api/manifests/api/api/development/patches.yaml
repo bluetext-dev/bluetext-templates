@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api--api
+spec:
+  template:
+    spec:
+      containers:
+        - name: api--api
+          volumeMounts:
+            - name: system
+              mountPath: /app
+            - name: clients
+              mountPath: /clients
+            - name: models
+              mountPath: /models
+      volumes:
+        - name: system
+          hostPath:
+            path: /var/mnt/systems/$bt{{ deploy::system-rel }}/code/services/api
+            type: Directory
+        - name: clients
+          hostPath:
+            path: /var/mnt/systems/$bt{{ deploy::system-rel }}/code/clients
+            type: Directory
+        - name: models
+          hostPath:
+            path: /var/mnt/systems/$bt{{ deploy::system-rel }}/code/models
+            type: DirectoryOrCreate

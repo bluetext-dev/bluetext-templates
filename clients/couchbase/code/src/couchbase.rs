@@ -3,6 +3,7 @@ use couchbase::cluster::Cluster;
 use couchbase::collection::Collection;
 use couchbase::error::ErrorKind;
 use couchbase::options::cluster_options::ClusterOptions;
+use couchbase::options::query_options::{QueryOptions, ScanConsistency};
 use futures_util::TryStreamExt;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::collections::HashMap;
@@ -16,42 +17,55 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone)]
 pub struct CouchbaseConf {
-    pub host: String,
+    /// Full connection URL including protocol (e.g. `couchbase://host`,
+    /// `couchbases://host:18091`). The macro-generated `__connect()` and
+    /// this client library both read this as a single opaque string.
+    pub url: String,
     pub username: String,
     pub password: String,
     pub bucket: String,
-    pub protocol: String,
 }
 
 impl CouchbaseConf {
-    /// Build config from environment variables using a prefix.
-    /// e.g. prefix "COUCHBASE" reads COUCHBASE_HOST, COUCHBASE_USERNAME, etc.
+    /// Build config from the link mount the deploy pipeline projects at
+    /// `/etc/bluetext/links/<link>/`.
     ///
-    /// HOST, USERNAME, and PASSWORD are required. PROTOCOL and BUCKET have
-    /// sensible defaults ("couchbase" and "main" respectively).
-    pub fn from_env(prefix: &str) -> Result<Self, String> {
-        let prefix = prefix.to_uppercase().replace('-', "_");
+    /// `b service link <consumer> couchbase/<profile>` places `host`,
+    /// `port`, `protocol`, and the credential files (`username`,
+    /// `password`) there; this reads them. `host` / `username` /
+    /// `password` are required — a missing file fails loud (no silent
+    /// fallback), because it means this service isn't linked to couchbase.
+    /// `bucket` defaults to "main" — the platform-wide default: the bucket a
+    /// `#[state_machine]` model's CouchbaseCollection fields connect to and
+    /// the one the scaffolded `api-config/couchbase/base/state.yaml`
+    /// provisions on first deploy. Overridable with an optional `bucket`
+    /// file in the mount, so every consumer of one link agrees on the
+    /// bucket from one place.
+    pub fn from_link(link_name: &str) -> Result<Self, String> {
+        let dir = std::path::Path::new("/etc/bluetext/links").join(link_name);
+        let read = |file: &str| -> Result<String, String> {
+            std::fs::read_to_string(dir.join(file))
+                .map(|s| s.trim().to_string())
+                .map_err(|_| {
+                    format!(
+                        "Couchbase link mount file {}/{file} is missing — is this service linked to \
+                         couchbase? Run `b service link <this-service> couchbase/<profile>`.",
+                        dir.display()
+                    )
+                })
+        };
 
-        let host = std::env::var(format!("{prefix}_HOST")).map_err(|_| {
-            format!("Required env var {prefix}_HOST is not set. Run 'b client configure' to inject it.")
-        })?;
-        let username = std::env::var(format!("{prefix}_USERNAME")).map_err(|_| {
-            format!("Required env var {prefix}_USERNAME is not set. Run 'b client configure' to inject it.")
-        })?;
-        let password = std::env::var(format!("{prefix}_PASSWORD")).map_err(|_| {
-            format!("Required env var {prefix}_PASSWORD is not set. Run 'b client configure' to inject it.")
-        })?;
-        let bucket =
-            std::env::var(format!("{prefix}_BUCKET")).unwrap_or_else(|_| "main".into());
-        let protocol =
-            std::env::var(format!("{prefix}_PROTOCOL")).unwrap_or_else(|_| "couchbase".into());
+        let host = read("host")?;
+        let protocol = read("protocol").unwrap_or_else(|_| "couchbase".to_string());
+        let username = read("username")?;
+        let password = read("password")?;
+        let bucket = read("bucket").unwrap_or_else(|_| "main".to_string());
 
         Ok(Self {
-            host,
+            url: format!("{protocol}://{host}"),
             username,
             password,
             bucket,
-            protocol,
         })
     }
 }
@@ -73,15 +87,16 @@ pub async fn register_client(name: &str, conf: CouchbaseConf) -> Result<(), Stri
     Ok(())
 }
 
-/// Get a client by name. Auto-registers from env vars using `prefix` if not found.
-pub async fn get_client(name: &str, prefix: &str) -> Result<CouchbaseClient, String> {
+/// Get a client for a link. Auto-connects by reading the link mount at
+/// `/etc/bluetext/links/<link_name>/` if not already registered.
+pub async fn get_client(link_name: &str) -> Result<CouchbaseClient, String> {
     let mut clients = registry().lock().await;
-    if let Some(client) = clients.get(name) {
+    if let Some(client) = clients.get(link_name) {
         return Ok(client.clone());
     }
-    let conf = CouchbaseConf::from_env(prefix)?;
+    let conf = CouchbaseConf::from_link(link_name)?;
     let client = CouchbaseClient::new(conf).await?;
-    clients.insert(name.to_string(), client.clone());
+    clients.insert(link_name.to_string(), client.clone());
     Ok(client)
 }
 
@@ -105,37 +120,52 @@ impl std::fmt::Debug for CouchbaseClient {
 
 impl CouchbaseClient {
     pub async fn new(conf: CouchbaseConf) -> Result<Self, String> {
-        let url = format!("{}://{}", conf.protocol, conf.host);
         let auth = PasswordAuthenticator::new(&conf.username, &conf.password);
         let opts = ClusterOptions::new(auth.into());
-        let cluster = Cluster::connect(&url, opts)
+        let cluster = Cluster::connect(&conf.url, opts)
             .await
-            .map_err(|e| format!("Failed to connect to Couchbase cluster at {url}: {e}"))?;
+            .map_err(|e| format!("Failed to connect to Couchbase cluster at {}: {e}", conf.url))?;
         Ok(Self { conf, cluster })
     }
 
-    /// Ensure a collection exists, creating it if necessary.
+    /// Ensure a collection exists, creating it if necessary. Bounded: a
+    /// management call against a bucket that never becomes ready (typically:
+    /// the bucket isn't provisioned on this cluster) retries inside the SDK
+    /// forever and would hang every request that touches the keyspace. 15s
+    /// covers a cold couchbase pod answering slowly; past that the caller
+    /// gets an actionable error instead of a stuck future.
     pub async fn ensure_collection_exists(
         &self,
         collection_name: &str,
         scope_name: Option<&str>,
         bucket_name: Option<&str>,
-    ) {
+    ) -> Result<(), String> {
         let bucket_name = bucket_name.unwrap_or(&self.conf.bucket);
         let scope_name = scope_name.unwrap_or("_default");
         let bucket = self.cluster.bucket(bucket_name);
         let mgr = bucket.collections();
-        match mgr
-            .create_collection(scope_name, collection_name, None, None)
-            .await
-        {
-            Ok(_) => println!(
-                "Created collection {collection_name} in scope {scope_name} of bucket {bucket_name}"
-            ),
-            Err(e) if matches!(e.kind(), ErrorKind::CollectionExists) => {}
-            Err(e) => eprintln!(
-                "Warning: Could not create collection '{collection_name}': {e}"
-            ),
+        let attempt = tokio::time::timeout(
+            std::time::Duration::from_secs(15),
+            mgr.create_collection(scope_name, collection_name, None, None),
+        )
+        .await;
+        match attempt {
+            Err(_) => Err(format!(
+                "Timed out ensuring collection '{bucket_name}.{scope_name}.{collection_name}' — \
+                 bucket '{bucket_name}' is most likely not provisioned on this cluster. Declare it \
+                 in config/api/couchbase/<bundle>/state.yaml and redeploy, or point this entity at \
+                 an existing bucket (optional `bucket` file in the link mount)."
+            )),
+            Ok(Ok(_)) => {
+                println!(
+                    "Created collection {collection_name} in scope {scope_name} of bucket {bucket_name}"
+                );
+                Ok(())
+            }
+            Ok(Err(e)) if matches!(e.kind(), ErrorKind::CollectionExists) => Ok(()),
+            Ok(Err(e)) => Err(format!(
+                "Could not ensure collection '{bucket_name}.{scope_name}.{collection_name}': {e}"
+            )),
         }
     }
 
@@ -145,17 +175,17 @@ impl CouchbaseClient {
         collection_name: &str,
         scope_name: Option<&str>,
         bucket_name: Option<&str>,
-    ) -> Keyspace {
+    ) -> Result<Keyspace, String> {
         let bucket_name = bucket_name.unwrap_or(&self.conf.bucket);
         let scope_name = scope_name.unwrap_or("_default");
         self.ensure_collection_exists(collection_name, Some(scope_name), Some(bucket_name))
-            .await;
-        Keyspace {
+            .await?;
+        Ok(Keyspace {
             bucket_name: bucket_name.to_string(),
             scope_name: scope_name.to_string(),
             collection_name: collection_name.to_string(),
             client: self.clone(),
-        }
+        })
     }
 
     /// Health check — ping the cluster.
@@ -213,11 +243,21 @@ impl Keyspace {
     }
 
     /// Execute a N1QL query with `${keyspace}` substitution.
+    ///
+    /// Runs with `request_plus` scan consistency: the query engine waits for
+    /// the index to catch up to every mutation issued before this call, so a
+    /// document written just beforehand is visible. The N1QL default
+    /// (`not_bounded`) is eventually consistent — a read-after-write such as
+    /// "insert a highscore, then list highscores" can miss the row it just
+    /// wrote, which reads as data loss. Correct-by-default is the right trade
+    /// for an application data path; the extra index-wait latency is the cost
+    /// of seeing your own writes.
     pub async fn query(&self, query: &str) -> Result<Vec<serde_json::Value>, String> {
         let query = query.replace("${keyspace}", &self.to_string());
         let cluster = self.client.cluster();
+        let options = QueryOptions::new().scan_consistency(ScanConsistency::RequestPlus);
         let mut result = cluster
-            .query(&query, None)
+            .query(&query, options)
             .await
             .map_err(|e| format!("Query failed: {e}"))?;
         let rows: Vec<serde_json::Value> = result
@@ -292,24 +332,34 @@ pub struct Document<T> {
 /// Implement this trait on your entity types to get CRUD operations.
 ///
 /// # Example
+///
+/// Implement `Entity` on a struct **local to your crate**, with
+/// `type Data = Self`. Do *not* write `impl Entity for Document<YourData>`
+/// (e.g. via `pub type Task = Document<TaskData>`): both `Entity` and
+/// `Document` live in this crate, so that violates Rust's orphan rule and
+/// will not compile in a consumer crate.
+///
 /// ```ignore
 /// use serde::{Deserialize, Serialize};
 /// use clients::couchbase::{Document, Entity};
 ///
 /// #[derive(Debug, Clone, Serialize, Deserialize)]
-/// pub struct TaskData {
+/// pub struct Task {
 ///     pub title: String,
 ///     pub done: bool,
 /// }
 ///
-/// pub type Task = Document<TaskData>;
-///
 /// impl Entity for Task {
-///     type Data = TaskData;
+///     type Data = Self;
 ///     fn collection_name() -> &'static str { "tasks" }
-///     fn service_instance() -> &'static str { "couchbase" }
-///     fn env_prefix() -> &'static str { "COUCHBASE" }
+///     // link_name() defaults to "couchbase" — the connection is read from
+///     // the link mount at /etc/bluetext/links/couchbase/. Override only if
+///     // you linked couchbase under a different alias (`b service link -l`).
 /// }
+///
+/// // CRUD then yields `Document<Task>`:
+/// //   let created: Document<Task>      = Task::create(task).await?;
+/// //   let all:     Vec<Document<Task>> = Task::list(None).await?;
 /// ```
 pub trait Entity: Sized {
     type Data: Serialize + DeserializeOwned + Clone;
@@ -317,22 +367,21 @@ pub trait Entity: Sized {
     /// The Couchbase collection name for this entity.
     fn collection_name() -> &'static str;
 
-    /// The service instance name used to look up the client in the registry.
-    fn service_instance() -> &'static str {
+    /// The link this entity reads its connection from — the alias on the
+    /// consumer's `links:`, mounted at `/etc/bluetext/links/<link>/`.
+    /// Defaults to "couchbase" (the link name `b service link` uses when
+    /// no `-l <name>` is given). Override only if you linked couchbase
+    /// under a different alias.
+    fn link_name() -> &'static str {
         "couchbase"
-    }
-
-    /// The env var prefix used to configure this client instance.
-    fn env_prefix() -> &'static str {
-        "COUCHBASE"
     }
 
     /// Get the Keyspace for this entity.
     async fn get_keyspace() -> Result<Keyspace, String> {
-        let client = get_client(Self::service_instance(), Self::env_prefix()).await?;
-        Ok(client
+        let client = get_client(Self::link_name()).await?;
+        client
             .get_keyspace(Self::collection_name(), None, None)
-            .await)
+            .await
     }
 
     /// Create a new document with an auto-generated UUID.

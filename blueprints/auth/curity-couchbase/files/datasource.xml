@@ -3,11 +3,15 @@
     <data-sources>
       <data-source>
         <id>default-datasource</id>
-        <jdbc xmlns="https://curity.se/ns/ext-conf/jdbc">
-          <connection-string>jdbc:postgresql:couchbase://__COUCHBASE_HOST__?catalog=curity&amp;user=__COUCHBASE_USERNAME__&amp;password=__COUCHBASE_PASSWORD__&amp;ssl=__COUCHBASE_TLS__</connection-string>
-          <driver>dev.bluetext.jdbc.CouchbasePostgresDriver</driver>
-          <standard-credentials-mode/>
-        </jdbc>
+        <couchbase xmlns="https://curity.se/ns/ext-conf/couchbase">
+          <host>__COUCHBASE_HOST__</host>
+          <use-tls>__COUCHBASE_TLS__</use-tls>
+          <user-name>__COUCHBASE_USERNAME__</user-name>
+          <password>__COUCHBASE_PASSWORD__</password>
+          <bucket>curity</bucket>
+          <scope>_default</scope>
+          <claim-query>SELECT `:collection`.* FROM `:bucket`.`:scope`.`:collection` WHERE META().id = "node::user::personal_info:::subject"</claim-query>
+        </couchbase>
       </data-source>
     </data-sources>
     <caching-services>
@@ -33,6 +37,16 @@
         <data-source-backed>
           <data-source-id>default-datasource</data-source-id>
         </data-source-backed>
+        <!-- Curity hashes credentials with BCrypt (cost 10) on write and
+             bcrypt-verifies on read, producing the `$2a$` prefix. The
+             Couchbase plugin's CredentialDataAccessProvider.store() receives
+             the already-hashed value and persists it verbatim — it does not
+             hash itself, so this element is what makes hashing happen.
+             Omitting it leaves the bucket storing plaintext (Curity 11.x
+             dropped the implicit-bcrypt default). -->
+        <BCrypt>
+          <cost>10</cost>
+        </BCrypt>
       </credential-manager>
     </credential-managers>
   </processing>

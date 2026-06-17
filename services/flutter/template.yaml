@@ -1,7 +1,10 @@
 id: flutter
 name: Flutter App
 description: Mobile app running on host emulator with host-forward dev mode
+language: dart
 ports:
   - 8080
-dev_mode: host-forward
-dependencies: []
+dev-modes:
+  development:
+    mode: host-forward
+    command: flutter run

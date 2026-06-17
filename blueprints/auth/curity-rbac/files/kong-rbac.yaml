@@ -2,13 +2,13 @@ _format_version: "3.0"
 plugins:
   - name: phantom-token
     config:
-      introspection_endpoint: http://curity.{{namespace}}.svc.cluster.local/oauth/v2/oauth-introspect
+      introspection_endpoint: http://curity--curity.{{namespace}}.svc.cluster.local/oauth/v2/oauth-introspect
       client_id: phantom-token-client
       client_secret: phantom-token-secret
       token_cache_seconds: 300
 services:
   - name: api
-    url: http://api.{{namespace}}.svc.cluster.local
+    url: http://api--api.{{namespace}}.svc.cluster.local
     routes:
       - name: api-admin
         paths:

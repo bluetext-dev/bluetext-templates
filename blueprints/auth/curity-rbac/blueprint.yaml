@@ -1,10 +1,21 @@
 name: Curity RBAC Stack
-description: Full-stack RBAC — Curity (IdP) + Kong (gateway enforcement) + API (service-level role guards)
+description: Full-stack RBAC — Curity (IdP) + Kong (gateway enforcement) + API (service-level role guards); credentials BCrypt-hashed (cost 10)
 tags: [auth, oidc, security, gateway, phantom-token, rbac]
 prerequisites:
-  - A running cluster (b start)
+  - description: Curity service exists
+    check: service_exists
+    params:
+      id: curity
+  - description: Kong service exists
+    check: service_exists
+    params:
+      id: kong
+  - description: API service exists
+    check: service_exists
+    params:
+      id: api
 caveats:
-  - Requires a Curity license key — get a free trial at developer.curity.io (on a bluetext VM, it is pre-set as $CURITY_LICENSE_KEY)
+  - "Curity license: on a local-dev deploy (a run-spec-variant with default-secrets-allowed) the bundled trial license auto-seeds at deploy time — nothing to set. For other environments, set your own first with `b secret set curity-license-wrapped` (free trial at developer.curity.io)."
   - Uses default admin password "admin" — change for non-dev environments
   - Kong phantom-token plugin validates tokens via introspection (adds latency, mitigated by caching)
   - API trusts the JWT from Kong without signature verification (Kong already validated it)
@@ -12,49 +23,30 @@ caveats:
   - Create Account link on the login page, or register at curity.<namespace>.bluetext.localhost/authn/registration
   - Target services will have their direct Ingress removed (traffic routes through Kong)
 variables:
-  - name: namespace
-    description: Target namespace
-    type: string
-    default: auth
-  - name: license_key
-    description: Curity license key (get a free dev license at developer.curity.io)
-    type: string
+  - name: deploy_target
+    alias: d
+    description: '<run-spec-abstract>/<deployment-name> — context for service start/stop/restart steps (e.g. app/development-local)'
+    type: deploy-target
     required: true
+  - name: namespace
+    description: Service-group the protected services live in — resolved (with deploy_target) to the k8s namespace. Scaffolded systems use `main`; pass another group only if you composed the api into one.
+    type: namespace
+    depends_on: deploy_target
+    default: main
   - name: target_services
-    description: Comma-separated list of additional service IDs to protect (beyond the api)
+    description: Additional services to protect (beyond the api)
     type: service
+    multiple: true
     default: ""
-see_also: [auth/curity-phantom-token, gateway/kong]
+see_also: [auth/curity-phantom-token, gateway/kong-proxy]
 steps:
-  - name: Add curity service template
-    tool: service_add
-    params:
-      name: curity
-  - name: Gitignore service secret files
-    tool: file_write
-    params:
-      file: config/services/.gitignore
-      content: "secret.*.yaml\n"
-  - name: Write Curity license secret
-    tool: file_write
-    params:
-      file: config/services/secret.curity.yaml
-      content: |
-        apiVersion: v1
-        kind: Secret
-        metadata:
-          name: curity-license
-        type: Opaque
-        stringData:
-          license-key: '{"License":"{{license_key}}"}'
-  - name: Add kong service template
-    tool: service_add
-    params:
-      name: kong
-  - name: Add api service template
-    tool: service_add
-    params:
-      name: api
+  # The Curity license is delivered by the curity service's own secret
+  # mechanism (Vault value-id `curity-license-wrapped`, materialised into the
+  # `curity--license` Secret via ESO), not by this blueprint: on a
+  # default-secrets-allowed deploy the bundled trial license auto-seeds, and
+  # for other environments `b secret set curity-license-wrapped` sets it. (The
+  # old hand-written `config/services/secret.curity.yaml` wrote a `curity-license`
+  # Secret that nothing mounted — removed.)
   - name: Write Curity base configuration with OAuth2 profiles, clients, and scopes
     tool: file_write
     params:
@@ -78,11 +70,11 @@ steps:
   - name: Remove direct ingress for api
     tool: file_delete
     params:
-      file: config/services/api/base/ingress.yaml
+      file: config/k8s/api/api/base/ingress.yaml
   - name: Add gateway annotations to api
     tool: file_patch
     params:
-      file: config/services/api/base/deployment.yaml
+      file: config/k8s/api/api/base/deployment.yaml
       operation: merge
       path: spec.template.metadata.annotations
       content: |
@@ -94,11 +86,11 @@ steps:
       - name: "Remove direct ingress for {{item}}"
         tool: file_delete
         params:
-          file: "config/services/{{item}}/base/ingress.yaml"
+          file: "config/k8s/{{item}}/{{item}}/base/ingress.yaml"
       - name: "Add gateway annotations to {{item}}"
         tool: file_patch
         params:
-          file: "config/services/{{item}}/base/deployment.yaml"
+          file: "config/k8s/{{item}}/{{item}}/base/deployment.yaml"
           operation: merge
           path: spec.template.metadata.annotations
           content: |
@@ -112,7 +104,7 @@ steps:
           path: services
           content: |
             - name: "{{item}}"
-              url: "http://{{item}}.{{namespace}}.svc.cluster.local"
+              url: "http://{{item}}--{{item}}.{{namespace}}.svc.cluster.local"
               routes:
                 - name: "{{item}}-route"
                   paths:
@@ -122,7 +114,7 @@ steps:
         tool: service_restart
         params:
           id: "{{item}}"
-          namespace: "{{namespace}}"
+          deploy_target: "{{deploy_target}}"
   - name: Create {{namespace}} namespace
     tool: namespace_create
     params:
@@ -131,14 +123,14 @@ steps:
     tool: service_start
     params:
       id: curity
-      namespace: "{{namespace}}"
+      deploy_target: "{{deploy_target}}"
   - name: Start kong in {{namespace}}
     tool: service_start
     params:
       id: kong
-      namespace: "{{namespace}}"
+      deploy_target: "{{deploy_target}}"
   - name: Start api in {{namespace}}
     tool: service_start
     params:
       id: api
-      namespace: "{{namespace}}"
+      deploy_target: "{{deploy_target}}"

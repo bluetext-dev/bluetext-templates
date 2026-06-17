@@ -1,25 +1,29 @@
 name: Basic Auth with Curity
 description: Minimal authentication stack — Curity IdP with OAuth2, OIDC, and user registration
 variables:
-  - name: license_key
-    alias: l
-    description: Curity license key (free trial at developer.curity.io)
+  - name: run_spec
+    description: "Run-spec-abstract to compose these services into. Pick `default` to add them to the system's existing default run-spec instead of a dedicated one."
     type: string
-    required: true
+    default: auth
+    options:
+      - auth
+      - default
 caveats:
-  - Uses default admin password "admin" — change for non-dev environments
+  - "On a local-dev deploy (a run-spec-variant with `default-secrets-allowed: true`) Curity's secrets auto-populate at deploy time — the license seeds from the bundled trial demo (Non-Production tier; replace with your own from developer.curity.io before production), the admin password is auto-generated (Reveal it in the secrets UI), and the admin username is the `admin` values-catalog entry. No manual secret step or $CURITY_LICENSE_KEY export needed."
 tips:
-  - Register test users at curity.main.bluetext.localhost/authn/registration
-  - Admin UI available at curity-admin.main.bluetext.localhost
+  - "Open the Curity login form at curity.rs--development--{{run_spec}}--main.bluetext.localhost/authn"
+  - "Admin UI: curity-admin.rs--development--{{run_spec}}--main.bluetext.localhost"
   - Pre-configured client — flutter-app (public, PKCE)
-pitfalls:
-  - The license secret must be created before starting Curity
 steps:
-  - run: b service add curity --var license_key={{license_key}}
-    description: Add the Curity Identity Server with license secret
-  - run: b bp run auth/curity-hsqldb --no-restart
+  - run: b service add curity
+    description: Add the Curity Identity Server abstract
+  - run: b run-spec-abstract set {{run_spec}} -s curity
+    description: Compose Curity into a single-service run-spec-abstract
+  - run: b run-spec-abstract deploy add {{run_spec}} development-local -v development -c k3d-local
+    description: Add the development-local deployment pairing run-spec-variant `development` with the k3d-local cluster
+  - run: b bp run auth/curity-hsqldb --no-restart --var deploy_target={{run_spec}}/development-local
     description: Configure HSQLDB as the data store (accounts, tokens, sessions)
-  - run: b bp run auth/curity-oauth --no-restart
+  - run: b bp run auth/curity-oauth --no-restart --var deploy_target={{run_spec}}/development-local
     description: Configure OAuth2 profiles, clients (flutter-app), and scopes
-  - run: b service start curity
-    description: Start Curity (picks up HSQLDB + OAuth2 config on first start)
+  - run: b deploy {{run_spec}}/development-local
+    description: Render manifests and apply the run-spec-abstract to the local cluster

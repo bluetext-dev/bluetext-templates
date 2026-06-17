@@ -3,12 +3,15 @@ set -e
 
 BACKEND_NAMESPACE="${BACKEND_NAMESPACE:-${BLUETEXT_NAMESPACE:-dev}}"
 
-# Wait for emulator to be reachable via ADB
+# Wait for an *online* emulator (offline / unauthorized entries don't count —
+# `bin/dev` previously picked the first `emulator-*` line which was often a
+# stale/offline entry from a crashed earlier session and locked the script
+# into "device offline" failures forever).
 echo "Waiting for Android emulator..."
-while ! adb devices 2>/dev/null | grep -q "emulator"; do
+while ! adb devices 2>/dev/null | awk '$2 == "device" && $1 ~ /^emulator-/' | grep -q .; do
   sleep 2
 done
-DEVICE=$(adb devices | grep "emulator" | head -1 | awk '{print $1}')
+DEVICE=$(adb devices | awk '$2 == "device" && $1 ~ /^emulator-/ {print $1; exit}')
 echo "Connected to $DEVICE"
 
 # Set up emulator networking so the app can reach k8s services via Traefik.
@@ -19,15 +22,39 @@ adb -s "$DEVICE" reverse tcp:8888 tcp:80
 
 # Package name derived from applicationId in build.gradle
 PKG="com.example.workspace"
+APK="build/app/outputs/flutter-apk/app-debug.apk"
+
+# Hash every input that affects the APK contents — Dart source, pubspec lock,
+# native android sources, and the BACKEND_NAMESPACE (baked into the APK by
+# `--dart-define`). Anything else compiles into the same artifact.
+build_inputs_hash() {
+  {
+    find /app/lib /app/android -type f \( -name '*.dart' -o -name '*.kt' -o -name '*.java' -o -name '*.xml' -o -name '*.gradle' -o -name '*.properties' \) -exec md5sum {} \; 2>/dev/null
+    md5sum /app/pubspec.yaml /app/pubspec.lock 2>/dev/null
+    echo "BACKEND_NAMESPACE=$BACKEND_NAMESPACE"
+  } | sort | md5sum | awk '{print $1}'
+}
+
+HASH_FILE="/app/build/.bluetext-build-hash"
 
 build_and_install() {
-  echo "Building APK..."
-  flutter build apk --debug \
-    --dart-define=BACKEND_NAMESPACE="$BACKEND_NAMESPACE" \
-    --android-skip-build-dependency-validation 2>&1
-  APK="build/app/outputs/flutter-apk/app-debug.apk"
+  local current_hash
+  current_hash=$(build_inputs_hash)
+  local cached_hash=""
+  [ -f "$HASH_FILE" ] && cached_hash=$(cat "$HASH_FILE" 2>/dev/null || true)
+
+  if [ "$current_hash" = "$cached_hash" ] && [ -f "$APK" ]; then
+    echo "APK is up-to-date (hash $current_hash) — skipping rebuild"
+  else
+    echo "Building APK (hash $current_hash, was ${cached_hash:-none})..."
+    flutter build apk --debug \
+      --dart-define=BACKEND_NAMESPACE="$BACKEND_NAMESPACE" \
+      --android-skip-build-dependency-validation 2>&1
+    mkdir -p "$(dirname "$HASH_FILE")"
+    echo "$current_hash" > "$HASH_FILE"
+  fi
+
   echo "Installing on $DEVICE..."
-  # Try install; if signature mismatch, uninstall first and retry
   if ! adb -s "$DEVICE" install -r "$APK" 2>&1; then
     echo "Install failed, uninstalling old version and retrying..."
     adb -s "$DEVICE" uninstall "$PKG" 2>/dev/null || true

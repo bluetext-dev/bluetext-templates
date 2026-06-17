@@ -31,7 +31,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <Meta />
         <Links />
-        {/* Theme detection script - runs before React hydration */}
+        {/* Theme detection script - runs before React hydration. Theme contract
+            lives in app.css; to force a theme, replace this script with
+            `document.documentElement.classList.add('dark')` (or remove the class). */}
         <script dangerouslySetInnerHTML={{
           __html: `
             (function() {

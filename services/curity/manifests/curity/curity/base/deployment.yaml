@@ -1,0 +1,184 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: curity--curity
+  annotations:
+    # `idsvr -r` reloads etc/init XML and merges with the running config —
+    # ConfD-backed dynamic reload, no process restart, no downtime.
+    bluetext.io/reload-command: "idsvr -r"
+    bluetext.io/reload-watch: "config/curity"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: curity--curity
+  template:
+    metadata:
+      labels:
+        app: curity--curity
+    spec:
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+      initContainers:
+        - name: config-templater
+          image: busybox:stable
+          # Two-step init: (a) namespace-stamp the XML init configs from
+          # the hostPath /config-template into the emptyDir /config (which
+          # mounts at /opt/idsvr/etc/init on the main container), then
+          # (b) copy the license JSON from the mounted Secret at
+          # /license-source into /config/license/default.
+          #
+          # The license can't be a direct mount at
+          # /opt/idsvr/etc/init/license because that path is nested inside
+          # the init-config emptyDir mount; k3d/containerd produces an
+          # empty inner dir on nested mounts. Copy via this init container
+          # instead — Curity's startup scanner reads any file under
+          # /opt/idsvr/etc/init/license/ and parses it as JSON-wrapped JWT.
+          #
+          # The api-config Job (post-apply) handles the post-license
+          # RESTCONF surface (OAuth profiles, clients, scopes, roles).
+          # License install itself is NOT API-installable on Curity —
+          # see services/curity/README.md and curity.yaml::secrets.license.
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              # __NAMESPACE__   → the full k8s namespace (in-cluster DNS, base-url).
+              # __ROUTE_TOKEN__ → the short route-token the deploy pipeline stamps
+              #   onto every `.bluetext.localhost` ingress host (route_host.rs
+              #   rewrites `.{namespace}.` → `.{route-token}.`).
+              # __CURITY_BASE_URL__ / __KONG_BASE_URL__ → the BROWSER-FACING URL
+              #   of curity / kong: the local tokenized host
+              #   (http://<svc>.<route-token>.bluetext.localhost) for a k3d
+              #   deploy, OR the external lab host
+              #   (https://<svc>--<route-token>--<user>.<domain>) in a remote
+              #   lab. Curity's base-url (issuer) and the OIDC redirect-uri MUST
+              #   equal the host the user's BROWSER uses, or the login page is
+              #   unreachable / the callback is rejected (400 invalid_request).
+              #   The deploy::service-url.<svc> placeholder (used in the
+              #   assignments below, with the literal service ids) resolves both
+              #   topologies from the same source of truth as the ingress
+              #   rewrite + the lab proxy (util::service_url), so it never
+              #   drifts. (route-token alone only mints the LOCAL host and
+              #   breaks remote labs.) NOTE: never put an interpolation
+              #   placeholder (the $bt-prefixed double-brace form) in a comment
+              #   here — the deploy interpolation pass scans the raw manifest
+              #   text (it is not YAML-comment-aware) and tries to resolve it.
+              ROUTE_TOKEN="$bt{{ deploy::route-token }}"
+              CURITY_BASE_URL="$bt{{ deploy::service-url.curity }}"
+              KONG_BASE_URL="$bt{{ deploy::service-url.kong }}"
+              for f in /config-template/*.xml; do
+                sed -e "s/__NAMESPACE__/$POD_NAMESPACE/g" \
+                    -e "s/__ROUTE_TOKEN__/$ROUTE_TOKEN/g" \
+                    -e "s|__CURITY_BASE_URL__|$CURITY_BASE_URL|g" \
+                    -e "s|__KONG_BASE_URL__|$KONG_BASE_URL|g" \
+                    "$f" > "/config/$(basename $f)"
+              done
+              mkdir -p /config/license
+              if [ -f /etc/bluetext/mounts/license/license-key ]; then
+                cp /etc/bluetext/mounts/license/license-key /config/license/default
+              fi
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          # The license Secret (curity--license) is auto-mounted at
+          # /etc/bluetext/mounts/license/ by the deploy pipeline from the
+          # `mounts: [variant::license]` declaration; the copy block above
+          # reads it from there. No hand-authored license volume needed.
+          volumeMounts:
+            - name: config-template
+              mountPath: /config-template
+            - name: init-config
+              mountPath: /config
+        - name: init-db-perms
+          # The hsqldb-data hostPath is created by kubelet as root:root 0755,
+          # but the idsvr image (init-db below AND the runtime container) runs
+          # as a non-root user that must create /hsqldb/curity.lck + the schema
+          # files. hostPath volumes ignore pod `fsGroup`, so the only fix is to
+          # open the directory's permissions from a root container before
+          # init-db runs — otherwise init-db crash-loops on
+          # `curity.lck (Permission denied)`. The schema files then land owned
+          # by the idsvr uid, which the runtime container (same image, same
+          # uid) reads and writes.
+          image: busybox:stable
+          command: ["sh", "-c", "mkdir -p /hsqldb && chmod 0777 /hsqldb"]
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: hsqldb-data
+              mountPath: /hsqldb
+        - name: init-db
+          # HSQLDB schema-init. Idempotent: skips when the schema file
+          # already exists, so re-deploys are no-ops. The image ships
+          # SqlTool + the canonical hsqldb-create_database.sql at
+          # /opt/idsvr/etc/. Runs unconditionally — when Curity is wired
+          # to a different datasource (Couchbase via auth/curity-couchbase
+          # blueprints), the resulting schema file is unused but harmless,
+          # avoiding a kustomize-overlay patch for the dev-default case.
+          image: curity.azurecr.io/curity/idsvr:11.2.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              if [ ! -f /hsqldb/curity.script ] || ! grep -q "CREATE TABLE" /hsqldb/curity.script; then
+                java -cp "/opt/idsvr/lib/hsqldb-cli/sqltool-2.7.2.jar:/opt/idsvr/lib/hsqldb-cli/hsqldb-2.7.2.jar" \
+                  org.hsqldb.cmdline.SqlTool \
+                  --autoCommit \
+                  --inlineRc="url=jdbc:hsqldb:file:/hsqldb/curity,user=,password=" \
+                  /opt/idsvr/etc/hsqldb-create_database.sql
+              fi
+          volumeMounts:
+            - name: hsqldb-data
+              mountPath: /hsqldb
+      containers:
+        - name: curity--curity
+          image: curity.azurecr.io/curity/idsvr:11.2.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8443
+              name: runtime
+            - containerPort: 6749
+              name: admin
+          env:
+            - name: PASSWORD
+              value: admin
+          readinessProbe:
+            httpGet:
+              path: /admin/alive
+              port: 6749
+              scheme: HTTPS
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            failureThreshold: 12
+          volumeMounts:
+            - name: init-config
+              mountPath: /opt/idsvr/etc/init
+            - name: hsqldb-data
+              mountPath: /opt/idsvr/var/hsqldb
+      volumes:
+        - name: config-template
+          hostPath:
+            path: /var/mnt/systems/$bt{{ deploy::system-rel }}/config/curity
+            type: DirectoryOrCreate
+        - name: init-config
+          emptyDir: {}
+        - name: hsqldb-data
+          # Per-system hostPath so the schema survives pod restarts. Lives
+          # outside the .bluetext/ cache (under the systems-dir root) so a
+          # `b cache clean` doesn't wipe Curity's account/token store.
+          hostPath:
+            path: /var/mnt/systems/$bt{{ deploy::system-rel }}/.bluetext/curity-db
+            type: DirectoryOrCreate
+        # The license Secret (curity--license) is auto-mounted at
+        # /etc/bluetext/mounts/license/ by the deploy pipeline from the
+        # `mounts: [variant::license]` declaration — no hand-authored
+        # volume needed. The init container copies license-key from there
+        # into /opt/idsvr/etc/init/license/default, which Curity's startup
+        # scanner parses as the JSON license wrapper {"License":"<jwt>"}.

@@ -53,6 +53,14 @@
         <data-source-backed>
           <data-source-id>default-datasource</data-source-id>
         </data-source-backed>
+        <!-- Curity hashes credentials with BCrypt (cost 10) on write and
+             bcrypt-verifies on read, producing the `$2a$` prefix. Omitting
+             this element leaves the data source storing plaintext (Curity
+             11.x dropped the implicit-bcrypt default and fires the
+             "No user authentication settings were provided" warning). -->
+        <BCrypt>
+          <cost>10</cost>
+        </BCrypt>
       </credential-manager>
     </credential-managers>
   </processing>

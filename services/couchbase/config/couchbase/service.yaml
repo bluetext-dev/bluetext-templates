@@ -1,0 +1,50 @@
+name: Couchbase Server
+description: Couchbase Server (in-cluster) with a Capella alternate variant
+# The admin password is mintable (32 alphanumerics); the username is not a
+# secret — it's a value-catalog entry the auth bundle's `literal-keys` sources.
+secret-specs:
+  couchbase-server-password:
+    generatable: true
+    requirements: '[A-Za-z0-9]{32}'
+  # Capella mutual-TLS client cert/key — supplied (vendor-issued), never
+  # minted; referenced by the capella variant's `auth` bundle.
+  api-couchbase-client-cert:
+    generatable: false
+  api-couchbase-client-key:
+    generatable: false
+values:
+  couchbase-server-username: Administrator
+# `b service add couchbase` ships both variants. Default binding:
+#   • production → capella (managed cloud — what real prod targets)
+#   • everything else → server (local in-cluster image for dev/test/staging)
+# Override the production default by editing this map or via the UI
+# (Configure → Components → couchbase → Variant binding). When
+# capella binds, populate ~/.bluetext/secrets/<sys>--<hash>/variants/production/
+# (or whichever rsv) with `api-couchbase-client-cert` + `-client-key`.
+use:
+  _default:   server
+  production: capella
+interfaces:
+  - client    # SDK / KV / query / search
+  - admin     # management API (cluster init, bucket CRUD)
+connection-profiles:
+  data-writer:
+    interface: client
+    secret: variant::auth
+    # Projected into every consumer's link mount as the `bucket` file
+    # (/etc/bluetext/links/<link>/bucket) — the single declaration of
+    # which bucket this grant addresses. `main` matches what the
+    # api-config bundle's state.yaml provisions by default. A second
+    # bucket on the same cluster gets its own profile (and consumers
+    # link it separately — one link per bucket-grant).
+    metadata:
+      bucket: main
+  ops:
+    interface: admin       # cluster-level management — no bucket
+    secret: variant::auth
+api-config-bundles:
+  - couchbase/base                # config/api/couchbase/base/ — bucket/scope/collection provisioning
+api-config-peers:
+  - name: self
+    service: couchbase
+    profile: ops                  # admin REST API + auth credentials at /etc/bluetext/peers/self/

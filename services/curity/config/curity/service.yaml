@@ -1,0 +1,44 @@
+name: Curity Identity Server
+description: OAuth 2.0 and OpenID Connect Identity Server
+secret-specs:
+  # The license is supplied (a vendor key — never minted) and must be the
+  # JSON envelope `{"License":"<jwt>"}`. The pattern tolerates JSON
+  # whitespace (`\s*` around the structural tokens) so Curity's own
+  # distributed format — `{"License": "<jwt>"}`, space after the colon, or
+  # pretty-printed — validates as-is; no need to re-serialize it compactly.
+  # The form offers no Generate button for it, and value-validator rejects
+  # a bare/unwrapped key at set-time. A publishable Curity trial license
+  # ships as `demo-license.json` so the form's "use demo value" button (and
+  # zero-click deploy seeding) can populate it without the operator hunting
+  # down a key. Trial / Non-Production tier — replace before production.
+  curity-license-wrapped:
+    generatable: false
+    requirements: '\{\s*"License"\s*:\s*".+"\s*\}'
+    demo-value-file: demo-license.json
+  # Admin password may be minted: 32 alphanumeric characters.
+  curity-admin-password:
+    generatable: true
+    requirements: '[A-Za-z0-9]{32}'
+# The admin username is not a secret (semantic integrity, cli-design-1):
+# it's a value-catalog entry the admin-credentials mount sources via
+# `value::curity-admin-username`. Override per deployment in values.yaml.
+values:
+  curity-admin-username: admin
+use:
+  _default: curity
+interfaces:
+  - oidc          # OAuth2 / OIDC endpoints (authorize, token, JWKS, userinfo)
+  - admin         # admin UI + management API
+connection-profiles:
+  oidc:
+    interface: oidc
+  jwks:
+    interface: oidc
+  introspection:
+    interface: oidc
+api-config-bundles:
+  - curity/base                 # config/api/curity/base/ — license install + OAuth profiles + clients + scopes + roles
+api-config-peers:
+  - name: self
+    service: curity
+    profile: api-config         # variant-level profile on curity.yaml; projects admin creds at /etc/bluetext/peers/self/

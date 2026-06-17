@@ -1,0 +1,4 @@
+interfaces:
+  data:
+    port: 3000
+    protocol: tcp

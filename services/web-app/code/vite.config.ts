@@ -7,10 +7,17 @@ import path from "path";
 export default defineConfig({
   clearScreen: false,
   server: {
-    allowedHosts: ['.bluetext.localhost'],
-    // inotify doesn't propagate through hostPath mounts on macOS→k3d, so file
-    // changes on the host never fire HMR. Polling is the workaround.
-    watch: { usePolling: true, interval: 500 },
+    // Locally the web-app is served at `web-app.<ns>.bluetext.localhost`. On a
+    // remote server reached through a reverse proxy the host is the lab form
+    // `web-app--<token>--<user>.<domain>` — set VITE_ALLOWED_HOST to that
+    // domain (e.g. `.example.com`) so the dev server accepts it without the
+    // proxy having to rewrite the Host header.
+    allowedHosts: ['.bluetext.localhost', ...(process.env.VITE_ALLOWED_HOST ? [process.env.VITE_ALLOWED_HOST] : [])],
+    // Browser code reaches the api through this same-origin `/api` proxy
+    // (see app/lib/api.ts): a relative `/api/...` request stays on the
+    // web-app's own origin, so there is no cross-origin preflight. The proxy
+    // strips the `/api` prefix before forwarding, so the api defines its
+    // routes without it (`/hello`, not `/api/hello`).
     proxy: {
       '/api': {
         target: process.env.API_URL || 'http://api',

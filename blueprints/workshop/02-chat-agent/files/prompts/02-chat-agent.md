@@ -44,7 +44,25 @@ Pipeline:
 Keep the existing `GET /health` and `GET /` endpoints; just add `/chat`
 to the router.
 
-### CORS
+### Reaching the api from the browser
+
+Always call the api at a **same-origin** `/api/...` path. The web-app's dev
+server proxies `/api/*` to the api in-cluster (`server.proxy` in
+`vite.config.ts`), so the chat stream opens at `/api/chat`, and any endpoint
+you add later is `/api/<whatever>`.
+
+**Do not** fetch the api's own `api--…` subdomain from the browser. That's a
+cross-origin request — it leaves the web-app origin, hits the lab auth gateway
+(which 302-redirects unauthenticated cross-site calls) and trips CORS. That's
+the source of the "No 'Access-Control-Allow-Origin' header is present" /
+`net::ERR_FAILED` errors. Going through the `/api/*` proxy keeps every request
+same-origin, so the gateway and CORS never enter the picture.
+
+### CORS (defensive default)
+
+Because the browser talks to the api same-origin via the proxy, CORS doesn't
+come into play in the lab. Still, ship a permissive wildcard CORS layer so the
+api stays usable if it's ever reached cross-origin directly:
 
 ```rust
 use tower_http::cors::{Any, CorsLayer};
@@ -55,7 +73,10 @@ let cors = CorsLayer::new()
     .allow_headers(Any);
 ```
 
-Attach with `.layer(cors)` on the router.
+Attach with `.layer(cors)` on the router. **Don't** add `.allow_credentials(true)`
+to a wildcard layer — the CORS spec forbids it and tower-http panics at startup.
+Wildcard CORS covers unauthenticated cross-origin access; authenticated traffic
+stays same-origin through the `/api/*` proxy.
 
 ## OpenRouter wire reference
 

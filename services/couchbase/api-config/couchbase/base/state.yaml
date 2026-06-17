@@ -1,0 +1,57 @@
+# Couchbase api-config bundle — declared end-state.
+#
+# Each `buckets:` entry describes one bucket the bundle's `ensure_state`
+# handler converges via Couchbase's admin REST API (port 8091, basic
+# auth from /etc/bluetext/peers/self/{username,password}). Ships a single
+# empty `main` bucket — `main` is the bucket a `#[state_machine]` model's
+# CouchbaseCollection fields connect to by default (see the macro's default
+# bucket + docs/MODELING.md), so couchbase boots usable on first deploy and
+# the default model finds its bucket without any further config.
+#
+# Customising:
+#
+# - Add bucket / scope / collection entries for your system's services.
+#   Each section is idempotent — re-running the deploy against an
+#   existing bucket is a no-op.
+# - For non-default scopes, list them under `scopes:` on the bucket.
+#   The `_default` scope always exists; collections placed there don't
+#   need a scope entry.
+# - To use this couchbase as the Curity datasource, uncomment the
+#   `curity` bucket below. Pair with the `auth/curity-couchbase-jdbc`
+#   blueprint.
+#
+# Bucket fields:
+#   name             — required
+#   ram-quota-mb     — optional; defaults to 100 (Couchbase Server's minimum)
+#   bucket-type      — optional; defaults to "couchbase"
+#   durability-min-level — optional; defaults to "none"
+
+buckets:
+  - name: main
+
+# Example: Curity datasource schema. Uncomment when running
+# `auth/curity-couchbase-jdbc`. Ships the 18-collection layout the
+# Curity JDBC datasource expects so the blueprint works end-to-end
+# on first deploy.
+#
+#  - name: curity
+#    scopes:
+#      - name: _default
+#        collections:
+#          - accounts
+#          - account_resource_relations
+#          - audit
+#          - buckets
+#          - credentials
+#          - database_clients
+#          - database_client_resource_relations
+#          - database_service_providers
+#          - delegations
+#          - devices
+#          - dynamically_registered_clients
+#          - entities
+#          - entity_relations
+#          - linked_accounts
+#          - nonces
+#          - sessions
+#          - tokens

@@ -1,0 +1,9 @@
+name: TigerBeetle
+description: Distributed financial accounting database, single-replica development cluster
+use:
+  _default: tigerbeetle
+interfaces:
+  - data
+connection-profiles:
+  data:
+    interface: data

@@ -2,54 +2,45 @@ name: Curity Phantom Token Pattern
 description: Deploy Curity + Kong with phantom token introspection to protect target services
 tags: [auth, phantom-token, gateway, security]
 prerequisites:
-  - A running cluster (b start)
-  - At least one existing service to protect (already added via b service add)
+  - description: Curity service exists
+    check: service_exists
+    params:
+      id: curity
+  - description: Kong service exists
+    check: service_exists
+    params:
+      id: kong
 caveats:
-  - Requires a Curity license key — get a free trial at developer.curity.io (on a bluetext VM, it is pre-set as $CURITY_LICENSE_KEY)
+  - "Curity license: on a local-dev deploy (a run-spec-variant with default-secrets-allowed) the bundled trial license auto-seeds at deploy time — nothing to set. For other environments, set your own first with `b secret set curity-license-wrapped` (free trial at developer.curity.io)."
   - Kong phantom-token plugin version must match Kong version
   - Adds introspection latency per request (mitigated by token caching)
   - Target services will have their direct Ingress removed (traffic routes through Kong)
   - Default introspection credentials should be changed for non-dev environments
 variables:
+  - name: deploy_target
+    alias: d
+    description: '<run-spec-abstract>/<deployment-name> — context for service start/stop/restart steps (e.g. app/development-local)'
+    type: deploy-target
+    required: true
   - name: namespace
-    description: Target namespace for Curity and Kong
-    type: string
-    default: auth
-  - name: license_key
-    description: Curity license key (get a free dev license at developer.curity.io)
-    type: string
-    required: true
+    description: Service-group the protected services live in — resolved (with deploy_target) to the k8s namespace. Scaffolded systems use `main`.
+    type: namespace
+    depends_on: deploy_target
+    default: main
   - name: target_services
-    description: Comma-separated list of service IDs to protect with phantom tokens
+    description: Services to protect with phantom tokens
     type: service
+    multiple: true
     required: true
-see_also: [auth/curity, auth/curity-rbac, gateway/kong]
+see_also: [auth/curity, auth/curity-rbac, gateway/kong-proxy]
 steps:
-  - name: Add curity service template
-    tool: service_add
-    params:
-      name: curity
-  - name: Gitignore service secret files
-    tool: file_write
-    params:
-      file: config/services/.gitignore
-      content: "secret.*.yaml\n"
-  - name: Write Curity license secret
-    tool: file_write
-    params:
-      file: config/services/secret.curity.yaml
-      content: |
-        apiVersion: v1
-        kind: Secret
-        metadata:
-          name: curity-license
-        type: Opaque
-        stringData:
-          license-key: '{"License":"{{license_key}}"}'
-  - name: Add kong service template
-    tool: service_add
-    params:
-      name: kong
+  # The Curity license is delivered by the curity service's own secret
+  # mechanism (Vault value-id `curity-license-wrapped`, materialised into the
+  # `curity--license` Secret via ESO): on a default-secrets-allowed deploy the
+  # bundled trial license auto-seeds, and otherwise `b secret set
+  # curity-license-wrapped` sets it. (The old hand-written
+  # `config/services/secret.curity.yaml` wrote a `curity-license` Secret that
+  # nothing mounted — removed.)
   - name: Create {{namespace}} namespace
     tool: namespace_create
     params:
@@ -63,23 +54,23 @@ steps:
     tool: service_start
     params:
       id: curity
-      namespace: "{{namespace}}"
+      deploy_target: "{{deploy_target}}"
   - name: Start kong in {{namespace}}
     tool: service_start
     params:
       id: kong
-      namespace: "{{namespace}}"
+      deploy_target: "{{deploy_target}}"
   - name: Configure target services for phantom token
     for_each: target_services
     steps:
       - name: "Remove direct ingress for {{item}}"
         tool: file_delete
         params:
-          file: "config/services/{{item}}/base/ingress.yaml"
+          file: "config/k8s/{{item}}/{{item}}/base/ingress.yaml"
       - name: "Add gateway annotations to {{item}}"
         tool: file_patch
         params:
-          file: "config/services/{{item}}/base/deployment.yaml"
+          file: "config/k8s/{{item}}/{{item}}/base/deployment.yaml"
           operation: merge
           path: spec.template.metadata.annotations
           content: |
@@ -93,7 +84,7 @@ steps:
           path: services
           content: |
             - name: "{{item}}"
-              url: "http://{{item}}.{{namespace}}.svc.cluster.local"
+              url: "http://{{item}}--{{item}}.{{namespace}}.svc.cluster.local"
               routes:
                 - name: "{{item}}-route"
                   paths:
@@ -103,4 +94,4 @@ steps:
         tool: service_restart
         params:
           id: "{{item}}"
-          namespace: "{{namespace}}"
+          deploy_target: "{{deploy_target}}"

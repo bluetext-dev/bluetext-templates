@@ -1,0 +1,31 @@
+# `service-type:` classifies this variant as a SUBSTRATE — a data layer the
+# application services depend on. The deploy pipeline then (a) brings the
+# in-cluster couchbase Deployment up and provisions its buckets BEFORE the
+# application wave applies, so consumers never start against an absent or
+# unprovisioned store, and (b) overlaps couchbase's (slow) cold start — image
+# pull + cluster-init — with the application image build instead of running
+# them back-to-back. Only the in-cluster `server` variant declares this; the
+# `capella` variant is a managed cloud service with no Deployment to sequence.
+service-type: Couchbase
+interfaces:
+  client:
+    port: 11210
+    protocol: couchbase
+  admin:
+    port: 8091
+    protocol: https
+credential-bundles:
+  auth:
+    secret-keys:
+      password: secrets::couchbase-server-password
+    literal-keys:
+      # The admin username is not a secret — it's a value-catalog entry
+      # (cli-design-1). The deploy pipeline projects it as the literals
+      # ConfigMap `couchbase--auth` beside the Vault-backed password.
+      username: value::couchbase-server-username
+# The deploy pipeline materialises `secrets.auth` as the K8s Secret
+# `couchbase--auth` in couchbase's namespace because of this `mounts:`
+# declaration. The deployment manifest mounts it into the pod for the
+# postStart cluster-init hook.
+mounts:
+  - variant::auth

@@ -1,0 +1,5 @@
+id: tigerbeetle
+name: TigerBeetle
+description: Distributed financial accounting database, single-replica development cluster
+ports:
+  - 3000

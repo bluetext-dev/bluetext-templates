@@ -23,15 +23,27 @@ caveats:
   - Adds the jwt-auth client crate and rewrites API source (main.rs, Cargo.toml)
   - Kong pre-function plugins decode JWT base64 payload to check roles
 variables:
+  - name: deploy_target
+    alias: d
+    description: '<run-spec-abstract>/<deployment-name> — context for service start/stop/restart steps (e.g. app/development-local)'
+    type: deploy-target
+    required: true
   - name: namespace
-    description: Namespace where services are running
-    type: string
+    description: Service group within the run-spec-abstract
+    type: namespace
+    depends_on: deploy_target
     default: main
   - name: datastore
-    alias: d
-    description: Data store backend (hsqldb or couchbase)
-    type: string
+    alias: s
+    description: Data store backend
+    type: enum
+    options: [hsqldb, couchbase]
     default: hsqldb
+  - name: public_paths
+    description: 'Comma-separated paths under /api to expose WITHOUT authentication (e.g. "hello" or "hello,health"). Each becomes a Kong route on the api upstream with no phantom-token plugin, so a logged-out request succeeds. Empty (default) → all of /api requires a valid token. The api must serve the corresponding route (the gateway strips /api).'
+    type: string
+    multiple: true
+    default: ""
 restarts: [curity, kong, api]
 see_also: [auth/kong-phantom-token, auth/curity-oauth, auth/service-jwt]
 steps:
@@ -64,6 +76,23 @@ steps:
     params:
       file: config/kong/kong.yaml
       content_file: files/kong-rbac.yaml
+  - name: Expose public (unauthenticated) /api paths
+    for_each: public_paths
+    steps:
+      - name: "Add public Kong route for /api/{{item}} (no phantom-token)"
+        tool: file_patch
+        params:
+          file: config/kong/kong.yaml
+          operation: append_list
+          path: services
+          content: |
+            - name: "api-public-{{item}}"
+              url: "http://api--api.{{namespace}}.svc.cluster.local"
+              routes:
+                - name: "api-public-{{item}}-route"
+                  paths:
+                    - "/api/{{item}}"
+                  strip_path: true
   - name: Write API with JWT extraction and role-guarded routes
     tool: file_write
     params:
@@ -77,11 +106,11 @@ steps:
   - name: Remove direct ingress for api
     tool: file_delete
     params:
-      file: config/services/api/base/ingress.yaml
+      file: config/k8s/api/api/base/ingress.yaml
   - name: Add gateway annotations to api
     tool: file_patch
     params:
-      file: config/services/api/base/deployment.yaml
+      file: config/k8s/api/api/base/deployment.yaml
       operation: merge
       path: spec.template.metadata.annotations
       content: |
@@ -91,14 +120,14 @@ steps:
     tool: service_restart
     params:
       id: curity
-      namespace: "{{namespace}}"
+      deploy_target: "{{deploy_target}}"
   - name: Reload kong in {{namespace}}
     tool: service_reload
     params:
       id: kong
-      namespace: "{{namespace}}"
+      deploy_target: "{{deploy_target}}"
   - name: Restart api in {{namespace}}
     tool: service_restart
     params:
       id: api
-      namespace: "{{namespace}}"
+      deploy_target: "{{deploy_target}}"

@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flutter--flutter
+  annotations:
+    bluetext.io/adb-server: "true"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: flutter--flutter
+  template:
+    metadata:
+      labels:
+        app: flutter--flutter
+    spec:
+      containers:
+        - name: app
+          image: flutter-flutter:latest
+          imagePullPolicy: Never
+          command: ["sh", "-c", "cd /app && ./bin/init && exec ./bin/dev"]
+          ports:
+            - containerPort: 8080
+          env:
+            - name: ANDROID_ADB_SERVER_ADDRESS
+              value: host.docker.internal
+          volumeMounts:
+            - name: system
+              mountPath: /app
+            - name: pub-cache
+              mountPath: /root/.pub-cache
+            - name: gradle-cache
+              mountPath: /root/.gradle
+            - name: sdk-cache
+              mountPath: /sdk-cache
+      volumes:
+        - name: system
+          hostPath:
+            path: /var/mnt/systems/$bt{{ deploy::system-rel }}/code/services/flutter
+            type: Directory
+        - name: pub-cache
+          hostPath:
+            path: /var/mnt/workspace/.bluetext/cache/flutter/pub
+            type: DirectoryOrCreate
+        - name: gradle-cache
+          hostPath:
+            path: /var/mnt/workspace/.bluetext/cache/flutter/gradle
+            type: DirectoryOrCreate
+        - name: sdk-cache
+          hostPath:
+            path: /var/mnt/workspace/.bluetext/cache/flutter/sdk
+            type: DirectoryOrCreate

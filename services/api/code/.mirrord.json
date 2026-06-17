@@ -1,11 +1,13 @@
 {
   "feature": {
     "fs": {
-      "mode": "local"
+      "mode": "localwithoverrides",
+      "read_only": ["^/etc/bluetext/links/.*"]
     },
     "network": {
       "incoming": "steal",
-      "outgoing": false
+      "outgoing": true,
+      "dns": true
     }
   }
 }

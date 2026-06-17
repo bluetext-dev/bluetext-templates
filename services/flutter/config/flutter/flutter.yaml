@@ -1,0 +1,5 @@
+interfaces:
+  http:
+    port: 8080
+    protocol: http
+code-dir: code/services/flutter

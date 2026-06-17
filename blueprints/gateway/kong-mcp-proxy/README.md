@@ -196,7 +196,7 @@ URL for `rs--development--default--main`:
 }
 ```
 
-If you're using a non-default run-spec / namespace / gateway name, update the
+If you're using a non-default run-spec-abstract / namespace / gateway name, update the
 hostname accordingly (pattern: `{service-id}.{namespace}.bluetext.localhost`
 resolves to `::1` via glibc's built-in `*.localhost` handling, and k3d maps
 port 80 to the runner).

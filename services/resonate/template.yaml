@@ -3,12 +3,3 @@ name: Resonate
 description: Durable execution server for commands
 ports:
   - 8001
-dev_mode: in-cluster
-dependencies: []
-connection_profiles:
-  default:
-    description: Resonate API for durable command execution
-    prefix: RESONATE
-    env_vars:
-      - suffix: URL
-        default: "http://{{upstream}}.{{upstream_ns}}.svc.cluster.local:8001"

@@ -1,0 +1,4 @@
+interfaces:
+  http:
+    port: 5173
+    protocol: http

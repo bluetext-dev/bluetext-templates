@@ -1,0 +1,33 @@
+<config xmlns="http://tail-f.com/ns/config/1.0">
+  <environments xmlns="https://curity.se/ns/conf/base">
+    <environment>
+      <!-- base-url MUST equal the host the user's BROWSER uses to reach Curity,
+           NOT the in-cluster namespace host. Curity builds self-referential
+           redirects (e.g. the authorize to the /authn login page) from base-url,
+           so if it points anywhere the browser can't reach, the login page is
+           blank / the flow 404s. The browser-facing host differs by topology: a
+           local k3d deploy uses "curity.<route-token>.bluetext.localhost"; a
+           remote lab uses the external form (curity, the route-token and the lab
+           user joined by double-hyphens, under the lab domain). The
+           config-templater init container substitutes the base-url placeholder
+           below with whichever form applies (from the deploy::service-url.curity
+           interpolation placeholder — same source of truth as the
+           ingress rewrite + the lab proxy). The web-app's auth-config.ts derives
+           the same authority from the browser's own host, so the two agree.
+
+           Do NOT write a sed placeholder, or a literal double-hyphen, inside
+           this comment: the namespace + external-host forms contain
+           double-hyphens, which are illegal inside an XML comment (Curity then
+           fails config init with "double hyphen within comment"). Host examples
+           and placeholders belong only in element text/attributes (e.g. the
+           base-url below), where a double-hyphen is legal. -->
+      <base-url>__CURITY_BASE_URL__</base-url>
+      <services>
+        <service-role>
+          <id>default</id>
+          <protocol>http</protocol>
+        </service-role>
+      </services>
+    </environment>
+  </environments>
+</config>

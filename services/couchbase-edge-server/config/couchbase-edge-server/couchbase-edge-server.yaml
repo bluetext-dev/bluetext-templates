@@ -1,0 +1,4 @@
+interfaces:
+  sync:
+    port: 59840
+    protocol: http

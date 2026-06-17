@@ -8,7 +8,7 @@ start_prerequisites:
   - description: Data store configured
     check: xml_element_exists
     params:
-      file: config/curity/datasource.xml
+      file: config/files/curity/curity/datasource.xml
       element: data-source
     hint: |
       Configure a data store for Curity:

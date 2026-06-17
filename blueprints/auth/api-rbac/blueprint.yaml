@@ -17,7 +17,7 @@ prerequisites:
   - description: Curity OAuth config exists (run auth/curity-oauth first)
     check: file_exists
     params:
-      file: config/curity/oauth-config.xml
+      file: config/files/curity/curity/oauth-config.xml
 caveats:
   - API trusts the JWT from Kong without signature verification (Kong already validated it)
   - Adds the jwt-auth client crate and rewrites API source (main.rs, Cargo.toml)
@@ -54,22 +54,22 @@ steps:
   - name: Write roles scope and roles on flutter-app client for Curity
     tool: file_write
     params:
-      file: config/curity/roles-scope.xml
+      file: config/files/curity/curity/roles-scope.xml
       content_file: files/roles-scope.xml
   - name: Write roles claim provider for {{datastore}}
     tool: file_write
     params:
-      file: config/curity/roles-claims.xml
+      file: config/files/curity/curity/roles-claims.xml
       content_file: files/roles-claims-{{datastore}}.xml
   - name: Write claims mapper for access token and ID token
     tool: file_write
     params:
-      file: config/curity/claims-mapper.xml
+      file: config/files/curity/curity/claims-mapper.xml
       content_file: files/claims-mapper.xml
   - name: Write User Management profile for SCIM account management
     tool: file_write
     params:
-      file: config/curity/user-management.xml
+      file: config/files/curity/curity/user-management.xml
       content_file: files/user-management.xml
   - name: Write Kong declarative config with RBAC route enforcement
     tool: file_write

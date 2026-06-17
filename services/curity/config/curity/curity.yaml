@@ -14,30 +14,13 @@ connection-profiles:
     interface: admin
     secret: variant::admin-credentials
 credential-bundles:
-  # File-based license bootstrap. CRITICAL: Curity's admin RESTCONF API
-  # is gated behind a valid license — every endpoint returns 503
-  # FeatureViolationException when the runtime is unlicensed (verified
-  # by direct probe; see also reference_curity_config.md). The license
-  # therefore CANNOT be installed via API; Curity's only license-input
-  # surface is the file `/opt/idsvr/etc/init/license/default`, which
-  # the startup scanner reads on first boot.
-  #
-  # The format is the JSON wrapper around the raw JWT:
-  #   {"License": "<jwt>"}
-  # The wrapped form is stored verbatim in Vault under
-  # `curity-license-wrapped` — the deploy pipeline copies bytes
-  # straight through to the K8s Secret. (The templated-keys slice that
-  # would let the deploy pipeline compose the wrap at render time from
-  # the raw JWT is deferred to a future ESO `templateRef` cutover.)
-  license:
-    secret-keys:
-      license-key: secrets::curity-license-wrapped
   # Admin credentials projected to the api-config Job pod at
   # /etc/bluetext/peers/self/. The Job uses these for the post-license
   # RESTCONF surface (OAuth profiles, clients, scopes, roles).
-  # Distinct from the license bootstrap above because the two flow
-  # through different mechanisms: license via the file-init channel,
-  # admin creds via the api-config peer projection.
+  # Distinct from the license bootstrap (the file-config note below)
+  # because the two flow through different mechanisms: license via the
+  # file-config secrets:: channel, admin creds via the api-config peer
+  # projection.
   admin-credentials:
     secret-keys:
       password: secrets::curity-admin-password
@@ -46,9 +29,19 @@ credential-bundles:
       # catalog (see the abstract's `values:`). Only the password is a
       # Vault-backed secret.
       username: value::curity-admin-username
-mounts:
-  # Materialise `curity--license` Secret in the curity namespace so the
-  # base deployment's volume mount finds it. The init container's
-  # license-copy block copies it into Curity's /opt/idsvr/etc/init/
-  # license/default for the startup scanner to read.
-  - variant::license
+# License bootstrap flows through file-config, not a `mounts:` Secret.
+# CRITICAL: Curity's admin RESTCONF API is gated behind a valid license —
+# every endpoint returns 503 FeatureViolationException when the runtime is
+# unlicensed (verified by direct probe; see reference_curity_config.md). The
+# license therefore CANNOT be installed via API; Curity's only license-input
+# surface is the file `/opt/idsvr/etc/init/license/default`, read by the
+# startup scanner on first boot. The file-config file
+# `config-files/curity/license/default` holds `$bt{{ secrets::curity-license-wrapped }}`;
+# the bluetext-render init container substitutes the JSON-wrapped JWT
+# (`{"License":"<jwt>"}`, stored verbatim in Vault) from the per-value-id
+# `bt-secret--curity-license-wrapped` projection into the rendered tmpfs at
+# pod startup. This diverges from the deferred slice-2 bundle unification
+# (dennis accepted 2026-06-17): the license materialises via the per-value-id
+# atom while other `mounts::` secrets stay on the old path until slice 2
+# reprojects them. No security regression — both resolve the identical Vault
+# path.

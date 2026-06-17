@@ -6,9 +6,11 @@ spec:
   replicas: 2
   template:
     spec:
-      initContainers:
-        - name: config-templater
-          imagePullPolicy: Always
+      # No initContainers patch: the old config-templater is gone (file-config
+      # render replaced it), and the injected `bluetext-render` init container
+      # is added post-kustomize so an overlay can't address it here. Its image
+      # is version-pinned (ghcr.io/bluetext-dev/runtime:<b-version>), so the
+      # default IfNotPresent pull policy is already production-safe.
       containers:
         - name: curity--curity
           imagePullPolicy: Always

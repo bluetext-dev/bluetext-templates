@@ -9,7 +9,7 @@ prerequisites:
   - description: User Management profile configured (run auth/api-rbac first)
     check: file_exists
     params:
-      file: config/curity/user-management.xml
+      file: config/files/curity/curity/user-management.xml
 caveats:
   - Users must already exist (registered via app or created with auth/curity-create-users)
   - Requires Curity to be running with the User Management profile

@@ -15,7 +15,7 @@ caveats:
   - Requires a Curity license that allows custom data-source types (data-sources feature unrestricted, or with "couchbase" listed)
   - The plugin auto-provisions the curity bucket (256 MiB by default), the configured scope, ten curity-* collections, and primary indexes on first connect — no external provisioner needed. Set the data-source's auto-provision field to false for production where the bucket is pre-provisioned and the configured user lacks create privileges
   - For licenses restricted to jdbc data sources, use auth/curity-couchbase-jdbc instead
-  - Couchbase admin credentials are Administrator/password — change for non-dev environments
+  - Curity connects as the Couchbase admin user (values catalog couchbase-server-username, default Administrator) with the couchbase-server-password secret — resolved via the couchbase link + the secret store, no hardcoded credentials
 variables:
   - name: deploy_target
     alias: d
@@ -44,8 +44,23 @@ steps:
   - name: Write datasource config (Couchbase via native plugin)
     tool: file_write
     params:
-      file: config/curity/datasource.xml
+      file: config/files/curity/curity/datasource.xml
       content_file: files/datasource.xml
+  - name: Declare a couchbase link on curity (data-writer profile)
+    # datasource.xml resolves $bt{{ config::links.couchbase.host }} against
+    # this link at file-config render time; the password resolves via
+    # secrets::couchbase-server-password and the username via the values
+    # catalog. The link lives on the blueprint, not curity's base service
+    # template, so a non-Couchbase curity stack never declares a dangling
+    # dependency on an absent couchbase upstream (BP principle 13).
+    tool: file_patch
+    params:
+      file: config/system/services/curity/service.yaml
+      operation: merge
+      path: ""
+      content: |
+        links:
+          couchbase: couchbase/data-writer
   - name: Register datasource relationship
     tool: file_patch
     params:

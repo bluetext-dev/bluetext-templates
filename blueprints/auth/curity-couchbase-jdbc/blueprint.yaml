@@ -14,7 +14,7 @@ caveats:
   - Overwrites Curity deployment (custom image bundling the Couchbase JDBC wrapper)
   - For licenses that include the Plugin SDK and unrestricted data-source types, prefer auth/curity-couchbase (native plugin)
   - Curity may restart once or twice while Couchbase initializes — this is normal
-  - Couchbase admin credentials are Administrator/password — change for non-dev environments
+  - Curity connects as the Couchbase admin user (values catalog couchbase-server-username, default Administrator) with the couchbase-server-password secret — resolved via the couchbase link + the secret store, no hardcoded credentials
   - The curity bucket plus its scopes and collections must already exist before Curity connects. Add a `#[handler]` to a system-shipped api-config bundle at `code/api-config/couchbase/<bundle>/src/lib.rs` (alongside the platform-shipped `base` bundle) that creates the curity bucket and the collections referenced by the JDBC wrapper, then declare the bundle on couchbase's `api-config-bundles:` in `config/system/services/couchbase/service.yaml`. The deploy pipeline runs the api-config Job between store-apply and consumer-apply automatically.
 variables:
   - name: deploy_target
@@ -38,8 +38,23 @@ steps:
   - name: Write datasource config (Couchbase via JDBC)
     tool: file_write
     params:
-      file: config/curity/datasource.xml
+      file: config/files/curity/curity/datasource.xml
       content_file: files/datasource.xml
+  - name: Declare a couchbase link on curity (data-writer profile)
+    # The JDBC connection-string resolves $bt{{ config::links.couchbase.host }}
+    # against this link at file-config render time; the password resolves via
+    # secrets::couchbase-server-password and the username via the values
+    # catalog. The link lives on the blueprint, not curity's base service
+    # template, so a non-Couchbase curity stack never declares a dangling
+    # dependency on an absent couchbase upstream (BP principle 13).
+    tool: file_patch
+    params:
+      file: config/system/services/curity/service.yaml
+      operation: merge
+      path: ""
+      content: |
+        links:
+          couchbase: couchbase/data-writer
   - name: Register datasource relationship
     tool: file_patch
     params:

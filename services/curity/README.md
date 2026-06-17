@@ -21,9 +21,10 @@ Two configuration surfaces flow into a deployed Curity, in this order:
    │  • XML-only configs          │    │  • roles                     │
    └──────────────────────────────┘    └──────────────────────────────┘
             ↑                                       ↑
-   curity--license Secret +                api-config Job
-   config-templater init container         (post-apply, this template's
-   (this template's deployment.yaml)        api-config/curity/base/)
+   bluetext-render init container          api-config Job
+   renders config/files/curity/curity/    (post-apply, this template's
+   → tmpfs, substitutes secrets::           api-config/curity/base/)
+   (this template's deployment.yaml)
 ```
 
 ## Why the split
@@ -53,8 +54,8 @@ ensure flows owned by an api-config bundle.
 
 | Surface | Lands at | Authoring location |
 |---|---|---|
-| License token (in JSON wrapper) | `/opt/idsvr/etc/init/license/default` | `config/curity/curity.yaml::secrets.license` → `curity--license` Secret → `config-templater` init container copies in |
-| XML init configs | `/opt/idsvr/etc/init/*.xml` | `config-files/*.xml` (hostPath mount + `__NAMESPACE__` sed) |
+| License token (in JSON wrapper) | `/opt/idsvr/etc/init/license/default` | `config-files/curity/license/default` holds `$bt{{ secrets::curity-license-wrapped }}`; the `bluetext-render` init container substitutes the Vault-backed value (projected as `bt-secret--curity-license-wrapped`) into the rendered tmpfs in-pod |
+| XML init configs | `/opt/idsvr/etc/init/*.xml` | `config-files/curity/*.xml`, rendered through file-config; deploy tokens are `$bt{{ deploy::namespace }}` / `deploy::service-url.*`, resolved at render time (no `__NAMESPACE__` sed) |
 | Admin credentials for RESTCONF | `/etc/bluetext/peers/self/{username,password}` on the api-config Job pod | `config/curity/curity.yaml::secrets.admin-credentials` projected by `api_config_peers.rs` |
 | OAuth profiles / clients / scopes / roles | RESTCONF API once licensed | `api-config/curity/base/state.yaml` + the paired handler crate at `code/api-config/curity/base/` |
 
@@ -88,10 +89,12 @@ above is only relevant for ad-hoc / scripted setups outside a context.
 
 Curity reads the license from the file `/opt/idsvr/etc/init/license/
 default`, and the format must be the JSON envelope `{"License":"<jwt>"}`
-— not the raw JWT. The deploy pipeline copies the wrapped bytes from
-Vault straight into the `curity--license` K8s Secret; the `config-
-templater` init container projects the Secret's `license-key` key
-into the file Curity reads.
+— not the raw JWT. The file-config file `config-files/curity/license/
+default` carries `$bt{{ secrets::curity-license-wrapped }}`; the deploy
+pipeline emits the per-value-id `bt-secret--curity-license-wrapped`
+ExternalSecret from the Vault-stored wrapped bytes and projects it into
+the `bluetext-render` init container, which substitutes it into the
+rendered tmpfs file Curity reads.
 
 ### Why payload-only inputs fail loud
 
@@ -116,8 +119,9 @@ runtime 11.2.0).
   bootstrap surface Curity offers. The api-config Job complements it,
   not replaces it.
 - **Don't put license-key in `admin-credentials.keys`.** The license
-  flows through `secrets.license` + the deployment's volume mount,
-  not through the api-config peer projection.
+  flows through the file-config `secrets::curity-license-wrapped`
+  placeholder (substituted by `bluetext-render` at pod startup), not
+  through the api-config peer projection.
 - **Don't add new dynamic config to XML init files.** That's a
   candidate for the api-config bundle's RESTCONF ensure phase. XML
   init is reserved for RESTCONF-write-protected configs and the

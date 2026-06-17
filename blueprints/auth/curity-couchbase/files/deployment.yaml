@@ -1,61 +1,41 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: curity
+  name: curity--curity
   annotations:
     # `idsvr -r` reloads etc/init XML and merges with the running config —
-    # ConfD-backed dynamic reload, no process restart, no downtime.
+    # ConfD-backed dynamic reload, no process restart, no downtime. The
+    # file-config reload coupling re-renders the tmpfs before the exec.
     bluetext.io/reload-command: "idsvr -r"
-    bluetext.io/reload-watch: "config/curity"
+    bluetext.io/reload-watch: config/files/curity/curity
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: curity
+      app: curity--curity
   template:
     metadata:
       labels:
-        app: curity
+        app: curity--curity
     spec:
       tolerations:
         - key: node-role.kubernetes.io/control-plane
           operator: Exists
           effect: NoSchedule
-      initContainers:
-        - name: config-templater
-          image: busybox:stable
-          command:
-            - sh
-            - -c
-            - |
-              for f in /config-template/*.xml; do
-                sed -e "s/__NAMESPACE__/$POD_NAMESPACE/g" \
-                    -e "s/__COUCHBASE_HOST__/$COUCHBASE_HOST/g" \
-                    -e "s/__COUCHBASE_TLS__/$COUCHBASE_TLS/g" \
-                    -e "s/__COUCHBASE_USERNAME__/$COUCHBASE_USERNAME/g" \
-                    -e "s/__COUCHBASE_PASSWORD__/$COUCHBASE_PASSWORD/g" \
-                    "$f" > "/config/$(basename $f)"
-              done
-          env:
-            - name: POD_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-            - name: COUCHBASE_HOST
-              value: "couchbase-headless.{{NAMESPACE}}.svc.cluster.local"
-            - name: COUCHBASE_USERNAME
-              value: "Administrator"
-            - name: COUCHBASE_PASSWORD
-              value: "password"
-            - name: COUCHBASE_TLS
-              value: "false"
-          volumeMounts:
-            - name: config-template
-              mountPath: /config-template
-            - name: init-config
-              mountPath: /config
+      # The platform injects the `bluetext-render` init container here: it
+      # renders config/files/curity/curity/ into the bluetext-file-config
+      # tmpfs, substituting the secrets:: placeholders — the license
+      # (license/default) and the Couchbase password (datasource.xml) — from
+      # the projected per-value-id Secrets. The Couchbase host/username/tls
+      # in datasource.xml resolve at file-config render time via
+      # config::links.couchbase.* + value::, replacing the old env-var + sed
+      # config-templater entirely. (Never write the $bt double-brace
+      # placeholder form in a comment — the interpolation pass scans raw
+      # manifest text and would try to resolve it.)
       containers:
-        - name: curity
+        - name: curity--curity
+          # Custom image: Curity idsvr + the Couchbase data-source plugin
+          # (built by this blueprint's Dockerfile from the GCS-hosted plugin).
           image: bluetext-curity:latest
           imagePullPolicy: Never
           command: ["idsvr"]
@@ -77,26 +57,10 @@ spec:
             periodSeconds: 5
             failureThreshold: 36
           volumeMounts:
-            - name: init-config
+            # Pre-declared so the bluetext-render injection mounts the
+            # rendered file-config tmpfs HERE (idsvr's init dir, license
+            # nested at license/default) instead of its default
+            # /etc/file-config. bluetext-file-config / -template / -secrets
+            # volumes are injected by the deploy pipeline.
+            - name: bluetext-file-config
               mountPath: /opt/idsvr/etc/init
-            - name: license
-              mountPath: /opt/idsvr/etc/init/license
-              readOnly: true
-      volumes:
-        - name: config-template
-          hostPath:
-            path: /var/mnt/system/config/curity
-            type: DirectoryOrCreate
-        - name: init-config
-          emptyDir: {}
-        - name: license
-          secret:
-            secretName: curity-license
-            optional: true
-            items:
-              - key: license-key
-                path: default
-        - name: system
-          hostPath:
-            path: /var/mnt/system/code/services/curity
-            type: DirectoryOrCreate

@@ -50,7 +50,7 @@ steps:
   - name: Write Curity base configuration with OAuth2 profiles, clients, and scopes
     tool: file_write
     params:
-      file: config/curity/base-config.xml
+      file: config/files/curity/curity/base-config.xml
       content_file: files/base-config.xml
   - name: Write Kong declarative config with phantom-token plugin and RBAC route enforcement
     tool: file_write

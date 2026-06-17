@@ -4,10 +4,24 @@
       <data-source>
         <id>default-datasource</id>
         <couchbase xmlns="https://curity.se/ns/ext-conf/couchbase">
-          <host>__COUCHBASE_HOST__</host>
-          <use-tls>__COUCHBASE_TLS__</use-tls>
-          <user-name>__COUCHBASE_USERNAME__</user-name>
-          <password>__COUCHBASE_PASSWORD__</password>
+          <!-- Connection facts resolve at file-config render time, not via
+               env vars + sed: host from the couchbase link's ConfigMap. The
+               password is left as a secrets:: placeholder for the
+               bluetext-render init container to substitute in-pod from the
+               projected per-value-id Secret (never in the manifest or an env
+               var). The admin user-name is Couchbase's well-known non-secret
+               default; it is a literal because config::links carries only
+               host/port/metadata (not the auth bundle's credential), and
+               value::couchbase-server-username is couchbase's per-abstract
+               value, not visible in curity's file-config render scope (see the
+               auth-stack goal issue I-3). use-tls is plaintext: the in-cluster
+               Couchbase server variant this plugin targets serves unencrypted;
+               a Capella + curity-plugin combo would source TLS from the bound
+               variant (not currently exercised). -->
+          <host>$bt{{ config::links.couchbase.host }}</host>
+          <use-tls>false</use-tls>
+          <user-name>Administrator</user-name>
+          <password>$bt{{ secrets::couchbase-server-password }}</password>
           <bucket>curity</bucket>
           <scope>_default</scope>
           <claim-query>SELECT `:collection`.* FROM `:bucket`.`:scope`.`:collection` WHERE META().id = "node::user::personal_info:::subject"</claim-query>

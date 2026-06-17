@@ -13,7 +13,7 @@ prerequisites:
   - description: Curity OAuth config exists (run auth/curity-oauth first)
     check: file_exists
     params:
-      file: config/curity/oauth-config.xml
+      file: config/files/curity/curity/oauth-config.xml
 caveats:
   - Adds introspection latency per request (mitigated by 300s token caching)
   - Target services will have their direct Ingress removed (traffic routes through Kong)
@@ -40,7 +40,7 @@ steps:
   - name: Write phantom-token client definition for Curity
     tool: file_write
     params:
-      file: config/curity/phantom-token-client.xml
+      file: config/files/curity/curity/phantom-token-client.xml
       content_file: files/phantom-token-client.xml
   - name: Write Kong declarative config with phantom-token plugin
     tool: file_write

@@ -23,7 +23,7 @@
                      The redirect-uri placeholder below (from the
                      deploy::service-url.kong interpolation placeholder) is
                      substituted by the curity config init to whichever form
-                     applies, so the
+                     applies at file-config render time, so the
                      callback matches in both topologies (a mismatch makes Curity
                      400 the callback). The lvh.me line stays on the full
                      namespace, matching route_host.rs.
@@ -31,8 +31,8 @@
                      double-hyphen, in an XML comment — the namespace + external
                      host forms contain double-hyphens, which are illegal inside
                      XML comments and crash Curity's config parser. -->
-                <redirect-uris>__KONG_BASE_URL__/auth/callback</redirect-uris>
-                <redirect-uris>http://kong.__NAMESPACE__.bluetext.lvh.me/auth/callback</redirect-uris>
+                <redirect-uris>$bt{{ deploy::service-url.kong }}/auth/callback</redirect-uris>
+                <redirect-uris>http://kong.$bt{{ deploy::namespace }}.bluetext.lvh.me/auth/callback</redirect-uris>
                 <scope>openid</scope>
                 <scope>profile</scope>
                 <scope>email</scope>

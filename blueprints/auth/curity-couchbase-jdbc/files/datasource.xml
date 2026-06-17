@@ -4,7 +4,18 @@
       <data-source>
         <id>default-datasource</id>
         <jdbc xmlns="https://curity.se/ns/ext-conf/jdbc">
-          <connection-string>jdbc:postgresql:couchbase://__COUCHBASE_HOST__?catalog=curity&amp;user=__COUCHBASE_USERNAME__&amp;password=__COUCHBASE_PASSWORD__&amp;ssl=__COUCHBASE_TLS__</connection-string>
+          <!-- host resolves at file-config render time from the couchbase
+               link ConfigMap; the password stays a secrets:: placeholder for
+               the bluetext-render init container to substitute in-pod from the
+               projected per-value-id Secret. The admin user is Couchbase's
+               well-known non-secret default literal (config::links carries only
+               host/port/metadata, not the bundle credential, and
+               value::couchbase-server-username is not visible in curity's
+               render scope — auth-stack goal issue I-3). ssl=false: the
+               in-cluster Couchbase server variant this wrapper targets is
+               plaintext. The 32-char alphanumeric password is URL-safe in the
+               connection string. -->
+          <connection-string>jdbc:postgresql:couchbase://$bt{{ config::links.couchbase.host }}?catalog=curity&amp;user=Administrator&amp;password=$bt{{ secrets::couchbase-server-password }}&amp;ssl=false</connection-string>
           <driver>dev.bluetext.jdbc.CouchbasePostgresDriver</driver>
           <standard-credentials-mode/>
         </jdbc>

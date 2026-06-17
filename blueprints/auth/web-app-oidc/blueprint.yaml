@@ -13,7 +13,7 @@ prerequisites:
   - description: Curity OAuth config exists (run auth/curity-oauth first)
     check: file_exists
     params:
-      file: config/curity/oauth-config.xml
+      file: config/files/curity/curity/oauth-config.xml
   - description: Kong phantom-token config exists (run auth/kong-phantom-token --var targets=api first; same-origin routing through Kong is required for phantom token)
     check: file_exists
     params:
@@ -42,7 +42,7 @@ steps:
   - name: Register the web-app client with Curity
     tool: file_write
     params:
-      file: config/curity/web-app-client.xml
+      file: config/files/curity/curity/web-app-client.xml
       content_file: files/web-app-client.xml
   - name: Drop the Flutter ADB-tunnel port forwarding (use plain port 80 for browser flows)
     tool: file_write
@@ -52,7 +52,7 @@ steps:
   - name: Repoint Curity's base-url at the browser-reachable hostname (no :8888)
     tool: file_write
     params:
-      file: config/curity/base-config.xml
+      file: config/files/curity/curity/base-config.xml
       content_file: files/base-config.xml
   - name: Write OIDC client config
     tool: file_write

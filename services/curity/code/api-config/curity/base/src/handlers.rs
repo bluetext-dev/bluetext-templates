@@ -61,11 +61,12 @@ const KNOWN_STATE_KEYS: &[&str] = &[
 ///
 /// **License install is NOT API-installable on Curity** — every RESTCONF
 /// endpoint returns 503 FeatureViolationException when the runtime is
-/// unlicensed. The license therefore flows through the file-based
+/// unlicensed. The license therefore flows through the file-config
 /// channel (`/opt/idsvr/etc/init/license/default`, populated by the
-/// curity deployment's `config-templater` init container from the
-/// mounted `curity--license` Secret). See `services/curity/README.md`
-/// for the hybrid bootstrap architecture.
+/// curity deployment's `bluetext-render` init container, which
+/// substitutes the `curity-license-wrapped` secret into the rendered
+/// file). See `services/curity/README.md` for the hybrid bootstrap
+/// architecture.
 ///
 /// Probe sequence:
 ///
@@ -170,8 +171,9 @@ pub async fn verify_license(ctx: &ApiConfigCtx) -> Result<()> {
 fn license_missing_error() -> String {
     "Curity admin RESTCONF returned 503 FeatureViolationException — license isn't in place. \
      Curity reads the license file at /opt/idsvr/etc/init/license/default; \
-     the deploy pipeline populates it via the curity--license Secret \
-     mounted by the curity deployment's config-templater init container. \
+     the deploy pipeline populates it via the curity deployment's bluetext-render \
+     init container, which substitutes the curity-license-wrapped secret into the \
+     rendered file-config. \
      Likely causes: \
      (1) the wrapped license wasn't written to Vault before deploy. Compose and set it with: `CURITY_LICENSE_WRAPPED='{\"License\":\"'\"$CURITY_LICENSE_KEY\"'\"}' b secret set curity-license-wrapped --from-env CURITY_LICENSE_WRAPPED`; \
      (2) CURITY_LICENSE_KEY contains only the JWT's payload section, not the complete signed JWT (check `echo -n \"$CURITY_LICENSE_KEY\" | tr -cd '.' | wc -c` — must print 2). The portal hands you a JSON envelope `{\"License\":\"<base64>.<base64>.<base64>\"}` — the env var must contain the value of the License field verbatim, including the two `.` separators. Curity rejects payload-only content with `LicenseKeyValidationCallback - License was the wrong issuer or had not subject` because structural JWT validation fails before claim validation runs; \

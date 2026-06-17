@@ -265,7 +265,7 @@ steps:
   - name: Write OAuth fragment
     tool: file_write
     params:
-      file: config/curity/oauth-config.xml
+      file: config/files/curity/curity/oauth-config.xml
       content_file: files/oauth-config.xml
   # Curity declares `bluetext.io/reload-command: idsvr -r`, so config changes
   # apply via reload (no downtime). Use `service_restart` for services without

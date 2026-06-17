@@ -31,7 +31,7 @@ steps:
   - name: Write datasource config (HSQLDB)
     tool: file_write
     params:
-      file: config/curity/datasource.xml
+      file: config/files/curity/curity/datasource.xml
       content_file: files/datasource.xml
   # Curity declares `bluetext.io/reload-command: idsvr -r` — a ConfD-backed
   # dynamic reload that re-reads etc/init XML and merges it into the running

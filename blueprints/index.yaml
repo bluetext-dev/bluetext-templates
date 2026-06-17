@@ -20,7 +20,7 @@ blueprints:
       - description: Curity OAuth config exists (run auth/curity-oauth first)
         check: file_exists
         params:
-          file: config/curity/oauth-config.xml
+          file: config/files/curity/curity/oauth-config.xml
   - id: auth/app-oidc
     name: App OIDC Authentication
     description: Add OpenID Connect authentication to an existing Flutter app
@@ -51,7 +51,7 @@ blueprints:
       - description: User Management profile configured (run auth/api-rbac first)
         check: file_exists
         params:
-          file: config/curity/user-management.xml
+          file: config/files/curity/curity/user-management.xml
   - id: auth/curity-couchbase
     name: Curity Couchbase Data Store
     description: Configure Curity with Couchbase as a native data source — accounts, tokens, sessions, and credentials (BCrypt-hashed, cost 10) backed by Couchbase via the Curity DAP plugin
@@ -90,7 +90,7 @@ blueprints:
       - description: User Management profile configured (run auth/api-rbac first)
         check: file_exists
         params:
-          file: config/curity/user-management.xml
+          file: config/files/curity/curity/user-management.xml
   - id: auth/curity-hsqldb
     name: Curity HSQLDB Data Store
     description: Configure Curity with file-based HSQLDB for accounts, tokens, sessions, and credentials (BCrypt-hashed, cost 10) — persisted in .bluetext/curity-db/
@@ -155,7 +155,7 @@ blueprints:
       - description: Curity OAuth config exists (run auth/curity-oauth first)
         check: file_exists
         params:
-          file: config/curity/oauth-config.xml
+          file: config/files/curity/curity/oauth-config.xml
   - id: auth/service-jwt
     name: JWT Authentication for Rust Services
     description: Add JWT auth middleware to a Rust Axum service (phantom-token pattern)
@@ -167,7 +167,7 @@ blueprints:
           id: "{{service}}"
   - id: auth/web-app-oidc
     name: Web-App OIDC Authentication
-    description: Add OpenID Connect authentication and role-aware UI to the web-app, registering it as a Curity client and routing API calls through Kong.
+    description: "Add OpenID Connect authentication and role-aware UI to the web-app, registering it as a Curity client. Same-origin by design — the SPA, the API, and the OIDC token POST all live behind Kong's single host (run auth/kong-phantom-token first), which phantom token requires."
     tags: [auth, oidc, web, curity, web-app]
     prerequisites:
       - description: Web-app service exists
@@ -181,7 +181,11 @@ blueprints:
       - description: Curity OAuth config exists (run auth/curity-oauth first)
         check: file_exists
         params:
-          file: config/curity/oauth-config.xml
+          file: config/files/curity/curity/oauth-config.xml
+      - description: Kong phantom-token config exists (run auth/kong-phantom-token --var targets=api first; same-origin routing through Kong is required for phantom token)
+        check: file_exists
+        params:
+          file: config/files/kong/kong/kong.yaml
   - id: demo/ai-governance
     name: AI Governance Model
     description: Demo data model for an AI governance platform — users, models, policies, usage tracking

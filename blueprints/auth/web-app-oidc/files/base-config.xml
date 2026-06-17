@@ -8,10 +8,10 @@
            blank / the flow 404s. The browser-facing host differs by topology: a
            local k3d deploy uses "curity.<route-token>.bluetext.localhost"; a
            remote lab uses the external form (curity, the route-token and the lab
-           user joined by double-hyphens, under the lab domain). The
-           config-templater init container substitutes the base-url placeholder
-           below with whichever form applies (from the deploy::service-url.curity
-           interpolation placeholder — same source of truth as the
+           user joined by double-hyphens, under the lab domain). The file-config
+           render substitutes the base-url placeholder below with whichever form
+           applies (from the deploy::service-url.curity interpolation placeholder
+           — same source of truth as the
            ingress rewrite + the lab proxy). The web-app's auth-config.ts derives
            the same authority from the browser's own host, so the two agree.
 
@@ -21,7 +21,7 @@
            fails config init with "double hyphen within comment"). Host examples
            and placeholders belong only in element text/attributes (e.g. the
            base-url below), where a double-hyphen is legal. -->
-      <base-url>__CURITY_BASE_URL__</base-url>
+      <base-url>$bt{{ deploy::service-url.curity }}</base-url>
       <services>
         <service-role>
           <id>default</id>

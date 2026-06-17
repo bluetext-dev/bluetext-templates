@@ -15,9 +15,10 @@
 # The list-key URL form is not exposed for these resources regardless
 # of the operator role; Curity's canonical install surface for them is
 # the file-based `/opt/idsvr/etc/init/*.xml` init dir (the same path
-# the file-based license install uses, mounted via the deployment's
-# config-templater init container). That's what the `auth/curity-oauth`
-# and `auth/api-rbac` blueprints already write to.
+# the file-config license install uses, rendered into the pod by the
+# deployment's bluetext-render init container). That's what the
+# `auth/curity-oauth` and `auth/api-rbac` blueprints already write to
+# (config/files/curity/curity/).
 #
 # This bundle's load-bearing migration is **001-verify-license**: it
 # probes the admin RESTCONF root to fail loudly when the file-based

@@ -1,5 +1,5 @@
 _format_version: "3.0"
-# This file fully owns config/kong/kong.yaml. auth/api-rbac runs AFTER
+# This file fully owns config/files/kong/kong/kong.yaml. auth/api-rbac runs AFTER
 # auth/kong-phantom-token in the auth-curity-rbac-web-app context and writes
 # this file wholesale, so it MUST carry the same same-origin multi-route
 # structure kong-phantom-token establishes — the SPA at `/`, Curity's OIDC

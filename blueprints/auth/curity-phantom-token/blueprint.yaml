@@ -48,7 +48,7 @@ steps:
   - name: Write Kong declarative config with phantom-token plugin
     tool: file_write
     params:
-      file: config/kong/kong.yaml
+      file: config/files/kong/kong/kong.yaml
       content_file: files/kong-declarative.yaml
   - name: Start curity in {{namespace}}
     tool: service_start
@@ -79,7 +79,7 @@ steps:
       - name: "Add Kong route for {{item}}"
         tool: file_patch
         params:
-          file: config/kong/kong.yaml
+          file: config/files/kong/kong/kong.yaml
           operation: append_list
           path: services
           content: |

@@ -15,7 +15,7 @@ caveats:
 tips:
   - "Tail the plugin output — b service logs kong | grep request-logger"
   - "After hand-editing the Lua source, b bp run dev/kong-reload --var deploy_target={{run_spec}}/development-local re-runs init_worker and picks up the new module."
-  - "Kong's declarative config lives at config/kong/kong.yaml; the plugin is registered there as a global entry that fires on every route."
+  - "Kong's declarative config lives at config/files/kong/kong/kong.yaml; the plugin is registered there as a global entry that fires on every route."
 pitfalls:
   - gateway/kong-proxy strips the per-target ingress; once it runs, the only path to api is via Kong (http://kong.<ns>.bluetext.localhost/api).
   - Skipping --no-restart on intermediate blueprints restarts Kong on every step. Keep --no-restart everywhere except the final deploy.

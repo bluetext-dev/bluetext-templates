@@ -17,7 +17,7 @@ prerequisites:
   - description: Kong phantom-token config exists (run auth/kong-phantom-token --var targets=api first; same-origin routing through Kong is required for phantom token)
     check: file_exists
     params:
-      file: config/kong/kong.yaml
+      file: config/files/kong/kong/kong.yaml
 caveats:
   - Replaces app/root.tsx, app/routes.ts, and app/routes/home.tsx — back up those files if you have custom content.
   - Replaces vite.config.ts. Kong (not Vite) now routes /api and /curity, so the dev-server proxies are removed — Vite just serves the SPA. Custom proxies in the existing config will be lost.

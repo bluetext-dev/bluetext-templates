@@ -28,7 +28,7 @@ rate limiting, observability) applies uniformly to MCP traffic.
 b bp run gateway/kong-mcp-proxy --var target=api
 ```
 
-This writes `config/kong-enterprise/kong.yaml`, registers the gateway relation­
+This writes `config/files/kong-enterprise/kong-enterprise/kong.yaml`, registers the gateway relation­
 ship in `config/bluetext.yaml`, and reloads Kong. Verify:
 
 ```sh

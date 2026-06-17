@@ -54,7 +54,7 @@ steps:
   - name: Enable request-logger plugin in Kong declarative config
     tool: file_patch
     params:
-      file: "config/{{gateway}}/kong.yaml"
+      file: "config/files/{{gateway}}/{{gateway}}/kong.yaml"
       operation: append_list
       path: plugins
       content: |

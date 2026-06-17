@@ -40,7 +40,7 @@ steps:
   - name: Write Kong declarative config
     tool: file_write
     params:
-      file: "config/{{gateway}}/kong.yaml"
+      file: "config/files/{{gateway}}/{{gateway}}/kong.yaml"
       content_file: files/kong-declarative.yaml
   - name: Route target services through Kong
     for_each: targets
@@ -61,7 +61,7 @@ steps:
       - name: "Add Kong route for {{item}}"
         tool: file_patch
         params:
-          file: "config/{{gateway}}/kong.yaml"
+          file: "config/files/{{gateway}}/{{gateway}}/kong.yaml"
           operation: append_list
           path: services
           content: |

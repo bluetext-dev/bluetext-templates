@@ -6,7 +6,7 @@ metadata:
     app: kong--kong
   annotations:
     bluetext.io/reload-command: kong reload
-    bluetext.io/reload-watch: config/kong
+    bluetext.io/reload-watch: config/files/kong/kong
 spec:
   replicas: 1
   selector:
@@ -38,7 +38,10 @@ spec:
             - name: KONG_DATABASE
               value: "off"
             - name: KONG_DECLARATIVE_CONFIG
-              value: /config/kong/kong.yaml
+              # Rendered by the bluetext-render init container from the
+              # file-config ConfigMap (config/files/kong/kong/kong.yaml)
+              # into the memory-backed /etc/file-config tmpfs.
+              value: /etc/file-config/kong.yaml
             - name: KONG_PROXY_LISTEN
               value: "0.0.0.0:8000"
             - name: KONG_ADMIN_LISTEN
@@ -55,14 +58,8 @@ spec:
           volumeMounts:
             - name: system
               mountPath: /app
-            - name: kong-config
-              mountPath: /config/kong
       volumes:
         - name: system
           hostPath:
             path: /var/mnt/systems/$bt{{ deploy::system-rel }}/code/services/kong
-            type: Directory
-        - name: kong-config
-          hostPath:
-            path: /var/mnt/systems/$bt{{ deploy::system-rel }}/config/kong
             type: Directory

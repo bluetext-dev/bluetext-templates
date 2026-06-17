@@ -36,7 +36,7 @@ steps:
   - name: Write Kong declarative config with MCP proxy plugin
     tool: file_write
     params:
-      file: "config/{{gateway}}/kong.yaml"
+      file: "config/files/{{gateway}}/{{gateway}}/kong.yaml"
       content_file: files/kong-declarative.yaml
   - name: "Register gateway relationship for {{target}}"
     tool: file_patch

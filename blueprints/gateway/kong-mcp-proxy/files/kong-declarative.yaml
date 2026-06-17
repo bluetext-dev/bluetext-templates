@@ -55,4 +55,4 @@ services:
         config:
           status_code: 404
           content_type: application/json
-          body: '{"message":"No routes configured","hint":"Add a route to the {{target}} service or edit config/{{gateway}}/kong.yaml"}'
+          body: '{"message":"No routes configured","hint":"Add a route to the {{target}} service or edit config/files/{{gateway}}/{{gateway}}/kong.yaml"}'

@@ -55,7 +55,7 @@ steps:
   - name: Write Kong declarative config with phantom-token plugin and RBAC route enforcement
     tool: file_write
     params:
-      file: config/kong/kong.yaml
+      file: config/files/kong/kong/kong.yaml
       content_file: files/kong-rbac.yaml
   - name: Write API with JWT extraction and role-guarded routes
     tool: file_write
@@ -99,7 +99,7 @@ steps:
       - name: "Add Kong route for {{item}}"
         tool: file_patch
         params:
-          file: config/kong/kong.yaml
+          file: config/files/kong/kong/kong.yaml
           operation: append_list
           path: services
           content: |

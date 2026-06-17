@@ -10,8 +10,3 @@ spec:
       containers:
         - name: couchbase-sync-gateway--couchbase-sync-gateway
           imagePullPolicy: IfNotPresent
-      volumes:
-        - name: config-template
-          hostPath:
-            path: /var/mnt/systems/$bt{{ deploy::system-rel }}/config/couchbase-sync-gateway
-            type: Directory

@@ -16,20 +16,13 @@ spec:
         - key: node-role.kubernetes.io/control-plane
           operator: Exists
           effect: NoSchedule
-      initContainers:
-        - name: config-templater
-          image: busybox:stable
-          command: ['sh', '-c', 'sed "s/__NAMESPACE__/$POD_NAMESPACE/g" /config-template/config.json > /config/config.json']
-          env:
-            - name: POD_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-          volumeMounts:
-            - name: config-template
-              mountPath: /config-template
-            - name: config
-              mountPath: /config
+      # The platform injects the `bluetext-render` init container here: it
+      # renders config/files/couchbase-edge-server/couchbase-edge-server/
+      # (config.json, with $bt{{ deploy::namespace }} resolved at render time)
+      # into the bluetext-file-config tmpfs, replacing the old config-templater
+      # sed + config-template hostPath. (Never write the $bt double-brace
+      # placeholder form in a comment — the interpolation pass scans raw
+      # manifest text and would try to resolve it.)
       containers:
         - name: couchbase-edge-server--couchbase-edge-server
           image: couchbase/edge-server:latest
@@ -46,9 +39,10 @@ spec:
             periodSeconds: 5
             failureThreshold: 12
           volumeMounts:
-            - name: config
+            # Pre-declared (name bluetext-file-config) so the render injection
+            # mounts the rendered config.json HERE via subPath instead of its
+            # default /etc/file-config; the bluetext-file-config (tmpfs) +
+            # bluetext-file-config-template (ConfigMap) volumes are injected.
+            - name: bluetext-file-config
               mountPath: /etc/edge-server/config.json
               subPath: config.json
-      volumes:
-        - name: config
-          emptyDir: {}

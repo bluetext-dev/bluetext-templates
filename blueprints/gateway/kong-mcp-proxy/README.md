@@ -79,7 +79,9 @@ The generated `kong.yaml` has three Kong Services:
 
 ```yaml
 - name: api
-  url: http://api                 # short name; resolves inside Kong's namespace
+  # Addressed via the kong→api link the blueprint declares on the gateway;
+  # config::links resolves to api--api.<ns>.svc:<interface-port> at file-config render.
+  url: "http://$bt{{ config::links.api.host }}:$bt{{ config::links.api.port }}"
   routes:
     - name: api-hello
       paths: [/hello]
@@ -90,7 +92,10 @@ The generated `kong.yaml` has three Kong Services:
 ```
 
 One route per HTTP path the plugin needs to reach. `strip_path: false` keeps
-the path intact so axum (or whatever the API uses) sees `/hello`, not `/`.
+the path intact so axum (or whatever the API uses) sees `/hello`, not `/`. The
+upstream address comes from the `{{target}}: {{target}}/http` link the blueprint
+declares on the gateway — not a bare cluster-DNS short name — so it resolves to
+the target's interface port and shows up as a gateway→target edge in the graph.
 
 ### 2. `mcp-gateway` — the MCP listener
 

@@ -3,6 +3,13 @@ name = "api"
 version = "0.1.0"
 edition = "2021"
 
+# Empty [workspace] table: this blueprint overwrites the api service's
+# Cargo.toml, so it must keep the service its own workspace root — otherwise
+# the host-side `cargo run` is captured by an outer workspace (systems/ under
+# the bluetext checkout) and fails with "current package believes it's in a
+# workspace when it's not".
+[workspace]
+
 [dependencies]
 axum = "0.8"
 tokio = { version = "1", features = ["full"] }

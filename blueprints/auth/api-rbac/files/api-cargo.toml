@@ -3,6 +3,14 @@ name = "api"
 version = "0.1.0"
 edition = "2021"
 
+# Empty [workspace] table makes this generated service its own workspace root,
+# so the host-side dev build (`cargo run`) doesn't get captured by an outer
+# workspace when the system lives inside one (e.g. systems/ under the bluetext
+# checkout). The api service template ships this; this blueprint OVERWRITES the
+# Cargo.toml, so it must carry it too — otherwise `cargo run` fails with
+# "current package believes it's in a workspace when it's not".
+[workspace]
+
 [dependencies]
 axum = "0.8"
 tokio = { version = "1", features = ["full"] }

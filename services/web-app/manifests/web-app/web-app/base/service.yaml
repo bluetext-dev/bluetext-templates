@@ -7,5 +7,7 @@ spec:
   selector:
     app: web-app--web-app
   ports:
-    - port: 80
+    # Publish the interface port directly (no :80 indirection) so the service
+    # is reachable at config::links.web-app.host:config::links.web-app.port.
+    - port: 5173
       targetPort: 5173

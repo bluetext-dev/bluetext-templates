@@ -61,18 +61,6 @@ steps:
       content: |
         links:
           couchbase: couchbase/data-writer
-  - name: Register datasource relationship
-    tool: file_patch
-    params:
-      file: config/bluetext.yaml
-      operation: append_list
-      path: relationships
-      content: |
-        - from: curity
-          to: couchbase
-          type: datasource
-          label: Uses as data store
-          blueprint: auth/curity-couchbase
   - name: Restart curity in {{namespace}}
     tool: service_restart
     params:

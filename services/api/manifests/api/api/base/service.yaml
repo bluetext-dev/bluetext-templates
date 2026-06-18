@@ -7,5 +7,9 @@ spec:
   selector:
     app: api--api
   ports:
-    - port: 80
+    # Publish the interface port directly (no :80 indirection) so the service
+    # is reachable at config::links.api.host:config::links.api.port — i.e. a
+    # link dereferences to a real address. config::links resolves `port` from
+    # the api interface (3030), so the Service must expose 3030.
+    - port: 3030
       targetPort: 3030

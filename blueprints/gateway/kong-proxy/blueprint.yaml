@@ -87,18 +87,6 @@ steps:
                   paths:
                     - "/{{item}}"
                   strip_path: true
-      - name: "Register gateway relationship for {{item}}"
-        tool: file_patch
-        params:
-          file: config/bluetext.yaml
-          operation: append_list
-          path: relationships
-          content: |
-            - from: "{{gateway}}"
-              to: "{{item}}"
-              type: gateway
-              label: Routes traffic to
-              blueprint: gateway/kong-proxy
   - name: "Update frontend ingress — route /api to Kong"
     tool: file_write
     params:
@@ -109,18 +97,6 @@ steps:
     params:
       file: "config/k8s/{{frontend}}/{{frontend}}/_default/patches.yaml"
       content_file: files/frontend-dev-patches.yaml
-  - name: "Register frontend-kong relationship"
-    tool: file_patch
-    params:
-      file: config/bluetext.yaml
-      operation: append_list
-      path: relationships
-      content: |
-        - from: "{{frontend}}"
-          to: "{{gateway}}"
-          type: gateway
-          label: Routes API calls through
-          blueprint: gateway/kong-proxy
   - name: "Reload {{gateway}}"
     tool: service_reload
     params:

@@ -52,6 +52,21 @@ steps:
     params:
       file: config/files/curity/curity/base-config.xml
       content_file: files/base-config.xml
+  - name: Declare kong links to curity and api
+    # The kong introspection_endpoint and api route below address these
+    # upstreams via config::links (resolved to <svc>--<svc>.<ns>.svc:<interface
+    # -port> at file-config render), instead of bare cluster-DNS on the legacy
+    # :80 service port. Declaring the links also wires kong→curity / kong→api
+    # into the relationship graph.
+    tool: file_patch
+    params:
+      file: config/system/services/kong/service.yaml
+      operation: merge
+      path: ""
+      content: |
+        links:
+          curity: curity/oidc
+          api: api/http
   - name: Write Kong declarative config with phantom-token plugin and RBAC route enforcement
     tool: file_write
     params:
@@ -96,6 +111,19 @@ steps:
           content: |
             bluetext.io/gateway: kong
             bluetext.io/phantom-token: "true"
+      - name: "Declare kong link to {{item}}"
+        # Wires kong→{{item}} into the relationship graph and lets the route
+        # below address the upstream via config::links.{{item}} (resolved to
+        # the target's interface port at file-config render). A gateway target
+        # exposes its app over its `http` connection-profile.
+        tool: file_patch
+        params:
+          file: config/system/services/kong/service.yaml
+          operation: merge
+          path: ""
+          content: |
+            links:
+              {{item}}: {{item}}/http
       - name: "Add Kong route for {{item}}"
         tool: file_patch
         params:
@@ -104,7 +132,7 @@ steps:
           path: services
           content: |
             - name: "{{item}}"
-              url: "http://{{item}}--{{item}}.{{namespace}}.svc.cluster.local"
+              url: "http://$bt{{ config::links.{{item}}.host }}:$bt{{ config::links.{{item}}.port }}"
               routes:
                 - name: "{{item}}-route"
                   paths:

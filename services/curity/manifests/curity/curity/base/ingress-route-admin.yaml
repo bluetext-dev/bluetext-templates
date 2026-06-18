@@ -10,6 +10,6 @@ spec:
       kind: Rule
       services:
         - name: curity--curity-admin
-          port: 80
+          port: 6749
           scheme: https
           serversTransport: curity--curity-transport

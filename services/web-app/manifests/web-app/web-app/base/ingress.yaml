@@ -14,4 +14,4 @@ spec:
               service:
                 name: web-app--web-app
                 port:
-                  number: 80
+                  number: 5173

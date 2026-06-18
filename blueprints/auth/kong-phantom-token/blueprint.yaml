@@ -42,6 +42,21 @@ steps:
     params:
       file: config/files/curity/curity/phantom-token-client.xml
       content_file: files/phantom-token-client.xml
+  - name: Declare kong links to curity and web-app
+    # The kong routes below address these upstreams via config::links (resolved
+    # to <svc>--<svc>.<ns>.svc:<interface-port> at file-config render), instead
+    # of bare cluster-DNS on the legacy :80 service port. Declaring the links
+    # also wires kong→curity / kong→web-app into the relationship graph. The
+    # per-target kong→<target> edges are declared in the for_each loop below.
+    tool: file_patch
+    params:
+      file: config/system/services/kong/service.yaml
+      operation: merge
+      path: ""
+      content: |
+        links:
+          curity: curity/oidc
+          web-app: web-app/http
   - name: Write Kong declarative config with phantom-token plugin
     tool: file_write
     params:
@@ -73,6 +88,19 @@ steps:
           content: |
             bluetext.io/gateway: kong
             bluetext.io/phantom-token: "true"
+      - name: "Declare kong link to {{item}}"
+        # Wires kong→{{item}} into the relationship graph and lets the route
+        # below address the upstream via config::links.{{item}} (resolved to
+        # the target's interface port at file-config render). A phantom-token
+        # target exposes its app over its `http` connection-profile.
+        tool: file_patch
+        params:
+          file: config/system/services/kong/service.yaml
+          operation: merge
+          path: ""
+          content: |
+            links:
+              {{item}}: {{item}}/http
       - name: "Add Kong route for {{item}}"
         tool: file_patch
         params:
@@ -85,7 +113,7 @@ steps:
           # (`/curity`), breaking the login flow before it can mint a token.
           content: |
             - name: "{{item}}"
-              url: "http://{{item}}--{{item}}.{{namespace}}.svc.cluster.local"
+              url: "http://$bt{{ config::links.{{item}}.host }}:$bt{{ config::links.{{item}}.port }}"
               routes:
                 - name: "{{item}}-route"
                   paths:
@@ -94,22 +122,10 @@ steps:
               plugins:
                 - name: phantom-token
                   config:
-                    introspection_endpoint: http://curity--curity.{{namespace}}.svc.cluster.local/oauth/v2/oauth-introspect
+                    introspection_endpoint: http://$bt{{ config::links.curity.host }}:$bt{{ config::links.curity.port }}/oauth/v2/oauth-introspect
                     client_id: phantom-token-client
                     client_secret: phantom-token-secret
                     token_cache_seconds: 300
-      - name: "Register gateway relationship for {{item}}"
-        tool: file_patch
-        params:
-          file: config/bluetext.yaml
-          operation: append_list
-          path: relationships
-          content: |
-            - from: kong
-              to: "{{item}}"
-              type: gateway
-              label: Routes traffic to
-              blueprint: auth/kong-phantom-token
       - name: "Restart {{item}} in {{namespace}}"
         tool: service_restart
         params:

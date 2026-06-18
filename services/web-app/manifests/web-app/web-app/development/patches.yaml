@@ -9,7 +9,7 @@ spec:
         - name: app
           env:
             - name: API_URL
-              value: "http://api--api.$bt{{ deploy::ns.api }}.svc.cluster.local"
+              value: "http://$bt{{ config::links.api.host }}:$bt{{ config::links.api.port }}"
           volumeMounts:
             - name: system
               mountPath: /app

@@ -7,8 +7,12 @@ spec:
   selector:
     app: curity--curity
   ports:
+    # Both ports publish their interface port directly (no :80 indirection), so
+    # the service is reachable at config::links.curity.host:config::links.curity.port
+    # — config::links resolves `port` from the oidc/admin interfaces (8443/6749),
+    # so the Service must expose those, not :80.
     - name: runtime
-      port: 80
+      port: 8443
       targetPort: 8443
     # Admin RESTCONF — port matches the variant's connection-profiles.api-config
     # interface declaration so the api-config Job pod can reach Curity at the

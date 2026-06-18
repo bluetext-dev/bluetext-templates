@@ -12,4 +12,4 @@ spec:
         - name: curity--curity-headers
       services:
         - name: curity--curity
-          port: 80
+          port: 8443

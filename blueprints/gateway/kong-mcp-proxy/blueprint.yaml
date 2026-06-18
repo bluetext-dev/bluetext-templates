@@ -33,23 +33,25 @@ variables:
     depends_on: deploy_target
     default: main
 steps:
+  - name: "Declare {{gateway}} link to {{target}}"
+    # The target service route below addresses the upstream via config::links
+    # (resolved to {{target}}--{{target}}.<ns>.svc:<interface-port> at file-config
+    # render), instead of a bare short-name on the legacy :80 service port.
+    # Declaring the link also wires {{gateway}}→{{target}} into the relationship
+    # graph. A backend target exposes its app over its `http` connection-profile.
+    tool: file_patch
+    params:
+      file: config/system/services/{{gateway}}/service.yaml
+      operation: merge
+      path: ""
+      content: |
+        links:
+          {{target}}: {{target}}/http
   - name: Write Kong declarative config with MCP proxy plugin
     tool: file_write
     params:
       file: "config/files/{{gateway}}/{{gateway}}/kong.yaml"
       content_file: files/kong-declarative.yaml
-  - name: "Register gateway relationship for {{target}}"
-    tool: file_patch
-    params:
-      file: config/bluetext.yaml
-      operation: append_list
-      path: relationships
-      content: |
-        - from: "{{gateway}}"
-          to: "{{target}}"
-          type: gateway
-          label: Exposes as MCP tools
-          blueprint: gateway/kong-mcp-proxy
   - name: "Reload {{gateway}}"
     tool: service_reload
     params:

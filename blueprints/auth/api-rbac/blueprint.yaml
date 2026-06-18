@@ -71,6 +71,21 @@ steps:
     params:
       file: config/files/curity/curity/user-management.xml
       content_file: files/user-management.xml
+  - name: Declare kong links to api, curity, web-app
+    # The kong routes below address these upstreams via config::links (resolved
+    # to <svc>--<svc>.<ns>.svc:<interface-port> at file-config render), instead
+    # of bare cluster-DNS. Declaring the links also wires kong→api / kong→curity
+    # / kong→web-app into the relationship graph.
+    tool: file_patch
+    params:
+      file: config/system/services/kong/service.yaml
+      operation: merge
+      path: ""
+      content: |
+        links:
+          api: api/http
+          curity: curity/oidc
+          web-app: web-app/http
   - name: Write Kong declarative config with RBAC route enforcement
     tool: file_write
     params:
@@ -87,7 +102,7 @@ steps:
           path: services
           content: |
             - name: "api-public-{{item}}"
-              url: "http://api--api.{{namespace}}.svc.cluster.local"
+              url: "http://$bt{{ config::links.api.host }}:$bt{{ config::links.api.port }}"
               routes:
                 - name: "api-public-{{item}}-route"
                   paths:

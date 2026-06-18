@@ -6,7 +6,7 @@ _format_version: "3.0"
 # service's localhost:8000 upstream, so every tool path must be a real route.
 services:
   - name: "{{target}}"
-    url: "http://{{target}}"
+    url: "http://$bt{{ config::links.{{target}}.host }}:$bt{{ config::links.{{target}}.port }}"
     routes:
       - name: "{{target}}-hello"
         paths:

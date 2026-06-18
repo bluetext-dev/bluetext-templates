@@ -7,6 +7,12 @@ interfaces:
 connection-profiles:
   http:
     interface: http
+# The web-app's server side (SSR loaders) reaches the api directly at its
+# in-cluster address; declaring the link lets the dev overlay's API_URL
+# dereference config::links.api.host:port instead of hard-coding cluster DNS.
+# (The browser side reaches the api same-origin via /api — see app/lib/api.ts.)
+links:
+  api: api/http
 # Fast host-side validation, run from the service's code directory by
 # `b service check web-app` — and automatically by the in-app agent
 # harness after the agent edits this service's files. bun install is a

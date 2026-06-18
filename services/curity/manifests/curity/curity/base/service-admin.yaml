@@ -7,6 +7,7 @@ spec:
   selector:
     app: curity--curity
   ports:
+    # Publish the admin interface port directly (no :80 indirection).
     - name: admin
-      port: 80
+      port: 6749
       targetPort: 6749

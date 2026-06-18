@@ -20,18 +20,20 @@ services:
   # Curity token-exchange passthrough. The web-app's PKCE token POST is a
   # browser `fetch` — it must be same-origin, so it goes to Kong at
   # `/curity/*` and Kong strips the prefix and forwards to Curity's OIDC
-  # runtime. The curity Service maps port 80 → container 8443, and the
-  # runtime service-role is configured `<protocol>http</protocol>` (see
-  # the curity base-config.xml), so the in-cluster hop is plain HTTP on
-  # port 80 — the same form the phantom-token introspection_endpoint above
-  # uses. NO phantom-token plugin here: this is the unauthenticated token
-  # endpoint that MINTS the token. The OIDC *authorize* request is a
-  # full-page redirect straight to Curity's own host (a separate origin by
-  # OIDC design), so it does not pass through Kong. jwks/userinfo are never
-  # fetched by the browser (the SPA decodes the JWT client-side), so only
-  # the token endpoint is routed here. No service-scoped plugin → public.
+  # runtime. The upstream is addressed via config::links.curity (resolved at
+  # file-config render to curity--curity.<ns>.svc:<oidc-interface-port>), and
+  # the runtime service-role is configured `<protocol>http</protocol>` (see
+  # the curity base-config.xml), so the in-cluster hop is plain HTTP on the
+  # oidc interface port — the same upstream the phantom-token
+  # introspection_endpoint below addresses. NO phantom-token plugin here: this
+  # is the unauthenticated token endpoint that MINTS the token. The OIDC
+  # *authorize* request is a full-page redirect straight to Curity's own host
+  # (a separate origin by OIDC design), so it does not pass through Kong.
+  # jwks/userinfo are never fetched by the browser (the SPA decodes the JWT
+  # client-side), so only the token endpoint is routed here. No service-scoped
+  # plugin → public.
   - name: curity-oidc
-    url: "http://curity--curity.{{namespace}}.svc.cluster.local"
+    url: "http://$bt{{ config::links.curity.host }}:$bt{{ config::links.curity.port }}"
     routes:
       - name: curity-oidc-route
         paths:
@@ -44,14 +46,14 @@ services:
   #
   # preserve_host: true forwards the browser's Host
   # (`kong.<route-token>.bluetext.localhost`) to the Vite dev server
-  # instead of rewriting it to the upstream's cluster-DNS name. Vite
-  # guards against DNS-rebinding with `allowedHosts` (the web-app sets
-  # `['.bluetext.localhost']`); the default Kong behaviour would send
-  # `web-app--web-app.<ns>.svc.cluster.local`, which Vite rejects with a
-  # 403 "host not allowed". Preserving the original host keeps the SPA
-  # served under the same tokenized origin the rest of the flow uses.
+  # instead of rewriting it to the upstream's address. Vite guards against
+  # DNS-rebinding with `allowedHosts` (the web-app sets
+  # `['.bluetext.localhost']`); the default Kong behaviour would send the
+  # upstream's resolved host (`web-app--web-app.<ns>.svc...`), which Vite
+  # rejects with a 403 "host not allowed". Preserving the original host keeps
+  # the SPA served under the same tokenized origin the rest of the flow uses.
   - name: web-app
-    url: "http://web-app--web-app.{{namespace}}.svc.cluster.local"
+    url: "http://$bt{{ config::links.web-app.host }}:$bt{{ config::links.web-app.port }}"
     routes:
       - name: web-app-route
         paths:

@@ -11,7 +11,7 @@ services:
   # Curity OIDC token-exchange passthrough — public (NO auth plugin: this is the
   # unauthenticated endpoint that MINTS the token). Strips `/curity`.
   - name: curity-oidc
-    url: "http://curity--curity.{{namespace}}.svc.cluster.local"
+    url: "http://$bt{{ config::links.curity.host }}:$bt{{ config::links.curity.port }}"
     routes:
       - name: curity-oidc-route
         paths:
@@ -22,7 +22,7 @@ services:
   # to the Vite dev server, whose allowedHosts (['.bluetext.localhost']) rejects
   # the upstream cluster-DNS name with a 403 otherwise.
   - name: web-app
-    url: "http://web-app--web-app.{{namespace}}.svc.cluster.local"
+    url: "http://$bt{{ config::links.web-app.host }}:$bt{{ config::links.web-app.port }}"
     routes:
       - name: web-app-route
         paths:
@@ -37,7 +37,7 @@ services:
   # moderator) on top. Kong matches the longest path prefix first, so a public
   # `/api/<path>` route wins over this `/api` catch-all.
   - name: api
-    url: "http://api--api.{{namespace}}.svc.cluster.local"
+    url: "http://$bt{{ config::links.api.host }}:$bt{{ config::links.api.port }}"
     routes:
       - name: api-route
         paths:
@@ -46,7 +46,7 @@ services:
         plugins:
           - name: phantom-token
             config:
-              introspection_endpoint: http://curity--curity.{{namespace}}.svc.cluster.local/oauth/v2/oauth-introspect
+              introspection_endpoint: http://$bt{{ config::links.curity.host }}:$bt{{ config::links.curity.port }}/oauth/v2/oauth-introspect
               client_id: phantom-token-client
               client_secret: phantom-token-secret
               token_cache_seconds: 300

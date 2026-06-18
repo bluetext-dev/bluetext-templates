@@ -42,12 +42,13 @@ steps:
     params:
       file: config/files/curity/curity/phantom-token-client.xml
       content_file: files/phantom-token-client.xml
-  - name: Declare kong links to curity and web-app
-    # The kong routes below address these upstreams via config::links (resolved
-    # to <svc>--<svc>.<ns>.svc:<interface-port> at file-config render), instead
-    # of bare cluster-DNS on the legacy :80 service port. Declaring the links
-    # also wires kong→curity / kong→web-app into the relationship graph. The
-    # per-target kong→<target> edges are declared in the for_each loop below.
+  - name: Declare kong link to curity
+    # The curity-oidc route below addresses curity via config::links (resolved
+    # to curity--curity.<ns>.svc:<oidc-interface-port> at file-config render),
+    # instead of bare cluster-DNS on the legacy :80 service port. Declaring the
+    # link also wires kong→curity into the relationship graph. The per-target
+    # kong→<target> edges are declared in the for_each loop below; the web-app
+    # SPA front door (and its kong→web-app link) is added by auth/web-app-oidc.
     tool: file_patch
     params:
       file: config/system/services/kong/service.yaml
@@ -56,7 +57,6 @@ steps:
       content: |
         links:
           curity: curity/oidc
-          web-app: web-app/http
   - name: Write Kong declarative config with phantom-token plugin
     tool: file_write
     params:

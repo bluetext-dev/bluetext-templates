@@ -71,11 +71,13 @@ steps:
     params:
       file: config/files/curity/curity/user-management.xml
       content_file: files/user-management.xml
-  - name: Declare kong links to api, curity, web-app
+  - name: Declare kong links to api and curity
     # The kong routes below address these upstreams via config::links (resolved
     # to <svc>--<svc>.<ns>.svc:<interface-port> at file-config render), instead
     # of bare cluster-DNS. Declaring the links also wires kong→api / kong→curity
-    # / kong→web-app into the relationship graph.
+    # into the relationship graph. The kong→web-app link (and the SPA `/` route)
+    # is web-app-specific and is declared by auth/web-app-oidc, so a non-web-app
+    # stack never links to an absent web-app upstream.
     tool: file_patch
     params:
       file: config/system/services/kong/service.yaml
@@ -85,7 +87,6 @@ steps:
         links:
           api: api/http
           curity: curity/oidc
-          web-app: web-app/http
   - name: Write Kong declarative config with RBAC route enforcement
     tool: file_write
     params:

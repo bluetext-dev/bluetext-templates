@@ -1,12 +1,17 @@
 _format_version: "3.0"
 # This file fully owns config/files/kong/kong/kong.yaml. auth/api-rbac runs AFTER
-# auth/kong-phantom-token in the auth-curity-rbac-web-app context and writes
-# this file wholesale, so it MUST carry the same same-origin multi-route
-# structure kong-phantom-token establishes — the SPA at `/`, Curity's OIDC
-# token POST at `/curity`, and the protected API at `/api` — and then ADD the
-# RBAC role enforcement on the API route. A bare `/api`-only config here would
-# silently revert the redesign (no public SPA, no token endpoint, and a global
-# phantom-token plugin that 401s `/` and `/curity`).
+# auth/kong-phantom-token in the auth-curity-rbac* contexts and writes this file
+# wholesale, so it MUST carry the same-origin multi-route structure
+# kong-phantom-token establishes — Curity's OIDC token POST at `/curity` and the
+# protected API at `/api` — and then ADD the RBAC role enforcement on the API
+# route. A bare `/api`-only config here would silently revert the redesign (no
+# token endpoint, and a global phantom-token plugin that 401s `/curity`).
+#
+# The web-app SPA front door (the `/` catch-all serving the Vite app) is NOT
+# here: it is web-app-specific, so auth/web-app-oidc appends it (and declares
+# the kong→web-app link) after this file is written. A non-web-app stack (e.g. a
+# Flutter client) runs api-rbac without web-app-oidc and so never declares a
+# link to an absent web-app upstream.
 services:
   # Curity OIDC token-exchange passthrough — public (NO auth plugin: this is the
   # unauthenticated endpoint that MINTS the token). Strips `/curity`.
@@ -17,18 +22,6 @@ services:
         paths:
           - "/curity"
         strip_path: true
-  # SPA catch-all (lowest priority — `/api` and `/curity` are longer prefixes
-  # and win first). Public. preserve_host forwards the browser's tokenized host
-  # to the Vite dev server, whose allowedHosts (['.bluetext.localhost']) rejects
-  # the upstream cluster-DNS name with a 403 otherwise.
-  - name: web-app
-    url: "http://$bt{{ config::links.web-app.host }}:$bt{{ config::links.web-app.port }}"
-    routes:
-      - name: web-app-route
-        paths:
-          - "/"
-        strip_path: false
-        preserve_host: true
   # Protected API. The phantom-token plugin is ROUTE-scoped (on api-route, not
   # the service) so it guards `/api` — never `/` or `/curity` — AND so the
   # api-rbac `public_paths` variable can add sibling public services (same api

@@ -99,6 +99,44 @@ steps:
     params:
       file: code/services/web-app/vite.config.ts
       content_file: files/vite.config.ts
+  - name: Declare kong link to web-app
+    # The web-app SPA front door is web-app-specific, so it lives here rather
+    # than in the shared kong-phantom-token / api-rbac blueprints — a non-web-app
+    # stack (e.g. a Flutter client) runs those without ever linking to an absent
+    # web-app upstream. Declaring the link wires kong→web-app into the
+    # relationship graph and lets the `/` route below address the upstream via
+    # config::links (resolved to web-app--web-app.<ns>.svc:<interface-port> at
+    # file-config render).
+    tool: file_patch
+    params:
+      file: config/system/services/kong/service.yaml
+      operation: merge
+      path: ""
+      content: |
+        links:
+          web-app: web-app/http
+  - name: Add the SPA front-door route to Kong (the `/` catch-all serving the web-app)
+    # SPA catch-all (lowest priority — `/api` and `/curity` are longer prefixes
+    # and win first). Public, no auth plugin: static SPA assets are public; the
+    # access token is enforced only on `/api`. preserve_host forwards the
+    # browser's tokenized host to the Vite dev server, whose allowedHosts
+    # (['.bluetext.localhost']) rejects the upstream's resolved cluster-DNS name
+    # with a 403 otherwise. Appended after api-rbac has written kong.yaml (this
+    # blueprint's prerequisite checks that file exists).
+    tool: file_patch
+    params:
+      file: config/files/kong/kong/kong.yaml
+      operation: append_list
+      path: services
+      content: |
+        - name: web-app
+          url: "http://$bt{{ config::links.web-app.host }}:$bt{{ config::links.web-app.port }}"
+          routes:
+            - name: web-app-route
+              paths:
+                - "/"
+              strip_path: false
+              preserve_host: true
   - name: Remove the web-app's direct Ingress (Kong is the single front door — phantom token requires same-origin; the SPA is served via Kong's `/` route)
     tool: file_delete
     params:

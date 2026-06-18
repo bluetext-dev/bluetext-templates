@@ -1,21 +1,23 @@
 _format_version: "3.0"
 services:
   # Phantom-token is the same-origin front door. The browser holds an
-  # opaque access token in the web-app's session; for that to ride along
-  # on `/api` requests so the plugin can introspect it (opaque → JWT) and
-  # forward to the API, the web-app and the API MUST share one origin.
-  # Kong is therefore the single ingress host: `/api` (protected) and
-  # `/curity` (the browser's OIDC token POST) and `/` (the SPA) all live
-  # under Kong's one tokenized host. `targets`-protected `/api/*` routes
-  # are appended below by the blueprint's for_each loop, each carrying a
-  # SERVICE-SCOPED phantom-token plugin.
+  # opaque access token; for that to ride along on `/api` requests so the
+  # plugin can introspect it (opaque → JWT) and forward to the API, the
+  # caller and the API MUST share one origin. Kong is therefore the single
+  # ingress host: `/api` (protected) and `/curity` (the browser's OIDC token
+  # POST) live under Kong's one tokenized host. `targets`-protected `/api/*`
+  # routes are appended below by the blueprint's for_each loop, each carrying
+  # a SERVICE-SCOPED phantom-token plugin. A web-app SPA front door (the `/`
+  # catch-all serving the Vite app) is web-app-specific and is added by
+  # auth/web-app-oidc — not here — so a non-web-app stack (e.g. a Flutter
+  # client) never declares a link to an absent web-app upstream.
   #
   # The plugin is deliberately NOT declared as a top-level (global)
   # `plugins:` entry: a global plugin in Kong's declarative config binds
-  # to EVERY service/route, so it would also guard `/` and `/curity` —
-  # 401ing the SPA load and the OIDC token exchange that the login flow
-  # depends on. Scoping it to each protected target's `plugins:` block is
-  # what keeps the public front door (SPA + Curity token endpoint) open.
+  # to EVERY service/route, so it would also guard `/curity` — 401ing the
+  # OIDC token exchange that the login flow depends on. Scoping it to each
+  # protected target's `plugins:` block is what keeps the public front door
+  # (Curity token endpoint) open.
   #
   # Curity token-exchange passthrough. The web-app's PKCE token POST is a
   # browser `fetch` — it must be same-origin, so it goes to Kong at
@@ -39,24 +41,3 @@ services:
         paths:
           - "/curity"
         strip_path: true
-  # SPA catch-all (lowest priority — `/api` and `/curity` are longer
-  # prefixes and win first). Serves the Vite-hosted web-app. NO auth
-  # plugin: static SPA assets are public; the access token is enforced
-  # only on `/api`.
-  #
-  # preserve_host: true forwards the browser's Host
-  # (`kong.<route-token>.bluetext.localhost`) to the Vite dev server
-  # instead of rewriting it to the upstream's address. Vite guards against
-  # DNS-rebinding with `allowedHosts` (the web-app sets
-  # `['.bluetext.localhost']`); the default Kong behaviour would send the
-  # upstream's resolved host (`web-app--web-app.<ns>.svc...`), which Vite
-  # rejects with a 403 "host not allowed". Preserving the original host keeps
-  # the SPA served under the same tokenized origin the rest of the flow uses.
-  - name: web-app
-    url: "http://$bt{{ config::links.web-app.host }}:$bt{{ config::links.web-app.port }}"
-    routes:
-      - name: web-app-route
-        paths:
-          - "/"
-        strip_path: false
-        preserve_host: true

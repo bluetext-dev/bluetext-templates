@@ -10,3 +10,11 @@ connection-profiles:
     interface: public
   admin:
     interface: admin
+links:
+  # Sync Gateway exists to bridge couchbase ↔ clients, so couchbase is an
+  # intrinsic dependency (declared on the template, not a blueprint). config.json
+  # derefs config::links.couchbase.host for the bootstrap server; the admin
+  # password resolves via secrets::couchbase-server-password (rendered into the
+  # config by the bluetext-render init container). A sync-gateway stack without
+  # couchbase fails fast at deploy — which is correct (BP principle 13).
+  couchbase: couchbase/data-writer

@@ -7,3 +7,10 @@ interfaces:
 connection-profiles:
   sync:
     interface: sync
+links:
+  # The edge server replicates against the sync gateway — an intrinsic
+  # dependency, so it's declared on the template. config.json derefs
+  # config::links.sync-gateway.host:port for the replication source (resolved
+  # to the canonical couchbase-sync-gateway--couchbase-sync-gateway service at
+  # its public interface port), replacing a bare non-canonical cluster-DNS name.
+  sync-gateway: couchbase-sync-gateway/public

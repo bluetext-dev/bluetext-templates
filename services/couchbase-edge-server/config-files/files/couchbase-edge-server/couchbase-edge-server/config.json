@@ -11,7 +11,7 @@
   },
   "replications": [
     {
-      "source": "ws://couchbase-sync-gateway.$bt{{ deploy::namespace }}.svc.cluster.local/main",
+      "source": "ws://$bt{{ config::links.sync-gateway.host }}:$bt{{ config::links.sync-gateway.port }}/main",
       "target": "main",
       "bidirectional": true,
       "continuous": true,

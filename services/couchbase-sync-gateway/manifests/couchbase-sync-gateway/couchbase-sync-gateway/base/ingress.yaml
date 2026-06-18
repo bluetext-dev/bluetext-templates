@@ -13,4 +13,4 @@ spec:
               service:
                 name: couchbase-sync-gateway--couchbase-sync-gateway
                 port:
-                  number: 80
+                  number: 4984

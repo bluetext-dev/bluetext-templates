@@ -1,8 +1,8 @@
 {
   "bootstrap": {
-    "server": "couchbase://couchbase.couchbase-headless.$bt{{ deploy::namespace }}.svc.cluster.local",
+    "server": "couchbase://$bt{{ config::links.couchbase.host }}",
     "username": "Administrator",
-    "password": "password",
+    "password": "$bt{{ secrets::couchbase-server-password }}",
     "server_tls_skip_verify": true,
     "use_tls_server": false
   },
